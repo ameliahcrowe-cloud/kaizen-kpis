@@ -560,7 +560,8 @@ function rawSource(uid,kind){
 function sourceAll(uid,kind){const list=rawSource(uid,kind);const c=S.conf[uid];if(!c)return list;
   const m={};list.forEach(e=>m[e.date]=e);for(const d in c){if(c[d])m[d]={...c[d],confirmed:true,self:m[d]||null}}return Object.values(m)}
 /* campaigns: every day is tagged with one; the header filter narrows every view */
-function campaigns(){const l=(S.campaignsCfg&&S.campaignsCfg.list)||[];return l.length?l:[{id:'paralympics',name:'Paralympics',active:true}]}
+function campaigns(){let l=(S.campaignsCfg&&S.campaignsCfg.list)||[];if(!l.length)l=[{id:'paralympics',name:'Paralympics',active:true}];if(!l.some(c=>/wound/i.test(c.name||c.id)))l=l.concat([{id:'wounded',name:'Wounded Heroes',active:true}]);return l}
+function campStep(id){const c=campaigns().find(x=>x.id===id);const n=String((c&&c.name)||id||'');return /wound/i.test(n)?30:/paraly/i.test(n)?25:0}
 function defCampaign(){const c=S.campaignsCfg||{};const l=campaigns();return(c.def&&l.some(x=>x.id===c.def))?c.def:l[0].id}
 function campName(id){const c=campaigns().find(x=>x.id===id);return c?c.name:'Other'}
 function campOf(e){return(e&&e.campaign)||defCampaign()}
@@ -799,7 +800,7 @@ function streakPanel(uid){const list=sourceAll(uid,'period').filter(e=>num(e.hou
     h('div',{class:'bar'},h('h3',{text:'Streaks'}),h('span',{class:'hint',text:'Counted over days you worked, in a row.'})),
     h('div',{class:'streaks'},S1.map(([l,[c,b]])=>h('div',{class:'streak'},h('div',{class:'hint',text:l}),h('div',{class:'n',text:c+(c>=3?' 🔥':'')}),h('div',{class:'hint',text:'Best ever: '+b})))),
     h('div',{class:'bar'},h('h3',{text:'Milestones'}),h('span',{class:'hint',text:'×2 means you\u2019ve hit it twice.'})),h('div',{class:'streaks',style:'grid-template-columns:repeat(auto-fit,minmax(260px,1fr))'},ms))}
-function step25Bad(camp,t){if(camp!=='paralympics')return null;const b=[['retail','Retail'],['upsellRetail','Upsell retail']].find(([k])=>num(t[k])%25!==0);return b?b[1]:null}
+function step25Bad(camp,t){const st=campStep(camp);if(!st)return null;const b=[['retail','Retail'],['upsellRetail','Upsell retail']].find(([k])=>num(t[k])%st!==0);return b?b[1]:null}
 function cashMismatch(t){const c=num(t.cash)+num(t.eftpos);return c>0&&Math.abs(c-num(t.retail))>0.5?c:null}
 function renderLog(v){
   const title=niceDate(S.date,{weekday:'long',day:'numeric',month:'long'});
@@ -814,7 +815,7 @@ function renderLog(v){
     v.append(h('div',{class:'panel'},cs?h('div',{class:'field'},h('label',{for:'camp-'+uid,text:'Campaign'}),cs):null,h('div',{class:'form'},LOGFIELDS.map(f=>h('label',{for:`in-${uid}-${f.k}`},f.l,logInput(uid,f)))),
       h('div',{class:'formfoot'},h('div',{class:'chips'},
         h('span',null,'Conv ',h('b',{text:r[0]})),h('span',null,'Upsell ',h('b',{text:r[1]})),
-        h('span',null,'Medal ',h('b',{text:r[2]})),h('span',null,'RPH ',h('b',{text:r[3]})),zoneEl(t.hours>0?t.retail/t.hours:null),step25Bad(campFor(uid,S.date,key,saved),t)?h('span',{class:'cashwarn',text:'⚠ '+step25Bad(campFor(uid,S.date,key,saved),t)+' must be in $25 steps'}):null,cashMismatch(t)!=null?h('span',{class:'cashwarn',text:'⚠ Cash + EFTPOS = '+money(cashMismatch(t))+', retail is '+money(t.retail)}):null),
+        h('span',null,'$av ',h('b',{text:t.buyers>0?money(t.retail/t.buyers):'—'})),h('span',null,'Medal ',h('b',{text:r[2]})),h('span',null,'RPH ',h('b',{text:r[3]})),zoneEl(t.hours>0?t.retail/t.hours:null),step25Bad(campFor(uid,S.date,key,saved),t)?h('span',{class:'cashwarn',text:'⚠ '+step25Bad(campFor(uid,S.date,key,saved),t)+' must be in $'+campStep(campFor(uid,S.date,key,saved))+' steps'}):null,cashMismatch(t)!=null?h('span',{class:'cashwarn',text:'⚠ Cash + EFTPOS = '+money(cashMismatch(t))+', retail is '+money(t.retail)}):null),
         h('span',{style:'display:flex;gap:8px;align-items:center'},saved||dirty?h('button',{id:'copyTG',onclick:()=>copyTG(uid)},'Copy for Telegram'):null,dirty?h('button',{class:'primary',id:'saveMine',onclick:()=>saveRow(uid)},saved?'Save changes':'Save day'):h('span',{class:saved?'saved':'hint',text:saved?'Saved':'Not logged yet'})))));
     const tb=tgBox();if(tb)v.append(tb);
     revNudge(v);v.append(h('div',{class:'bar',id:'reflAnchor'},h('div',null,h('h3',{text:'Daily reflection'}),h('div',{class:'hint',text:'Do this at the end of each shift. Only you and your leader see it.'}))));reflForm(v,uid);
@@ -848,7 +849,7 @@ function legend(){return h('div',{class:'legend'},h('span',{text:'RPH zones:'}),
   [['Red','m-red','under $100'],['Silver','m-silver','$100–119'],['Gold','m-gold','$120–159'],['Platinum','m-plat','$160–199'],['Diamond','m-dia','$200+']].map(([n,c,r])=>h('span',null,h('span',{class:'zone '+c,text:n}),' '+r)),
   h('span',{text:'Conv % = buyers ÷ stops · Upsell % = upsells ÷ buyers · Medal % = medals ÷ buyers'}))}
 async function saveRow(uid){const key=draftKey(uid,S.date);if(!S.drafts[key])return;
-  const vals=rowVals(uid,S.date);{const cp=campFor(uid,S.date,key,savedEntry(uid,S.date));const bad=step25Bad(cp,vals);if(bad){toast(bad+' must be in $25 steps on '+campName(cp)+' (e.g. $25, $50, $75). Fix it and save again.',5000);return}}const mm=cashMismatch(vals);if(mm!=null&&S.cashOk!==key+mm){S.cashOk=key+mm;toast('Cash + EFTPOS ('+money(mm)+') doesn\u2019t match retail ('+money(vals.retail)+'). Fix it, or tap Save again to save anyway.',5000);return}const sv=savedEntry(uid,S.date)||rawEntry(uid,S.date);const campaign=campFor(uid,S.date,key,sv);
+  const vals=rowVals(uid,S.date);{const cp=campFor(uid,S.date,key,savedEntry(uid,S.date));const bad=step25Bad(cp,vals);if(bad){{const st=campStep(cp);toast(bad+' must be in $'+st+' steps on '+campName(cp)+' (e.g. $'+st+', $'+st*2+', $'+st*3+'). Fix it and save again.',5000)};return}}const mm=cashMismatch(vals);if(mm!=null&&S.cashOk!==key+mm){S.cashOk=key+mm;toast('Cash + EFTPOS ('+money(mm)+') doesn\u2019t match retail ('+money(vals.retail)+'). Fix it, or tap Save again to save anyway.',5000);return}const sv=savedEntry(uid,S.date)||rawEntry(uid,S.date);const campaign=campFor(uid,S.date,key,sv);
   const body={date:S.date,week:weekStart(S.date),month:monthKey(S.date),campaign,...vals,updatedAt:new Date().toISOString()};
   if(confirmMode(uid)){body.confirmedAt=body.updatedAt;
     const ok=await write(()=>S.db.doc(`conf/${uid}/days/${S.date}`).set(body),repName(uid)+' confirmed');
