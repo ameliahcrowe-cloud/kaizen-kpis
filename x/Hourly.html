@@ -274,8 +274,9 @@ function campStep(id){const c=(S.camps||[]).find(x=>x.id===id);const n=String((c
 function stp(){return S.doc?campStep(S.doc.campaign||S.homeCamp):S.step}
 function baseHours(D){return D&&D.roadie?12:10}
 let HOURS=10;
-function setv(x,k,n,i){(S.undo=S.undo||[]).push({d:S.date,i,k,v:num(x[k])});if(S.undo.length>40)S.undo.shift();x[k]=Math.max(0,n);tap();render()}
-function undoLast(){const u=(S.undo||[]).pop();if(!u||u.d!==S.date){toast('Nothing to undo');return}slot(u.i)[u.k]=u.v;S.hour=u.i;tap();render();toast('Undone')}
+function setv(x,k,n,i){(S.undo=S.undo||[]).push({d:S.date,i,k,v:num(x[k]),sales:(x.sales||[]).slice()});if(S.undo.length>40)S.undo.shift();const prev=num(x[k]);x[k]=Math.max(0,n);
+  if(k==='retail'){const sl=x.sales=(x.sales||[]).slice();const nv=x[k];if(nv>prev)sl.push(nv-prev);else{let d=prev-nv;while(d>0&&sl.length){const l=sl.pop();if(l>d){sl.push(l-d);d=0}else d-=l}}}tap();render()}
+function undoLast(){const u=(S.undo||[]).pop();if(!u||u.d!==S.date){toast('Nothing to undo');return}slot(u.i)[u.k]=u.v;if(u.sales)slot(u.i).sales=u.sales;S.hour=u.i;tap();render();toast('Undone')}
 const SYNC=[[12,0],[15,45],[21,0]];
 const S={step:25,date:today(),mode:'tally',hour:null,doc:null,dirty:false,me:null,leader:false,view:'mine',reps:{},team:{},logo:null};
 let db,user;
@@ -303,7 +304,7 @@ async function load(){S.doc=null;render();try{const d=await db.doc(`reps/${S.me.
   catch(e){S.doc=blankDoc()}
   try{const b=JSON.parse(localStorage.getItem(lsKey())||'null');const srv=Date.parse(S.doc.updatedAt||0)||0;if(b&&b.doc&&b.at>srv+1000){S.doc=Object.assign(blankDoc(),b.doc);setTimeout(()=>{S.dirty=true;save(true)},500)}}catch(_){}
   S.doc.targets=S.doc.targets||{};S.doc.slots=S.doc.slots||{};S.hour=curHour();S.dirty=false;render()}
-async function save(quiet){if(!S.doc)return;const clean={};for(const k in S.doc.slots){const x={};F.forEach(f=>{const v=num(S.doc.slots[k][f.k]);if(v)x[f.k]=v});if(Object.keys(x).length)clean[k]=x}
+async function save(quiet){if(!S.doc)return;const clean={};for(const k in S.doc.slots){const x={};F.forEach(f=>{const v=num(S.doc.slots[k][f.k]);if(v)x[f.k]=v});const sl=(S.doc.slots[k].sales||[]).map(num).filter(v=>v>0);if(sl.length&&x.retail)x.sales=sl;if(Object.keys(x).length)clean[k]=x}
   const body={...S.doc,date:S.date,slots:clean,updatedAt:new Date().toISOString()};
   try{await db.doc(`reps/${S.me.id}/hourly/${S.date}`).set(body);S.doc.updatedAt=body.updatedAt;S.dirty=false;try{localStorage.removeItem(lsKey())}catch(_){}if(S.date===today())pushStreak();if(!quiet)toast('Saved');renderBar()}catch(e){toast('Couldn’t save — check your signal and try again')}
   const late=S.date<today()||new Date().getHours()>=21;if(late)await syncNow(true)}
@@ -400,14 +401,14 @@ function eodJourney(){const D=S.doc,T=D.targets,t=totals(),hrs=num(D.targets.shi
   const used=Object.keys(D.slots).filter(k=>F.some(f=>num(D.slots[k][f.k]))).map(Number);const fm=/^\d{1,2}:\d{2}$/.test(D.finish||'')?D.finish.split(':').map(Number).reduce((x,y)=>x*60+y):null;
   let last=Math.max(0,...used);if(st!=null&&fm!=null){let dd=fm-st;if(dd<=0)dd+=1440;last=Math.max(last,Math.ceil(dd/60))}else last=Math.max(last,Math.ceil(num(D.targets.shiftHours)||0));
   for(let i=1;i<=last;i++){const x=D.slots[String(i)]||{};const hr=st==null?7+i:Math.floor(st/60)+i-1;
-    const ret=n(x.retail),u=n(x.upsellRetail);{const pre=lbl(hr)+' '+(CL[hr]||'⏳');if(!ret&&!n(x.stops)&&!n(x.buyers))rows.push(pre);else rows.push(pre+(ret?' X $'+(ret-u)+(u?' x $'+u:''):'')+' x ('+n(x.stops)+'/'+n(x.buyers)+(ret?'/$'+ret:'')+')')}if(n(x.upsells)||u)ups.push(lbl(hr)+' '+(CL[hr]||'⏳')+' '+n(x.upsells)+'u x $'+u)}
+    const ret=n(x.retail),u=n(x.upsellRetail);{const pre=lbl(hr)+' '+(CL[hr]||'⏳');if(!ret&&!n(x.stops)&&!n(x.buyers))rows.push(pre);else {let sl=(x.sales||[]).map(n).filter(v=>v>0);const sum=sl.reduce((a,b)=>a+b,0);if(sum<ret)sl.push(ret-sum);else if(sum>ret)sl=[ret];rows.push(pre+(ret?' X $'+sl.join(' x $'):'')+' x ('+n(x.stops)+'/'+n(x.buyers)+(ret?'/$'+ret:'')+')')}}if(n(x.upsells)||u)ups.push(lbl(hr)+' '+(CL[hr]||'⏳')+' '+n(x.upsells)+'u x $'+u)}
   const obj=[n(T.stops)?n(T.stops)+' stops':'',n(T.buyers)?n(T.buyers)+' buyers':''].filter(Boolean).concat(lines(D.towards3));const num3=['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣'];
   const sec=(title,items)=>items.length?['',title,...items]:[];
   const out=['DIGITAL KPI TRACKER','','Date: '+d+'/'+mo+' 📅','Location: '+(D.site||'')+' 📍','Campaign: '+campNm()+' 🤑'];
   if((D.strategy||'').trim())out.push('Strategy: '+D.strategy.trim());
   out.push(...sec('GRATEFUL FOR TODAY',lines(D.grateful3).map(x=>'🙏 '+x)),...sec('DAILY OBJECTIVES (#)',obj.map((o,i)=>(num3[i]||'▪️')+' '+o)),
     ...sec('DAILY FOCUS (Habits)',lines((D.habits||'').split(/\n|,/)).map(x=>'🤔 '+x)),
-    ...sec('KPI TRACKER',['X Sales x Upsells x (Stops/Buyers/Total)',...(rows.length?rows:['No hours logged'])]),
+    ...sec('KPI TRACKER',['X each sale x (Stops/Buyers/Total)',...(rows.length?rows:['No hours logged'])]),
     '','⬆️ UPSELLS: '+(n(t.upsells)?n(t.upsells)+' x $'+n(t.upsellRetail):'none'),...ups,
     '','RETAIL: $'+n(t.retail),'⌚️ TOTAL HRS: '+m(hrs),'💰 RPH: $'+(hrs?m(t.retail/hrs):0),'🛑 STOPS: '+n(t.stops),'👨‍💼 BUYERS: '+n(t.buyers),
     '🤑 AVG: $'+(t.buyers?m(t.retail/t.buyers):0),'📈 UPSELLS #: '+n(t.upsells),'📈 UPSELLS $: $'+n(t.upsellRetail),'☑️ CONV: '+(t.stops?Math.round(t.buyers/t.stops*100):0)+'%','🏆 PREMIUMS: '+n(t.medals),
