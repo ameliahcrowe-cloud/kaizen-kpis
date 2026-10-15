@@ -1804,6 +1804,13 @@ function renderTeam(v){
     v.append(cp)}
   if(S.isOwner){const ts=teamList();
     v.append(h('div',{class:'bar'},h('h3',{text:'Teams within Kaizen'}),h('span',{class:'hint',text:ts.length+' team'+(ts.length===1?'':'s')})));
+    const free=repListAll(false,true).filter(r=>r.id!==S.uid&&!S.teams[r.id]);
+    if(free.length){const who=h('select',{id:'newTeamLeader','aria-label':'Team leader'},h('option',{value:''},'Choose who leads it'),free.map(r=>h('option',{value:r.id},(r.name||'Rep')+(r.test?' (test)':''))));
+      const nm=h('input',{type:'text',id:'newTeamFor',placeholder:'Team name','aria-label':'Team name'});
+      v.append(h('div',{class:'panel'},h('div',{class:'field'},h('label',{for:'newTeamLeader',text:'Add a team for someone'}),
+        h('span',{class:'hint',text:'They become the leader. Then use the “Direct to” box under Everyone to move people onto their team.'}),
+        h('div',{class:'rule'},who,nm,h('button',{class:'primary',onclick:async()=>{const id=who.value,n=(nm.value||'').trim();if(!id){toast('Choose who leads it');return}if(!n){toast('Name the team first');return}
+          const ok=await saveTeam(id,{name:n,leader:id});if(ok){toast('Team created for '+repName(id));setRepTeam(id,id)}}},'Create team')))))}
     const tl=h('div',{class:'panel teamlist'});
     if(!ts.length)tl.append(h('div',{class:'empty'},h('span',{text:'No other teams yet. Everyone is on '+coName()+' until Sales Leaders and up create their own teams.'})));
     ts.forEach(t=>{const n=repListAll(false).filter(r=>r.team===t.id).length;
@@ -1820,7 +1827,7 @@ function renderTeam(v){
   if(!ros.length)list.append(h('div',{class:'empty'},h('span',{text:'No one has joined yet.'})));
   ros.forEach((m,i)=>list.append(h('div',{class:'teamrow'+(m.active===false?' off':'')},
     h('input',{type:'text',id:'name-'+m.id,value:m.name||'','aria-label':'Name',onchange:e=>{const n=e.target.value.trim();if(n){write(()=>S.db.doc('reps/'+m.id).update({name:n}),'Name updated');if(S.board[m.id])write(()=>S.db.doc('board/'+m.id).update({name:n}))}}}),
-    S.isOwner?h('select',{id:'team-'+m.id,'aria-label':m.name+' team',onchange:e=>setRepTeam(m.id,e.target.value)},h('option',{value:''},coName()),teamList().map(t=>h('option',{value:t.id,selected:m.team===t.id},t.name||'Unnamed team'))):h('span',{class:'hint',text:teamName(m.team)}),
+    S.isOwner?h('label',{class:'hint'},'Direct to ',h('select',{id:'team-'+m.id,'aria-label':m.name+' is direct to',onchange:e=>setRepTeam(m.id,e.target.value)},h('option',{value:''},(S.reps[S.uid]&&S.reps[S.uid].name)||'Ameliah'),teamList().filter(t=>t.id!==S.uid&&(t.leader||t.id)!==m.id||m.team===t.id).map(t=>h('option',{value:t.id,selected:m.team===t.id},(t.id===m.id?'Leads ':'')+repName(t.leader||t.id)+' \u00b7 '+(t.name||'Unnamed team'))))):h('span',{class:'hint',text:teamName(m.team)}),
     h('label',null,h('input',{type:'checkbox',id:'active-'+m.id,checked:m.active!==false,onchange:e=>write(()=>S.db.doc('reps/'+m.id).update({active:e.target.checked}),e.target.checked?'Marked active':'Marked inactive')}),'Active'),
     S.isOwner?h('label',{title:'Test person: their numbers don’t count towards team totals, leaderboard, team PBs or the weekly wrap'},h('input',{type:'checkbox',id:'test-'+m.id,checked:!!m.test,onchange:e=>{const t=e.target.checked;S.reps[m.id]={...S.reps[m.id],test:t};write(()=>S.db.doc('reps/'+m.id).update({test:t}),t?'Marked as test person — not counted':'Now counted');if(t&&S.board[m.id]){delete S.board[m.id];write(()=>S.db.doc('board/'+m.id).delete())}else if(!t)setTimeout(()=>pushBoard(m.id,S.week),500);render()}}),'🧪 Test'):null,
     S.isOwner?h('button',{class:'icon','aria-label':'Move up',disabled:i===0,onclick:()=>move(i,-1)},'↑'):null,
