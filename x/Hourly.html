@@ -310,7 +310,7 @@ async function save(quiet){if(!S.doc)return;const clean={};for(const k in S.doc.
 async function syncNow(quiet){if(S.dirty)await save(true);const t=totals();const ref=db.doc(`reps/${S.me.id}/entries/${S.date}`);let prev={};try{const p=await ref.get();if(p.exists)prev=p.data()}catch(_){}
   const d=new Date(S.date+'T12:00:00');const wd=(d.getDay()+6)%7;d.setDate(d.getDate()-wd);
   const body={...prev,date:S.date,week:toStr(d),month:S.date.slice(0,7),updatedAt:new Date().toISOString(),fromHourly:true,roadie:!!S.doc.roadie,hours:num(prev.hours)>0?num(prev.hours):(num(S.doc.targets.shiftHours)||8)};
-  ['stops','buyers','retail','upsells','upsellRetail','medals'].forEach(k=>body[k]=t[k]);if(S.doc.campaign)body.campaign=S.doc.campaign;
+  ['stops','buyers','retail','upsells','upsellRetail','medals'].forEach(k=>body[k]=t[k]);if(S.doc.campaign)body.campaign=S.doc.campaign;if(String(S.doc.cash||'').trim())body.cash=num(S.doc.cash);if(String(S.doc.eftpos||'').trim())body.eftpos=num(S.doc.eftpos);
   try{await ref.set(body);S.doc.syncedAt=body.updatedAt;await db.doc(`reps/${S.me.id}/hourly/${S.date}`).set({...S.doc,syncedAt:body.updatedAt});if(!quiet)toast('Synced to Kaizen KPIs');render()}catch(e){toast('Couldn’t sync — try again')}}
 /* ---------- views ---------- */
 function header(){return h('div',{class:'top'},S.logo?h('img',{src:S.logo,alt:''}):null,h('div',null,h('h1',{text:'Hourly KPIs'}),h('div',{class:'sub',text:S.me?S.me.name:''})),h('div',{class:'sp'}),
@@ -391,7 +391,7 @@ function campNm(){return((S.camps||[]).find(c=>c.id===(S.doc.campaign||S.homeCam
 function eodFinal(){const t=totals(),D=S.doc,r=x=>Math.round(x*100)/100,hrs=num(D.targets.shiftHours)||rosterHrs();const H='#️⃣ ';
   const L=[['RETAIL','$'+r(t.retail)],['HOURS',String(r(hrs))],['RPH',hrs>0?'$'+Math.round(t.retail/hrs):'$0'],['STOPS',String(t.stops)],['BUYERS',String(t.buyers)],
     ['AVG',t.buyers>0?'$'+Math.round(t.retail/t.buyers):'$0'],['MEDALS',String(t.medals)],['CONV',t.stops>0?Math.round(t.buyers/t.stops*100)+'%':'0%'],['UPSELLS',String(t.upsells)],
-    ['CASH','$'],['EFTPOS','$'],['UPSELL AMOUNT','$'+r(t.upsellRetail)],['TRANSACTION FEE','']];
+    ['CASH','$'+(D.cash||'')],['EFTPOS','$'+(D.eftpos||'')],['UPSELL AMOUNT','$'+r(t.upsellRetail)],['TRANSACTION FEE',String(D.fee||'').trim()?String(D.fee).trim().replace(/%?$/,'%'):'']];
   return 'FINAL KPIs\n\n'+L.map(([k,v])=>H+k+': '+v).join('\n')}
 function eodJourney(){const D=S.doc,T=D.targets,t=totals(),hrs=num(D.targets.shiftHours)||rosterHrs();const n=v=>Math.round(num(v)),m=v=>Math.round(num(v)*10)/10;
   const lines=x=>(x||[]).map(v=>String(v||'').trim()).filter(Boolean);const [y,mo,d]=S.date.split('-').map(Number);
@@ -420,7 +420,7 @@ function tgCard(){const D=S.doc;const row=(which,label,key,ph)=>h('div',{style:'
     row('2pm','2pm · focus for the second half','focus2','e.g. Distances!'),row('4pm','4pm · focus for end of day','focus4','e.g. Gong'),
     h('h2',{text:'End of day',style:'margin-top:16px'}),
     (()=>{const ta=(lbl,key,ph,rows)=>h('label',{style:'display:block;margin-top:8px'},h('span',{class:'lbl',text:lbl}),(()=>{const el=h(rows?'textarea':'input',{type:'text',rows:rows||null,placeholder:ph,'aria-label':lbl,style:'width:100%',oninput:e=>{D[key]=e.target.value;markDirty()}});el.value=D[key]||'';return el})());
-      return h('div',null,ta('Strategy','strategy','e.g. Events Alt'),ta('Daily focus (habits), one per line','habits','Stops\nNail checkpoints',2),ta('Wins, one per line','wins','11 buyers day one',3),ta('Areas for improvement, one per line','improve','Stopping',3),
+      return h('div',null,h('div',{style:'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px'},ta('Cash $','cash','50'),ta('EFTPOS $','eftpos','350'),ta('Transaction fee %','fee','100')),ta('Strategy','strategy','e.g. Events Alt'),ta('Daily focus (habits), one per line','habits','Stops\nNail checkpoints',2),ta('Wins, one per line','wins','11 buyers day one',3),ta('Areas for improvement, one per line','improve','Stopping',3),
         h('div',{class:'hint',style:'margin-top:6px',text:'Grateful and objectives come from Edit day. Hours and totals fill in automatically.'}),
         h('div',{style:'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap'},h('button',{class:'primary',style:'flex:1',onclick:()=>copyTxt(eodJourney())},'Copy for Journey chat'),h('button',{class:'primary',style:'flex:1',onclick:()=>copyTxt(eodFinal())},'Copy Final KPIs')))})(),
     S.showTg?h('div',{style:'margin-top:10px'},h('div',{class:'hint',text:'Copying is blocked here. Press and hold the text below to copy it.'}),(()=>{const ta=h('textarea',{rows:14,style:'width:100%',readonly:true});ta.value=S.showTg;return ta})(),h('button',{onclick:()=>{S.showTg=null;render()}},'Close')):null)}
