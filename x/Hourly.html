@@ -21,7 +21,8 @@ textarea{resize:vertical;min-height:64px}
 .wrap{max-width:720px;margin:0 auto;padding:14px 14px calc(96px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
 .top{display:flex;align-items:center;gap:12px}
 .top img{width:44px;height:44px;object-fit:contain;border-radius:10px}
-.top h1{font-family:var(--display);font-size:1.9rem;text-transform:uppercase;margin:0;line-height:1;letter-spacing:.01em}
+.top h1{font-family:var(--display);font-size:1.45rem;text-transform:uppercase;margin:0;line-height:1;letter-spacing:.01em;white-space:nowrap}
+.top .ib{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--accent);text-decoration:none;font-size:1.1rem;padding:0}
 .top .sub{color:var(--muted);font-size:.85rem}
 .top .sp{flex:1}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
@@ -283,7 +284,7 @@ function campStep(id){const c=(S.camps||[]).find(x=>x.id===id);const n=String((c
 function stp(){return S.doc?campStep(S.doc.campaign||S.homeCamp):S.step}
 function baseHours(D){return D&&D.roadie?12:10}
 let HOURS=10;
-function setv(x,k,n,i){(S.undo=S.undo||[]).push({d:S.date,i,k,v:num(x[k]),sales:(x.sales||[]).slice()});if(S.undo.length>40)S.undo.shift();const prev=num(x[k]);x[k]=Math.max(0,n);
+function setv(x,k,n,i){const wasWon=hit(i)===true;setTimeout(()=>{if(!wasWon&&hit(i)===true){try{navigator.vibrate&&navigator.vibrate([90,50,90,50,160])}catch(_){}toast('🔥 Hour '+i+' won! Keep it going',2500)}},0);(S.undo=S.undo||[]).push({d:S.date,i,k,v:num(x[k]),sales:(x.sales||[]).slice()});if(S.undo.length>40)S.undo.shift();const prev=num(x[k]);x[k]=Math.max(0,n);
   if(k==='retail'){const sl=x.sales=(x.sales||[]).slice();const nv=x[k];if(nv>prev)sl.push(nv-prev);else{let d=prev-nv;while(d>0&&sl.length){const l=sl.pop();if(l>d){sl.push(l-d);d=0}else d-=l}}}tap();render()}
 function undoLast(){const u=(S.undo||[]).pop();if(!u||u.d!==S.date){toast('Nothing to undo');return}slot(u.i)[u.k]=u.v;if(u.sales)slot(u.i).sales=u.sales;S.hour=u.i;tap();render();toast('Undone')}
 const SYNC=[[12,0],[15,45],[21,0]];
@@ -315,7 +316,7 @@ async function load(){S.doc=null;render();try{const d=await db.doc(`reps/${S.me.
   S.doc.targets=S.doc.targets||{};S.doc.slots=S.doc.slots||{};S.hour=curHour();S.dirty=false;render()}
 async function save(quiet){if(!S.doc)return;const clean={};for(const k in S.doc.slots){const x={};F.forEach(f=>{const v=num(S.doc.slots[k][f.k]);if(v)x[f.k]=v});const sl=(S.doc.slots[k].sales||[]).map(num).filter(v=>v>0);if(sl.length&&x.retail)x.sales=sl;if(Object.keys(x).length)clean[k]=x}
   const body={...S.doc,date:S.date,slots:clean,updatedAt:new Date().toISOString()};
-  try{await db.doc(`reps/${S.me.id}/hourly/${S.date}`).set(body);S.doc.updatedAt=body.updatedAt;S.dirty=false;try{localStorage.removeItem(lsKey())}catch(_){}if(S.date===today())pushStreak();if(!quiet)toast('Saved');renderBar()}catch(e){toast('Couldn’t save — check your signal and try again')}
+  try{await db.doc(`reps/${S.me.id}/hourly/${S.date}`).set(body);S.doc.updatedAt=body.updatedAt;S.dirty=false;S.savedAt=Date.now();try{localStorage.removeItem(lsKey())}catch(_){}if(S.date===today())pushStreak();if(!quiet)toast('Saved');renderBar()}catch(e){toast('Couldn’t save — check your signal and try again')}
   const late=S.date<today()||new Date().getHours()>=21;if(late)await syncNow(true)}
 async function syncNow(quiet){if(S.dirty)await save(true);const t=totals();const ref=db.doc(`reps/${S.me.id}/entries/${S.date}`);let prev={};try{const p=await ref.get();if(p.exists)prev=p.data()}catch(_){}
   const d=new Date(S.date+'T12:00:00');const wd=(d.getDay()+6)%7;d.setDate(d.getDate()-wd);
@@ -324,8 +325,8 @@ async function syncNow(quiet){if(S.dirty)await save(true);const t=totals();const
   try{await ref.set(body);S.doc.syncedAt=body.updatedAt;await db.doc(`reps/${S.me.id}/hourly/${S.date}`).set({...S.doc,syncedAt:body.updatedAt});if(!quiet)toast('Synced to Kaizen KPIs');render()}catch(e){toast('Couldn’t sync — try again')}}
 /* ---------- views ---------- */
 function header(){return h('div',{class:'top'},S.logo?h('img',{src:S.logo,alt:''}):null,h('div',null,h('h1',{text:'Hourly KPIs'}),h('div',{class:'sub',text:S.me?S.me.name:''})),h('div',{class:'sp'}),
-  h('a',{href:'https://ameliahcrowe-cloud.github.io/kaizen-kpis/',target:'_top',style:'font-size:.8rem;font-weight:700;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel)',onclick:()=>{if(S.dirty){backup();save(true)}}},'Day log ›'),
-  h('button',{onclick:()=>window.kaizenLogout&&window.kaizenLogout(),style:'font-size:.8rem'},'Log out'))}
+  h('a',{href:'https://ameliahcrowe-cloud.github.io/kaizen-kpis/',target:'_top',class:'ib','aria-label':'Open your day log',title:'Day log',onclick:()=>{if(S.dirty){backup();save(true)}}},h('span',{'aria-hidden':'true'},'📋')),
+  h('button',{class:'ib','aria-label':'Log out',title:'Log out',onclick:()=>window.kaizenLogout&&window.kaizenLogout()},h('span',{'aria-hidden':'true'},'⎋')))}
 function dayBar(){const t=today(),d=S.date;const rel=d===t?'Today':d===addDays(t,-1)?'Yesterday':'';
   const go=n=>{if(S.dirty)save(true);S.date=addDays(S.date,n);S.view==='team'?loadTeam():load()};
   return h('div',{class:'daybar'},h('button',{'aria-label':'Previous day',onclick:()=>go(-1)},'‹'),h('div',{class:'d'},nice(d,{weekday:'long',day:'numeric',month:'short'}),h('small',{text:rel})),
@@ -358,7 +359,7 @@ function goalCard(){const T=S.doc.targets;const goal=num(T.retail);if(!goal)retu
     h('div',{style:'position:relative;height:8px;border-radius:4px;background:var(--line);margin:6px 0'},h('i',{style:'display:block;height:100%;border-radius:4px;background:'+col+';width:'+pc.toFixed(1)+'%;transition:width .4s'}),
       exp>0&&exp<goal?h('b',{style:'position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.6;left:'+(exp/goal*100).toFixed(1)+'%'}):null),
     left>0?h('div',{class:'hint',style:'font-size:.8rem',text:'Need '+(bNeed!=null?bNeed+' buyers':'')+(sNeed!=null?' · '+sNeed+' stops':'')+(hrsLeft?' · '+money(left/hrsLeft)+'/hr':'')+(avg?' (at '+money(avg)+' avg'+(conv?', '+Math.round(conv*100)+'% conv':'')+')':'')}):h('div',{class:'hint',style:'font-size:.8rem',text:'Target smashed. Everything from here is a bonus.'}),
-    (()=>{const st=streaks();return st.cur>=1?h('div',{style:'font-size:.85rem;margin-top:3px;font-weight:800;color:var(--warn)',text:'🔥'.repeat(Math.min(st.cur,5))+' '+st.cur+' hours won in a row!'}):null})(),
+    (()=>{const st=streaks();return st.cur>=1?h('div',{style:'font-size:.85rem;margin-top:3px;font-weight:800;color:var(--warn)',text:'🔥'.repeat(Math.min(st.cur,5))+' '+(st.cur===1?'Hour won, keep it going!':st.cur+' hours won in a row!')}):null})(),
     best?h('div',{style:'font-size:.8rem;margin-top:3px'},'⭐ Best hour so far: ',h('b',{text:'Hour '+best.k+(hourRange(+best.k)?' ('+hourRange(+best.k)+')':'')+' · '+money(best.r)})):null)}
 function breakNudge(a){const D=S.doc;if(S.date!==today()||!D.start||S.view!=='mine')return;D.nudges=D.nudges||[];
   const ch=clockHour();if(!ch)return;
@@ -383,16 +384,15 @@ function setupCards0(a,D){
   a.append(h('div',{class:'card'},h('div',{class:'row2'},field('Site',D,'site','Where are you today?'),h('div',null,h('span',{class:'lbl',text:'Date'}),h('div',{style:'padding:10px 0;font-weight:600',text:nice(S.date,{day:'numeric',month:'short',year:'numeric'})}))),
     threeList('Today I am grateful for',D,'grateful3','grateful'),threeList('Today I am working towards',D,'towards3','towards')));
   const T=D.targets;
-  a.append(h('div',{class:'card'},h('h2',{text:'Today’s targets'}),h('div',{style:'display:flex;gap:8px;margin-bottom:10px'},[['city','🏙️ City · bell $700'],['roadie','🚐 Roadie · bell $1,000']].map(([k,l])=>h('button',{type:'button',class:'chip',style:'flex:1;padding:10px;border-radius:10px;border:2px solid '+((D.roadie?'roadie':'city')===k?'var(--accent,#2563eb)':'var(--line,#ddd)')+';font-weight:'+((D.roadie?'roadie':'city')===k?'700':'400'),onclick:()=>{D.roadie=k==='roadie';markDirty();render()}},l))),h('div',{class:'tgt'},F.map(f=>field(f.l,T,f.k,f.money?'$0':'0',false,'num')),field('Shift hours',T,'shiftHours','8',false,'num')),
+  a.append(h('div',{class:'card'},h('h2',{text:'Today’s targets'}),h('div',{style:'display:flex;gap:8px;margin-bottom:10px'},[['city','🏙️ City · bell $700'],['roadie','🚐 Roadie · bell $1,000']].map(([k,l])=>h('button',{type:'button',class:'chip',style:'flex:1;padding:10px;border-radius:10px;border:2px solid '+((D.roadie?'roadie':'city')===k?'var(--accent,#2563eb)':'var(--line,#ddd)')+';font-weight:'+((D.roadie?'roadie':'city')===k?'700':'400'),onclick:()=>{D.roadie=k==='roadie';markDirty();render()}},l))),h('div',{class:'tgt'},F.map(f=>field(f.l,T,f.k,f.money?'$0':'0',false,'num')),(/^\d{1,2}:\d{2}$/.test(D.start||'')&&/^\d{1,2}:\d{2}$/.test(D.finish||''))?h('div',{class:'hint',style:'align-self:end;padding:10px 0'},'Shift: '+(T.shiftHours||'—')+' hrs'):field('Shift hours',T,'shiftHours','8',false,'num')),
     h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px'},
-      h('label',null,h('span',{class:'lbl',text:'Campaign'}),(()=>{const cur=D.campaign||S.homeCamp;return h('select',{'aria-label':'Campaign',onchange:e=>{D.campaign=e.target.value;markDirty();render()}},(S.camps||[]).map(c=>h('option',{value:c.id,selected:c.id===cur},c.name+(campStep(c.id)?' · $'+campStep(c.id)+' steps':''))))})()),
+      h('label',null,h('span',{class:'lbl',text:'Campaign'}),(()=>{const cur=D.campaign||S.homeCamp;return h('select',{'aria-label':'Campaign',onchange:e=>{D.campaign=e.target.value;markDirty();render()}},(S.camps||[]).map(c=>h('option',{value:c.id,selected:c.id===cur},/wound/i.test(c.name||c.id)?'WH':/paraly/i.test(c.name||c.id)?'Para':c.name)))})()),
       h('label',null,h('span',{class:'lbl',text:'Starting in'}),h('select',{'aria-label':'Office or field start',onchange:e=>{D.startType=e.target.value;if(D.startType==='office'&&!D.field)D.field='10:00';markDirty();render()}},[['field','Field'],['office','Office, then field']].map(([k,l])=>h('option',{value:k,selected:(D.startType||'field')===k},l))))),
     D.startType==='office'?h('label',{style:'display:block;margin-top:10px'},h('span',{class:'lbl',text:'Into the field at'}),(()=>{const el=h('input',{type:'time','aria-label':'Field start time',onchange:e=>{D.field=e.target.value||'10:00';markDirty()},onblur:()=>{S.manual=0;S.hour=curHour();render()}});el.value=D.field||'10:00';return el})(),h('div',{class:'hint',text:'Hour 1 starts when you hit the field. Shift hours still count from your office start.'})):null,
     h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px'},
       h('label',null,h('span',{class:'lbl',text:'Start time'}),(()=>{const el=h('input',{type:'time','aria-label':'Shift start time',onchange:e=>{D.start=e.target.value;fromTimes(D);markDirty();syncSH()},onblur:()=>{S.manual=0;S.hour=curHour();render()}});el.value=D.start||'';return el})()),
       h('label',null,h('span',{class:'lbl',text:'Finish time'}),(()=>{const el=h('input',{type:'time','aria-label':'Shift finish time',onchange:e=>{D.finish=e.target.value;fromTimes(D);markDirty();syncSH()},onblur:()=>render()});el.value=D.finish||'';return el})())),
-    h('div',{class:'hint',style:'margin-top:4px',text:'Hours change on the hour. Start + finish fill in shift hours for you (30 min break taken off shifts over 5 hrs).'}),
-    h('div',{class:'hint',style:'margin-top:8px',text:'Win the hour = hit 2 of 3: 3 stops · 2 buyers · $150 retail'})));
+    h('div',{class:'hint',style:'margin-top:4px',text:'Put in your start and finish and your shift hours work themselves out (30 min break taken off shifts over 5 hrs).'})));
 }
 function tgText(which){const D=S.doc,T=D.targets,t=totals();const n=v=>String(Math.round(num(v)));const m=v=>Math.round(num(v));
   if(which==='2pm')return ['2:00pm','','Stops: '+n(t.stops),'Buyers: '+n(t.buyers),'Upsells: '+n(t.upsells),'Retail: $'+m(t.retail),'','Stops: '+n(T.stops),'Buyers: '+n(T.buyers),'Upsells: '+n(T.upsells),'Retail: $'+m(T.retail),'','Focus for the second half:',(D.focus2||'').trim()].join('\n');
@@ -415,6 +415,7 @@ function eodJourney(){const D=S.doc,T=D.targets,t=totals(),hrs=num(D.targets.shi
   const sec=(title,items)=>items.length?['',title,...items]:[];
   const out=['DIGITAL KPI TRACKER','','Date: '+d+'/'+mo+' 📅','Location: '+(D.site||'')+' 📍','Campaign: '+campNm()+' 🤑'];
   if((D.strategy||'').trim())out.push('Strategy: '+D.strategy.trim());
+  if((D.planToday||'').trim())out.push('Plan: '+D.planToday.trim()+(D.planCheck?' ('+D.planCheck+')':''));
   out.push(...sec('GRATEFUL FOR TODAY',lines(D.grateful3).map(x=>'🙏 '+x)),...sec('DAILY OBJECTIVES (#)',obj.map((o,i)=>(num3[i]||'▪️')+' '+o)),
     ...sec('DAILY FOCUS (Habits)',lines((D.habits||'').split(/\n|,/)).map(x=>'🤔 '+x)),
     ...sec('KPI TRACKER',['X each sale x (Stops/Buyers/Total)',...(rows.length?rows:['No hours logged'])]),
@@ -431,27 +432,27 @@ function fold(key,title,sub,body,ok){S.fold=S.fold||{};const open=!!S.fold[key];
 function openFold(key){S.fold=S.fold||{};S.fold[key]=true;render();setTimeout(()=>{const el=document.getElementById('fold-'+key);if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'start'})},60)}
 function uniq(a){const o=[],seen={};a.forEach(x=>{x=String(x||'').trim();const k=x.toLowerCase();if(x&&!seen[k]){seen[k]=1;o.push(x)}});return o}
 function linesOf(t){return uniq(String(t||'').split(/\n/))}
-function rememberPrefs(){const D=S.doc;const P=S.prefs=S.prefs||{strategies:[],habits:[]};P.strategies=uniq([D.strategy].concat(P.strategies||[])).slice(0,8);P.habits=uniq(linesOf(D.habits).concat(P.habits||[])).slice(0,12);
+function rememberPrefs(){const D=S.doc;const P=S.prefs=S.prefs||{strategies:[],habits:[]};P.strategies=uniq([D.strategy].concat(P.strategies||[])).slice(0,8);P.habits=uniq(linesOf(D.habits).concat(P.habits||[])).slice(0,12);P.eodFmt=P.eodFmt||'journey';
   try{db.doc('reps/'+S.me.id).update({eodPrefs:P})}catch(_){}}
-async function loadPast(){S.past={recent:null,week:[]};try{const wk0=(()=>{const d=new Date(S.date+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));return toStr(d)})();
-  for(let k=1;k<=7;k++){const dt=addDays(S.date,-k);const r=await db.doc(`reps/${S.me.id}/hourly/${dt}`).get();if(!r.exists)continue;const x=r.data();const imp=linesOf(x.improve);
+async function loadPast(){S.past={recent:null,week:[],refl:[]};try{const wk0=(()=>{const d=new Date(S.date+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));return toStr(d)})();
+  for(let k=1;k<=14;k++){const dt=addDays(S.date,-k);const r=await db.doc(`reps/${S.me.id}/hourly/${dt}`).get();if(!r.exists)continue;const x=r.data();const imp=linesOf(x.improve);if(Object.keys(x.slots||{}).length||imp.length)S.past.refl.push(!!(imp.length||linesOf(x.wins).length));
     if(imp.length&&!S.past.recent)S.past.recent={date:dt,items:imp};if(dt>=wk0)S.past.week.push(...imp)}}catch(_){}render()}
 function yesterdayCard(){const D=S.doc,P=S.past;if(S.date!==today()||!P||!P.recent)return null;const it=P.recent.items;
-  if(D.planDone)return h('div',{class:'card',style:'margin-top:10px'},h('div',{class:'hint',text:'Today’s plan for '+it.join(', ')}),h('b',{text:D.planToday||''}));
-  const inp=h('textarea',{rows:2,placeholder:'How will you work on it today?','aria-label':'Your plan for today',style:'width:100%;margin-top:8px',oninput:e=>{D.planToday=e.target.value;markDirty()}});inp.value=D.planToday||'';
-  return h('div',{class:'card',style:'margin-top:10px;border-color:var(--accent)'},h('div',{class:'hint',text:'Last shift you said you’d work on'}),h('b',{text:it.join(' · ')}),inp,
-    h('button',{class:'primary',style:'margin-top:8px;width:100%',onclick:()=>{if(!(D.planToday||'').trim()){toast('Write your plan first');return}D.planDone=true;markDirty();render()}},'Lock in my plan'))}
+  if(D.planDone)return h('div',{class:'hint',style:'margin-top:8px;padding:8px 12px;background:var(--accent-soft);border-radius:10px;color:var(--ink)'},h('b',null,'🎯 Today’s plan: '),D.planToday||'');
+  const inp=h('textarea',{rows:2,placeholder:'How are you going to smash it today?','aria-label':'Your plan for today',style:'width:100%;margin-top:8px',oninput:e=>{D.planToday=e.target.value;markDirty()}});inp.value=D.planToday||'';
+  return h('div',{class:'card',style:'margin-top:10px;border-color:var(--accent)'},h('div',{class:'hint',text:'Last shift you said you wanted to work on'}),h('b',{text:it.join(' · ')}),inp,
+    h('button',{class:'primary',style:'margin-top:8px;width:100%',onclick:()=>{if(!(D.planToday||'').trim()){toast('Pop your plan in first');return}D.planDone=true;markDirty();render()}},'Lock it in 🔒'))}
 function weekCard(){if(S.date!==today()||new Date().getDay()!==5||!S.past)return null;const all=S.past.week.concat(linesOf(S.doc.improve));if(!all.length)return null;
   const c={};all.forEach(x=>{const k=x.toLowerCase();c[k]=c[k]||{t:x,n:0};c[k].n++});const L=Object.values(c).sort((a,b)=>b.n-a.n);
-  return h('div',{class:'card',style:'margin-top:8px'},h('b',{text:'Your week so far'}),h('div',{class:'hint',text:'What you wrote down to work on this week. Notice a pattern?'}),
-    h('div',{class:'pills',style:'margin-top:8px'},L.map(x=>h('span',{style:'padding:8px 12px;border-radius:999px;border:1px solid var(--line);font-weight:600',text:x.t+(x.n>1?' ×'+x.n:'')}))))}
+  return h('div',{class:'hint',style:'margin-top:8px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)'},h('b',{style:'color:var(--ink)'},'This week you’ve worked on: '),L.slice(0,4).map(x=>x.t+(x.n>1?' ×'+x.n:'')).join(' · '),'. What keeps coming up?')}
+function reflStreak(){const P=S.past;if(!P)return 0;const D=S.doc;let n=0;const today_=!!(linesOf(D.improve).length||linesOf(D.wins).length);if(today_)n++;for(const r of P.refl){if(r)n++;else break}return n}
 function checkBanner(){const D=S.doc;if(S.date!==today()||S.view!=='mine')return null;const hr=new Date().getHours();const w=hr===14?'2pm':hr===16?'4pm':null;if(!w||D['copied'+w])return null;
-  return h('div',{class:'banner'},h('b',{text:'Time for your '+w+' check-in'}),h('button',{onclick:()=>openFold('t'+w)},'Open'))}
+  return h('div',{class:'banner'},h('b',{text:w+' check-in time! Send your numbers to the group 📲'}),h('button',{onclick:()=>openFold('t'+w)},'Open'))}
 function tgCard(){const D=S.doc;const t=totals();
   const ck=(w,key,lbl,ph)=>fold('t'+w,w+' check-in',D['copied'+w]?'Copied ✓':(D[key]?'Focus: '+D[key]:'Add your focus'),()=>{const el=h('input',{type:'text',placeholder:ph,'aria-label':lbl,style:'width:100%',oninput:e=>{D[key]=e.target.value;markDirty()}});el.value=D[key]||'';
     return [h('label',null,h('span',{class:'lbl',text:lbl}),el),h('button',{class:'primary',onclick:async()=>{await copyTxt(tgText(w));D['copied'+w]=true;markDirty();render()}},'Copy '+w+' check-in')]},!!D['copied'+w]);
-  const filled=[D.cash,D.eftpos,D.strategy,D.habits,D.wins,D.improve].filter(v=>String(v||'').trim()).length;
-  const eod=fold('eod','End of day',D.finished?'Submitted ✓':'Journey chat + Final KPIs · '+filled+' of 6 done',()=>{
+  const fmt=(S.prefs&&S.prefs.eodFmt)||'journey';const jr=fmt==='journey';const filled=[D.strategy,D.habits,D.wins,D.improve].filter(v=>String(v||'').trim()).length;
+  const eod=fold('eod','End of day',D.finished?'Submitted ✓':(jr?'Journey chat · '+filled+' of 4 done':'Daily KPIs · '+[D.cash,D.eftpos].filter(v=>String(v||'').trim()).length+' of 2 done'),()=>{
     const inp=(lbl,key,ph,im)=>{const el=h('input',{type:'text',inputmode:im||null,placeholder:ph,'aria-label':lbl,style:'width:100%',oninput:e=>{D[key]=e.target.value;markDirty();const m=document.getElementById('cashchk');if(m)m.textContent=cashMsg()}});el.value=D[key]||'';return h('label',null,h('span',{class:'lbl',text:lbl}),el)};
     const cashMsg=()=>{const c=num(D.cash),e=num(D.eftpos);if(!String(D.cash||'').trim()&&!String(D.eftpos||'').trim())return '';const s2=c+e;return s2===Math.round(t.retail)?'Cash + EFTPOS = $'+s2+', matches retail ✓':'Cash + EFTPOS = $'+s2+', retail is $'+Math.round(t.retail)};
     const P=S.prefs||{};const strats=uniq([D.strategy].concat(P.strategies||[]));
@@ -460,13 +461,18 @@ function tgCard(){const D=S.doc;const t=totals();
     const mine=linesOf(D.habits);const opts=uniq(mine.concat(P.habits||[]));const tog=x=>{const L=linesOf(D.habits);const k=L.findIndex(y=>y.toLowerCase()===x.toLowerCase());if(k>=0)L.splice(k,1);else L.push(x);D.habits=L.join('\n');markDirty();render()};
     const addH=h('input',{type:'text',placeholder:'Add a habit','aria-label':'Add a habit',style:'flex:1;min-width:0',onkeydown:e=>{if(e.key==='Enter'&&e.target.value.trim())tog(e.target.value.trim())}});
     const ta=(lbl,key,ph)=>{const el=h('textarea',{rows:3,placeholder:ph,'aria-label':lbl,style:'width:100%',oninput:e=>{D[key]=e.target.value;markDirty()}});el.value=D[key]||'';return h('label',null,h('span',{class:'lbl',text:lbl}),el,h('div',{class:'hint',text:'One per line'}))};
-    return [h('div',{style:'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px'},inp('Cash $','cash','0','decimal'),inp('EFTPOS $','eftpos','0','decimal'),inp('Fee %','fee','100','decimal')),h('div',{class:'hint',id:'cashchk',text:cashMsg()}),
+    const rs=reflStreak();const pc=D.planToday?h('div',null,h('span',{class:'lbl',text:'Did you stick to your plan? ('+D.planToday+')'}),h('div',{class:'pills'},['Yes','Partly','No'].map(v=>h('button',{class:D.planCheck===v?'on':null,onclick:()=>{D.planCheck=v;markDirty();render()}},v)))):null;
+    const fsel=h('label',null,h('span',{class:'lbl',text:'Which group do you post to?'}),h('select',{'aria-label':'Which group do you post to',onchange:e=>{S.prefs=S.prefs||{strategies:[],habits:[]};S.prefs.eodFmt=e.target.value;try{db.doc('reps/'+S.me.id).update({eodPrefs:S.prefs})}catch(_){}render()}},[['journey','Journey chat'],['daily','Daily KPIs']].map(([k,l])=>h('option',{value:k,selected:fmt===k},l))));
+    if(!jr)return [fsel,pc,h('div',{style:'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px'},inp('Cash $','cash','0','decimal'),inp('EFTPOS $','eftpos','0','decimal'),inp('Fee %','fee','100','decimal')),h('div',{class:'hint',id:'cashchk',text:cashMsg()}),
+      h('pre',{class:'tgprev',text:eodFinal()}),h('button',{class:'primary',onclick:()=>copyTxt(eodFinal())},'Copy Final KPIs'),
+      h('button',{class:'primary',id:'submitFinal',style:'width:100%;min-height:52px;background:var(--ok);border-color:var(--ok)',onclick:()=>{rememberPrefs();submitFinal()}},D.finished?'Submit final KPIs again ›':'Submit final KPIs ›')];
+    return [fsel,rs?h('div',{style:'font-weight:700;color:var(--accent)',text:'📝 '+rs+' day'+(rs===1?'':'s')+' reflecting in a row'+(rs>=5?', keep it up!':'')}):null,pc,
       h('label',null,h('span',{class:'lbl',text:'Strategy'}),stratSel),
       h('div',null,h('span',{class:'lbl',text:'Daily focus (habits)'}),opts.length?h('div',{class:'pills'},opts.map(x=>h('button',{class:mine.some(y=>y.toLowerCase()===x.toLowerCase())?'on':null,onclick:()=>tog(x)},x))):null,
         h('div',{style:'display:flex;gap:6px;margin-top:8px'},addH,h('button',{onclick:()=>{if(addH.value.trim())tog(addH.value.trim())}},'Add'))),
-      ta('Wins','wins','What did your best hour do differently?'),ta('Areas for improvement','improve','Where did sales slip away today?'),
+      ta('Wins','wins','What went well today? What did your best hour do differently?'),ta('Areas for improvement','improve','Where did you lose sales today? What would you do differently?'),
       h('pre',{class:'tgprev',text:eodJourney()}),
-      h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:8px'},h('button',{class:'primary',onclick:()=>{rememberPrefs();copyTxt(eodJourney())}},'Copy Journey chat'),h('button',{onclick:()=>copyTxt(eodFinal())},'Copy Final KPIs')),
+      h('button',{class:'primary',onclick:()=>{rememberPrefs();copyTxt(eodJourney())}},'Copy Journey chat'),
       h('button',{class:'primary',id:'submitFinal',style:'width:100%;min-height:52px;background:var(--ok);border-color:var(--ok)',onclick:()=>{rememberPrefs();submitFinal()}},D.finished?'Submit final KPIs again ›':'Submit final KPIs ›')]});
   return h('div',null,h('div',{class:'sect',text:'TELEGRAM'}),ck('2pm','focus2','Focus for the second half','e.g. Distances!'),ck('4pm','focus4','Focus for end of day','e.g. Gong'),eod,
     S.showTg?h('div',{class:'card',style:'margin-top:8px'},h('div',{class:'hint',text:'Copying is blocked here. Press and hold the text below to copy it.'}),(()=>{const x=h('textarea',{rows:14,style:'width:100%',readonly:true});x.value=S.showTg;return x})(),h('button',{onclick:()=>{S.showTg=null;render()}},'Close')):null)}
@@ -477,8 +483,11 @@ function finishCard(){const D=S.doc;const t=totals();
     h('div',{class:'stats',style:'margin-bottom:10px'},box(money(t.retail),'Retail'),box(String(t.stops),'Stops'),box(String(t.buyers),'Buyers'),box(String(t.upsells),'Upsells'),box(money(t.upsellRetail),'Upsell $'),box(String(t.medals),'Medals')),
     h('div',{class:'hint',style:'margin-bottom:10px',text:D.finished?'Your numbers are in Kaizen KPIs. You can still fix anything above and submit again.':'This sends your numbers to Kaizen KPIs, then takes you there to add cash/EFTPOS and do your daily reflection.'}),
     h('button',{class:'primary',style:'width:100%;min-height:52px;font-size:1.05rem',id:'submitFinal',onclick:submitFinal},D.finished?'Submit final KPIs again ›':'Submit final KPIs ›'))}
+async function pushRefl(){try{const D=S.doc;const W=linesOf(D.wins),I=linesOf(D.improve);if(!W.length&&!I.length)return;const ref=db.doc(`reps/${S.me.id}/reflections/${S.date}`);let cur={};try{const r=await ref.get();if(r.exists)cur=r.data()}catch(_){}
+  const well=(cur.well||['','','']).slice();W.slice(0,3).forEach((w,i)=>{if(!String(well[i]||'').trim())well[i]=w});while(well.length<3)well.push('');const learn=(cur.learn||['','']).slice();I.slice(0,2).forEach((w,i)=>{if(!String(learn[i]||'').trim())learn[i]=w});while(learn.length<2)learn.push('');
+  await ref.set({...cur,well,learn,fromHourly:true,updatedAt:new Date().toISOString()})}catch(_){}}
 async function submitFinal(){const b=document.getElementById('submitFinal');if(b){b.disabled=true;b.textContent='Sending…'}
-  S.doc.finished=true;S.doc.finishedAt=new Date().toISOString();S.dirty=true;await save(true);await syncNow(true);
+  S.doc.finished=true;S.doc.finishedAt=new Date().toISOString();S.dirty=true;await save(true);await syncNow(true);await pushRefl();
   try{await db.doc('reps/'+S.me.id).update({finishedDay:S.date})}catch(_){}
   toast('Final KPIs sent ✓',2500);render();
   const btn=document.getElementById('submitFinal');if(btn){const lk=h('a',{href:'https://ameliahcrowe-cloud.github.io/kaizen-kpis/',target:'_top',style:'display:block;text-align:center;text-decoration:none;background:var(--ok);color:#fff;font-weight:800;border-radius:10px;padding:15px;font-size:1.05rem'},'✓ Sent — open Kaizen KPIs for your reflection ›');btn.replaceWith(lk)}}
@@ -502,20 +511,21 @@ function render(){HOURS=S.view==='team'?Math.max(10,...Object.values(S.team||{})
   {const c=streakComp();if(c)a.append(c)}
   a.append(tgCard());
   a.append(fold('notes','Notes',(D.notes||'').trim()?String(D.notes).trim().slice(0,40):'',()=>[field('Notes',D,'notes','',true)]));
-  if(!D.finished)a.append(h('button',{class:'primary',style:'width:100%;min-height:54px;margin-top:12px;background:var(--ok);border-color:var(--ok)',onclick:()=>openFold('eod')},'Finish my day ›'));
+  if(!D.finished)a.append(h('button',{class:'primary',style:'width:100%;min-height:54px;margin-top:12px;background:var(--ok);border-color:var(--ok)',onclick:()=>openFold('eod')},'Finish my day 🏁'));
   const ns=S.date===today()?nextSync():null;
   a.append(h('div',{class:'card sync'},h('span',{text:(D.syncedAt?'Synced to Kaizen KPIs at '+new Date(D.syncedAt).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})+'. ':'Not synced to Kaizen KPIs yet. ')+(ns?'Next automatic sync '+ns+'.':'')}),h('button',{onclick:()=>syncNow()},'Sync now')));
   renderBar();window.scrollTo(0,keepY)}
 function renderTally(a){const i=S.hour||1;const x=slot(i);const run=totals(i);const ok=hit(i);
   a.append(h('div',{class:'hrs'},Array.from({length:HOURS},(_,k)=>{const n=k+1;const hh=hit(n);return h('button',{class:(n===i?'on ':'')+(hh===true?'hit':hh===false?'miss':''),title:inStreak(n)?'On a streak':null,onclick:()=>{S.hour=n;S.manual=Date.now();render()}},inStreak(n)?'🔥':String(n))}),h('button',{'aria-label':'Add an hour',title:'Add an hour',onclick:()=>{S.doc.hoursN=HOURS+1;S.hour=HOURS+1;S.manual=Date.now();markDirty();render()}},'+')));
   const box=(f)=>{const v=num(x[f.k]);
-    if(f.money){const st=stp()||25;const chips=(f.k==='retail'?[1,2,3,4,6,12]:[1,2,3,4]).map(m=>m*st);return h('div',{class:'tb money'},h('div',{class:'tn'},h('span',{text:f.l}),h('em',{text:'Total '+money(run[f.k])})),h('div',{class:'big',text:money(v)}),
-      h('div',{class:'chips'},chips.map(c=>h('button',{onclick:()=>setv(x,f.k,v+c,i)},'+'+c)),h('button',{class:'minus',disabled:!v,onclick:()=>setv(x,f.k,v-(stp()||25),i)},'−'+(stp()||25))),
+    if(f.money){const st=stp()||25;const more=S.moreChips===f.k;const chips=(more&&f.k==='retail'?[1,2,3,4,6,12]:[1,2,3,4]).map(m=>m*st);return h('div',{class:'tb money'},h('div',{class:'tn'},h('span',{text:f.l}),h('em',{text:'Total '+money(run[f.k])})),h('div',{class:'big',text:money(v)}),
+      h('div',{class:'chips'},chips.map(c=>h('button',{onclick:()=>setv(x,f.k,v+c,i)},'+'+c)),more?null:h('button',{'aria-label':'More options for '+f.l,onclick:()=>{S.moreChips=f.k;render()}},'…')),
       S.other===f.k?h('div',{class:'other'},(()=>{const inp=h('input',{type:'text',inputmode:'numeric',placeholder:'e.g. 225 or -50','aria-label':'Amount to add to '+f.l,onkeydown:e=>{if(e.key==='Enter')go()}});const go=()=>{let add=num(inp.value);if(!add){S.other=null;render();return}if(stp()&&add%stp()){add=Math.round(add/stp())*stp();toast('Sales are in $'+stp()+' steps, so that\u2019s been rounded to $'+add,3500)}S.other=null;setv(x,f.k,v+add,i)};setTimeout(()=>inp.focus(),30);return [inp,h('button',{class:'primary',onclick:go},'Add'),h('button',{onclick:()=>{S.other=null;render()}},'✕')]})()):
-      h('div',{class:'chips'},h('button',{onclick:()=>{S.other=f.k;render()}},'Other amount'),h('button',{disabled:!v,onclick:()=>setv(x,f.k,0,i)},'Clear')))}
+      more?h('div',{class:'chips'},h('button',{class:'minus',disabled:!v,onclick:()=>setv(x,f.k,v-(stp()||25),i)},'−'+(stp()||25)),h('button',{onclick:()=>{S.other=f.k;render()}},'Other'),h('button',{disabled:!v,onclick:()=>setv(x,f.k,0,i)},'Clear'),h('button',{onclick:()=>{S.moreChips=null;render()}},'Done')):null)}
     return h('div',{class:'tb'},h('div',{class:'tn'},h('span',{text:f.l}),h('em',{text:'Total '+run[f.k]})),h('div',{class:'big',text:String(v)}),
       h('div',{class:'ctl'},h('button',{'aria-label':'Minus one '+f.l,onclick:()=>setv(x,f.k,v-1,i)},'−'),h('button',{class:'add','aria-label':'Plus one '+f.l,onclick:()=>setv(x,f.k,v+1,i)},'+')))};
   a.append(h('div',{class:'card'},h('div',{class:'hourhead'},h('b',null,'Hour '+i,hourRange(i)?h('span',{style:'font-family:var(--body);font-size:.8rem;font-weight:600;opacity:.8;margin-left:8px',text:hourRange(i)}):null,clockHour()===i?h('span',{style:'font-family:var(--body);font-size:.7rem;font-weight:700;margin-left:8px;background:#fff;color:var(--dark);padding:2px 7px;border-radius:999px',text:'NOW'}):null),h('span',{class:'hitpill'+(ok===true?' hy':ok===false?' hn':''),text:ok===true?'Won ✓ '+winCount(x)+'/3':ok===false?winCount(x)+'/3':'0/3'})),
+    h('div',{style:'display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:2px 0 10px;font-size:.78rem;font-weight:700'},h('span',{style:'color:var(--muted)'},'Win the hour, hit 2 of 3:'),[['stops',WIN.stops+' stops'],['buyers',WIN.buyers+' buyers'],['retail','$'+WIN.retail]].map(([k,l])=>{const ok=num(x[k])>=WIN[k];return h('span',{style:'padding:3px 9px;border-radius:999px;'+(ok?'background:var(--ok);color:#fff':'background:var(--accent-soft);color:var(--ink)')},(ok?'✓ ':'')+l)})),
     h('div',{class:'tally'},F.map(box)),
     h('div',{class:'row2',style:'margin-top:10px'},i>1?h('button',{onclick:()=>{S.hour=i-1;S.manual=Date.now();render()}},'‹ Hour '+(i-1)):h('span'),i<HOURS?h('button',{class:'primary',onclick:()=>{if(S.dirty)save(true);S.hour=i+1;S.manual=Date.now();render()}},'Next hour ›'):h('span'))))}
 function renderGrid(a){const tb=h('tbody');let run={};F.forEach(f=>run[f.k]=0);
@@ -527,18 +537,19 @@ function renderGrid(a){const tb=h('tbody');let run={};F.forEach(f=>run[f.k]=0);
   a.append(h('div',{class:'card',style:'padding:8px'},h('table',{class:'grid'},h('thead',null,h('tr',null,h('th',{text:'Hr'}),F.map(f=>h('th',{text:f.s})),h('th',{text:'Hit'}))),tb),
     h('div',{class:'hint',style:'padding:6px 4px 0',text:'S stops · B buyers · $ retail · U upsells · U$ upsell retail · M medals'})));setTimeout(updTot,0)}
 function renderBar(){const b=$('#savebar');if(S.view==='team'||!S.doc){b.hidden=true;return}b.hidden=false;
-  b.replaceChildren(h('div',{class:'st',text:S.dirty?'Saving…':'✓ Saved'}),h('button',{disabled:!(S.undo&&S.undo.length&&S.undo[S.undo.length-1].d===S.date),onclick:undoLast},'↶ Undo last tap'))}
+  const rec=S.savedAt&&Date.now()-S.savedAt<2500;if(rec){clearTimeout(S.sbT);S.sbT=setTimeout(renderBar,2600)}
+  b.replaceChildren(h('div',{class:'st',style:S.dirty?'':rec?'color:var(--ok)':'opacity:0',text:S.dirty?'Saving…':'✓ Saved'}),h('button',{disabled:!(S.undo&&S.undo.length&&S.undo[S.undo.length-1].d===S.date),onclick:undoLast},'↶ Undo last tap'))}
 /* ---------- leader live view ---------- */
 async function loadTeam(){S.team=null;render();const ids=Object.keys(S.reps);const out={};
   await Promise.all(ids.map(async id=>{try{const d=await db.doc(`reps/${id}/hourly/${S.date}`).get();out[id]=d.exists?d.data():null}catch(_){out[id]=null}}));S.team=out;render()}
 function renderTeam(a){if(!S.team){a.append(h('div',{class:'empty',text:'Loading the team…'}));return}
-  const ids=Object.keys(S.reps).filter(id=>S.reps[id].active!==false&&!S.reps[id].test).sort((x,y)=>String(S.reps[x].name).localeCompare(String(S.reps[y].name)));
+  const ids=Object.keys(S.reps).filter(id=>S.reps[id].active!==false).sort((x,y)=>(!!S.reps[x].test-!!S.reps[y].test)||String(S.reps[x].name).localeCompare(String(S.reps[y].name)));
   const tb=h('tbody');const col={};for(let i=1;i<=HOURS;i++)col[i]=0;
-  ids.forEach(id=>{const d=S.team[id];const sl=(d&&d.slots)||{};let tr=0,n=0;
-    tb.append(h('tr',null,h('td',null,h('b',{text:S.reps[id].name||'Rep'}),d&&d.site?h('small',{text:d.site}):null),Array.from({length:HOURS},(_,k)=>{const x=sl[String(k+1)];if(x){tr+=num(x.retail);n++;col[k+1]+=num(x.retail)}
+  ids.forEach(id=>{const d=S.team[id];const sl=(d&&d.slots)||{};let tr=0,n=0;const tst=!!S.reps[id].test;
+    tb.append(h('tr',{style:tst?'opacity:.55':null,title:tst?'Test person: not counted in team totals':null},h('td',null,h('b',{text:(tst?'🧪 ':'')+(S.reps[id].name||'Rep')}),d&&d.site?h('small',{text:d.site}):null,d&&(d.planToday||d.focus2||d.focus4)?h('small',{style:'display:block;max-width:180px;white-space:normal',text:(d.planToday?'Plan: '+d.planToday:'')+(d.focus4?' · 4pm: '+d.focus4:d.focus2?' · 2pm: '+d.focus2:'')}):null),Array.from({length:HOURS},(_,k)=>{const x=sl[String(k+1)];if(x){tr+=num(x.retail);n++;if(!tst)col[k+1]+=num(x.retail)}
       return h('td',null,x?[money(x.retail),h('small',{text:num(x.stops)+'S '+num(x.buyers)+'B'})]:'—')}),h('td',null,h('b',{text:money(tr)}),n?h('small',{text:money(tr/n)+'/hr'}):null)))});
   tb.append(h('tr',null,h('td',null,h('b',{text:'Team'})),Array.from({length:HOURS},(_,k)=>h('td',{text:money(col[k+1])})),h('td',null,h('b',{text:money(Object.values(col).reduce((p,q)=>p+q,0))}))));
-  a.append(h('div',{class:'card'},h('div',{class:'sync',style:'margin-bottom:8px'},h('span',{text:'Retail each hour, stops (S) and buyers (B) underneath.'}),h('button',{onclick:loadTeam},'Refresh')),
+  a.append(h('div',{class:'card'},h('div',{class:'sync',style:'margin-bottom:8px'},h('span',{text:'Retail each hour, stops (S) and buyers (B) underneath. 🧪 test people are shown but not counted in Team.'}),h('button',{onclick:loadTeam},'Refresh')),
     h('div',{class:'scroll'},h('table',{class:'team'},h('thead',null,h('tr',null,h('th',{text:'Name'}),Array.from({length:HOURS},(_,k)=>h('th',{text:'Hr '+(k+1)})),h('th',{text:'Day'}))),tb))))}
 /* ---------- boot ---------- */
 (async()=>{db=await window.claude.use('db');user=await window.claude.use('user');const me=await user.me();S.me=me;S.leader=!!me.canEdit;

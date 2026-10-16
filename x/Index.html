@@ -288,6 +288,22 @@ td.pathbar{min-width:150px;text-align:left}td.pathbar .prog{margin-bottom:3px}
 .prow{display:flex;justify-content:space-between;gap:10px;font-size:.92rem}
 .counters{display:flex;gap:18px;flex-wrap:wrap;margin-top:4px}
 td.pathbar{min-width:160px;text-align:left}td.pathbar .prog{margin-bottom:3px}
+.ftree{position:fixed;inset:0;z-index:200;background:#fff;overflow:auto;padding:16px}
+.ftree .fbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap}
+.ftree .tree{display:flex;justify-content:center;min-width:max-content;padding:8px 8px 24px}
+.tree ul{padding-top:18px;position:relative;display:flex;justify-content:center;margin:0;padding-left:0}
+.tree li{list-style:none;position:relative;padding:18px 6px 0;text-align:center}
+.tree li::before,.tree li::after{content:'';position:absolute;top:0;right:50%;width:50%;height:18px;border-top:2px solid #b9aeb0}
+.tree li::after{right:auto;left:50%;border-left:2px solid #b9aeb0}
+.tree li:only-child::before,.tree li:only-child::after{display:none}.tree li:only-child{padding-top:0}
+.tree li:first-child::before,.tree li:last-child::after{border:0 none}
+.tree li:last-child::before{border-right:2px solid #b9aeb0;border-radius:0 6px 0 0}.tree li:first-child::after{border-radius:6px 0 0 0}
+.tree ul ul::before{content:'';position:absolute;top:0;left:50%;border-left:2px solid #b9aeb0;width:0;height:18px}
+.tree .node{display:inline-block;border:2px solid var(--line);border-radius:12px;padding:8px 12px;background:#fff;min-width:110px}
+.tree .node.ld{border-color:var(--accent)}.tree .node b{display:block}.tree .node small{display:block;opacity:.8;font-size:.72rem}@media print{.tree .node,.ftree span{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.tree>ul{padding-top:0}.tree>ul>li{padding-top:0}.tree>ul>li::before,.tree>ul>li::after{display:none}
+@media print{body>*:not(.ftree){display:none!important}.ftree{position:static;overflow:visible;padding:0}.ftree .fbar button{display:none}.tree .node{break-inside:avoid}@page{size:landscape;margin:10mm}}
+textarea{font-family:inherit;font-size:inherit}
 </style>
 
 <base target="_top">
@@ -657,7 +673,9 @@ function renderMobileNav(){const mn=document.getElementById('mnav'),sh=document.
     h('button',{'aria-selected':String(inRest||!!S.msheet),'aria-label':'More',onclick:()=>{S.msheet=!S.msheet;renderMobileNav()}},micon('more'),h('span',{text:inRest?(rest.find(([k])=>k===S.tab)[1]):'More'})));
   sh.className=S.msheet?'open':'';
   sh.replaceChildren(S.msheet?h('div',{class:'sh',onclick:e=>e.stopPropagation()},h('div',{class:'bar'},h('strong',{text:'More'}),h('button',{class:'linkbtn',onclick:()=>{S.msheet=false;renderMobileNav()}},'Close')),
-    h('div',{class:'grid'},rest.map(([k,l])=>h('button',{'aria-selected':String(S.tab===k),onclick:()=>{S.msheet=false;go(k)}},l))),
+    ...(()=>{const G=[['My progress',['totals','board','pbs','mypb','bonus','promo']],['Coaching',['coaching','reflect','goals','log','week']],['Team',['myteam','team']]];const used={};
+      const out=G.map(([t,ks])=>{const it=rest.filter(([k])=>ks.includes(k)&&!used[k]);it.forEach(([k])=>used[k]=1);return it.length?[h('div',{class:'hint',style:'margin:12px 0 6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.72rem',text:t}),h('div',{class:'grid'},it.map(([k,l])=>h('button',{'aria-selected':String(S.tab===k),onclick:()=>{S.msheet=false;go(k)}},l)))]:[]}).flat();
+      const left=rest.filter(([k])=>!used[k]);if(left.length)out.push(h('div',{class:'hint',style:'margin:12px 0 6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.72rem',text:'Other'}),h('div',{class:'grid'},left.map(([k,l])=>h('button',{'aria-selected':String(S.tab===k),onclick:()=>{S.msheet=false;go(k)}},l))));return out})(),
     h('div',{style:'display:flex;flex-direction:column;gap:8px;margin-top:14px'},['viewMode','campFilter','teamFilter'].map(id=>{const o=document.getElementById(id);if(!o||o.hidden)return null;
       const c=h('select',{'aria-label':o.getAttribute('aria-label')||id,style:'min-height:44px;font:inherit',onchange:e=>{o.value=e.target.value;o.dispatchEvent(new Event('change'));S.msheet=false;renderMobileNav()}},[...o.options].map(x=>h('option',{value:x.value,selected:x.value===o.value},x.textContent)));return c}),
       window.kaizenLogout&&S.ready?h('button',{onclick:()=>window.kaizenLogout()},'Log out'):null)):'');
@@ -673,7 +691,7 @@ function render(){renderHeader();const v=document.getElementById('view');
     if(!leader()&&!S.me){renderJoin(v);return}
     if(leader()&&S.legacy&&S.legacy.entries.length)v.append(legacyPanel());
     const db_=(S.tab==='log'||S.tab==='reflect'||S.tab==='hourly'||!S.tab);document.body.classList.toggle('hasDaybar',db_);if(db_)v.append(dayBar());
-    if(S.tab==='log'||!S.tab)v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;margin-bottom:-6px'},h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap'},h('button',{id:'syncHourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;font-weight:700'},S.hSyncBusy?'Syncing…':'⟳ Sync now from Hourly'),hourlyBtn()));
+    if(S.tab==='log'||!S.tab)v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;margin-bottom:-6px'},h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;align-items:center'},hourlyBtn(),h('button',{id:'syncHourly',class:'icon',title:'Pull my numbers from Hourly now','aria-label':'Pull my numbers from Hourly now',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;min-width:44px'},S.hSyncBusy?'…':'⟳')));
     (S.tab==='live'||S.tab==='mypb'?()=>{}:{log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
     markTest(v);cardify(v)});kovaEmbeds()}
 /* phone helpers: day switcher, swipe, tables as cards */
@@ -802,11 +820,34 @@ function streakPanel(uid){const list=sourceAll(uid,'period').filter(e=>num(e.hou
     h('div',{class:'bar'},h('h3',{text:'Milestones'}),h('span',{class:'hint',text:'×2 means you\u2019ve hit it twice.'})),h('div',{class:'streaks',style:'grid-template-columns:repeat(auto-fit,minmax(260px,1fr))'},ms))}
 function step25Bad(camp,t){const st=campStep(camp);if(!st)return null;const b=[['retail','Retail'],['upsellRetail','Upsell retail']].find(([k])=>num(t[k])%st!==0);return b?b[1]:null}
 function cashMismatch(t){const c=num(t.cash)+num(t.eftpos);return c>0&&Math.abs(c-num(t.retail))>0.5?c:null}
+function noteRow(m,multi){const cur=((repDoc(m.id).coachNotes||{})[S.date]||{}).text||'';const ta=h('textarea',{rows:2,placeholder:'e.g. Loved your stopping today! Now slow down the close','aria-label':'Coaching note for '+m.name,style:'width:100%;min-width:220px;font:inherit;box-sizing:border-box;padding:8px;border-radius:10px'});ta.value=cur;
+  return h('tr',null,h('td',{colspan:String(LOGFIELDS.length+(multi?8:7))},h('div',{style:'display:flex;flex-direction:column;gap:8px;align-items:flex-start;max-width:420px;position:sticky;left:0'},ta,h('button',{class:'primary',onclick:async()=>{const txt=ta.value.trim();const r=repDoc(m.id);const cn={...(r.coachNotes||{})};
+    if(txt)cn[S.date]={text:txt,by:(S.me&&S.me.name)||'Your leader',at:new Date().toISOString()};else cn[S.date]=null;const ok=await write(()=>S.db.doc('reps/'+m.id).update({coachNotes:cn}),txt?'Note sent to '+m.name:'Note removed');
+    if(ok){if(S.reps[m.id])S.reps[m.id]={...S.reps[m.id],coachNotes:cn};S.noteFor=null;render()}}},'Send'))))}
+function promoBanner(uid){const r=repDoc(uid);const pr=r.promo||{};if(!pr.promotedAt||(r.promoSeen||'')>=pr.promotedAt)return null;const st=STAGES.find(x=>x.k===pr.promotedTo)||STAGES[stageIdx(uid)];
+  const dismiss=()=>{const at=pr.promotedAt;if(S.me)S.me={...S.me,promoSeen:at};if(S.reps[uid])S.reps[uid]={...S.reps[uid],promoSeen:at};render();write(()=>S.db.doc('reps/'+uid).update({promoSeen:at}))};
+  const team=stageIdx(uid)>=2&&!S.teams[uid];
+  return h('div',{class:'panel',style:'margin-bottom:12px;border:2px solid var(--accent);text-align:center'},h('div',{style:'font-size:2rem'},'🎉'),h('strong',{style:'font-size:1.15rem;display:block',text:'Congrats! You’re now a '+st.from+'!'}),
+    h('div',{class:'hint',style:'margin:4px 0 10px',text:team?'Time to build your team. Give it a name and a logo!':'So proud of you. Check out your next step on your Promotion page.'}),
+    h('div',{style:'display:flex;gap:8px;justify-content:center;flex-wrap:wrap'},team?h('button',{class:'primary',onclick:()=>{dismiss();go('myteam')}},'Create my team'):h('button',{class:'primary',onclick:()=>{dismiss();go('promo')}},'See my next step'),h('button',{onclick:dismiss},'Thank you!')))}
+function coachNoteCard(uid){const r=repDoc(uid);const cn=r.coachNotes||{};const seen=r.coachSeen||'';const ks=Object.keys(cn).filter(k=>cn[k]&&cn[k].text&&k<=todayStr()&&k>addDays(todayStr(),-8)).sort();const k=ks[ks.length-1];if(!k||(cn[k].at||k)<=seen)return null;
+  return h('div',{class:'notice'},h('strong',{text:'💬 Note from '+(cn[k].by||'your leader')+' ('+niceDate(k,{weekday:'short',day:'numeric',month:'short'})+'): '}),h('span',{text:cn[k].text}),' ',h('button',{class:'linkbtn small',onclick:async()=>{const at=cn[k].at||k;if(S.me)S.me={...S.me,coachSeen:at};if(S.reps[uid])S.reps[uid]={...S.reps[uid],coachSeen:at};render();write(()=>S.db.doc('reps/'+uid).update({coachSeen:at}))}},'Got it'))}
+function monthCheckCard(uid){const mk=monthKey(todayStr());if(monthKey(S.date)!==mk)return null;const r=repDoc(uid);const goal=monthGoal(uid,mk);const plan=(r.monthPlans||{})[mk];
+  if(goal&&plan)return S.mcOpen?null:h('div',{class:'hint',style:'margin:-4px 0 10px'},'This month: '+money(goal)+' · Plan: '+plan+' ',h('button',{class:'linkbtn small',onclick:()=>{S.mcOpen=true;render()}},'change'));
+  const mname=new Date(mk+'-01T12:00:00').toLocaleDateString('en-AU',{month:'long'});
+  const gi=h('input',{type:'number',min:0,step:100,inputmode:'decimal',placeholder:'e.g. 20000','aria-label':'Retail target this month',value:goal||''});
+  const pi=h('textarea',{rows:2,placeholder:'What are you going to do differently this month?','aria-label':'Your plan this month',style:'width:100%;font:inherit;box-sizing:border-box;padding:8px;border-radius:10px'});pi.value=plan||'';
+  return h('div',{class:'panel',style:'margin-bottom:12px;border-color:var(--accent);padding:14px'},h('strong',{text:mname+' check-in 🎯'}),h('div',{class:'hint',text:'What’s your target this month, and what are you doing differently to get there?'}),
+    h('label',{style:'display:block;margin-top:8px'},'Retail target ',gi),h('div',{style:'margin-top:8px'},pi),
+    h('button',{class:'primary',style:'margin-top:8px',onclick:async()=>{const g=num(gi.value),pl=pi.value.trim();if(!g){toast('Set your target first');return}if(!pl){toast('Pop in how you’re going to get there');return}
+      const mg={...(r.monthGoals||{}),[mk]:g},mp={...(r.monthPlans||{}),[mk]:pl};const ok=await write(()=>S.db.doc('reps/'+uid).update({monthGoals:mg,monthPlans:mp}),'Month locked in');
+      if(ok){const nr={...r,monthGoals:mg,monthPlans:mp};if(S.reps[uid])S.reps[uid]=nr;if(uid===S.uid&&S.me)S.me={...S.me,monthGoals:mg,monthPlans:mp};S.mcOpen=false;render()}}},'Lock it in 🔒'))}
 function renderLog(v){
   const title=niceDate(S.date,{weekday:'long',day:'numeric',month:'long'});
   if(!leader()){ // rep form
     const uid=S.uid,key=draftKey(uid,S.date),saved=savedEntry(uid,S.date),dirty=!!S.drafts[key],t=rowVals(uid,S.date);
     v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:title}),h('div',{class:'hint',text:'Log your numbers for the day. Hours drive your RPH zone.'}))));
+    {const pb=promoBanner(uid);if(pb)v.append(pb)}{const cn=coachNoteCard(uid);if(cn)v.append(cn)}{const mc=monthCheckCard(uid);if(mc)v.append(mc)}
     const cf=confEntry(uid,S.date);
     if(cf)v.append(h('div',{class:'notice'},h('strong',{text:'Your leader confirmed today: '}),
       LOGFIELDS.map(f=>`${f.l} ${fmt(f,num(cf[f.k]))}`).join(' · '),h('div',{class:'hint',text:'Confirmed numbers are what count in your totals, bonus and PBs. What you log below stays as your own record.'})));
@@ -837,7 +878,8 @@ function renderLog(v){
       h('td',null,m.id===S.uid?h('button',{class:'linkbtn small',onclick:()=>{S.viewMe=true;try{localStorage.setItem('kz_view','me')}catch(x){}onWeekChange();render()}},'Edit in 👤 Personal'):S.drafts[key]?h('span',{style:'display:flex;gap:6px'},h('button',{class:'primary',onclick:async()=>{await saveRow(m.id);S.editRow=null;render()}},cf||!confirmMode(m.id)?'Save':'Confirm'),h('button',{onclick:()=>{delete S.drafts[key];S.editRow=null;render()}},'Cancel')):S.editRow===m.id?h('button',{onclick:()=>{S.editRow=null;render()}},'Done'):h('span',{style:'display:flex;gap:6px;align-items:center;flex-wrap:wrap'},h('button',{class:'small',onclick:()=>{S.editRow=m.id;render()}},'✏️ Edit'),
         cf?h('span',{class:'saved'},'✓ Confirmed ',h('button',{class:'linkbtn small',onclick:()=>unconfirm(m.id)},'undo')):
         own?h('span',{class:'hint',text:'Rep logged'}):h('span',{class:'hint',text:'Not logged'}),
-        (own||cf)?h('button',{class:'linkbtn small',onclick:()=>copyTG(m.id)},'Copy for Telegram'):null))))}
+        (own||cf)?h('button',{class:'linkbtn small',onclick:()=>copyTG(m.id)},'Copy for Telegram'):null,
+        h('button',{class:'linkbtn small',onclick:()=>{S.noteFor=S.noteFor===m.id?null:m.id;render()}},(((repDoc(m.id).coachNotes||{})[S.date]||{}).text?'💬 Edit note':'💬 Note'))))));if(S.noteFor===m.id)body.append(noteRow(m,multi))}
   body.append(h('tr',{class:'total'},h('td',{text:'Team total'}),multi?h('td'):null,LOGFIELDS.map(f=>h('td',{text:fmt(f,tot[f.k])})),
     rateCells(tot).map(x=>h('td',{text:x})),h('td',null,zoneEl(tot.hours>0?tot.retail/tot.hours:null)),h('td')));
   v.append(h('div',{class:'panel scroll'},h('table',null,h('thead',null,head),body)));const tb=tgBox();if(tb)v.append(tb);
@@ -1538,7 +1580,7 @@ function reflForm(v,uid){const key=S.date;const loaded=(uid+'|'+key) in S.refl&&
   const d=draftOf('refl',uid,key);d.well=d.well||['','',''];d.learn=d.learn||['',''];d.steps=d.steps||[];const saved=S.refl[uid+'|'+key];
   const t=rowVals(uid,S.date);
   v.append(h('div',{class:'notice'},`Today: ${t.stops} stops · ${t.buyers} buyers · ${money(t.retail)} retail · ${t.upsells} upsells · ${t.medals} medals`+(t.hours>0?` · ${money(t.retail/t.hours)} RPH`:'')));
-  const f=h('div',{class:'panel rform'});
+  const f=h('div',{class:'panel rform'});if(saved&&saved.fromHourly)f.append(h('div',{class:'hint',style:'margin-bottom:6px',text:'✓ Wins and learnings came through from your Hourly end of day. Add anything else here.'}));
   f.append(h('h4',{text:'3 wins'}),...d.well.map((_,i)=>txt('rf-well'+i,d.well,i,`Win ${i+1}`)));
   f.append(h('h4',{text:'2 learnings'}),...d.learn.map((_,i)=>txt('rf-learn'+i,d.learn,i,`Learning ${i+1}`)));
   f.append(h('h4',{text:'1 focus for tomorrow'}),txt('rf-focus',d,'focus','My focus'));
@@ -1659,17 +1701,45 @@ function salesProgress(uid,p){if(!p.sales)return null;const s=p.sales;const m=(p
   if(s.kind==='10days'){const cur=lastN(uid,10),best=bestRolling(uid,10);const ever=best>=s.amt;
     return{v:cur,amt:s.amt,pct:Math.min(100,cur/s.amt*100),done:ever||!!m,manual:!!m&&!ever,label:s.label,alt:s.alt,
       line:`Last 10 days: ${money(cur)} of ${money(s.amt)}`+(ever&&cur<s.amt?` · achieved (best ${money(best)})`:''),short:ever?'✓':`${money(cur)} of ${money(s.amt)}`}}
-  const uids=s.kind==='b2b'?[uid]:teamMembers(uid);const w=weekMap(uids);const wk=weekStart(todayStr());const cur=w[wk]||0,last=w[addDays(wk,-7)]||0;
+  const uids=s.kind==='b2b'?[uid]:[uid].concat(downOf(uid).map(r=>r.id));const w=weekMap(uids);const wk=weekStart(todayStr());const cur=w[wk]||0,last=w[addDays(wk,-7)]||0;
   const ever=bestB2B(uids)>=s.amt;const lastHit=last>=s.amt;
   return{v:cur,last,amt:s.amt,pct:Math.min(100,cur/s.amt*100),done:ever||!!m,manual:!!m&&!ever,label:s.label,alt:s.alt,lastHit,
     line:`${s.kind==='teamb2b'?'Team this':'This'} week: ${money(cur)} of ${money(s.amt)} · last week ${money(last)}${lastHit?' ✓':''}`+(ever?' · back-to-back achieved':lastHit?' · hit it again this week to complete':''),
     short:ever?'✓ achieved':`${money(cur)} of ${money(s.amt)} this week`}}
-function teamProgress(uid,p){if(!p.team)return null;const pr=promoOf(uid);const d=num(pr.direct),ind=num(pr.indirect);const t=p.team;
-  return{direct:d,indirect:ind,total:d+ind,needDirect:t.direct,needTotal:t.total,what:t.what,
-    pctDirect:Math.min(100,d/t.direct*100),pctTotal:Math.min(100,(d+ind)/t.total*100),done:d>=t.direct&&d+ind>=t.total}}
+function ownerId(){return S.isOwner?S.uid:'u_owner'}
+function parentOf(r){if(!r.team)return r.id===ownerId()?null:ownerId();if(r.team===r.id)return null;return r.team}
+function kidsOf(uid){return repListAll(false).filter(r=>r.id!==uid&&!r.test&&r.active!==false&&parentOf(r)===uid)}
+function downOf(uid,seen){seen=seen||{[uid]:1};let out=[];kidsOf(uid).forEach(r=>{if(seen[r.id])return;seen[r.id]=1;out.push(r);out=out.concat(downOf(r.id,seen))});return out}
+const STAGE_COL={sa:['#ece7e8','#2a1a1f'],sc:['#f6dfb0','#3d2a06'],sl:['#f4c2bf','#4a1418'],tl:['#e58a86','#3a0c10'],tm:['#b83c3c','#fff'],ad:['#7b1e2e','#fff'],dir:['#40101b','#fff'],md:['#d4a24c','#2a1a05']};
+function stCol(uid){const k=STAGES[stageIdx(uid)].k;const c=STAGE_COL[k]||STAGE_COL.sa;return 'background:'+c[0]+';color:'+c[1]+';border-color:'+c[0]}
+function treeLegend(){return h('div',{style:'display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px'},STAGES.map(x=>{const c=STAGE_COL[x.k]||STAGE_COL.sa;return h('span',{style:'padding:4px 10px;border-radius:999px;font-size:.75rem;font-weight:700;background:'+c[0]+';color:'+c[1],text:x.from})}))}
+function treeNode(r,seen){seen[r.id]=1;const ks=kidsOf(r.id).filter(k=>!seen[k.id]);const lds=downOf(r.id).filter(x=>stageIdx(x.id)>=2).length;const st=STAGES[stageIdx(r.id)];
+  return h('li',null,h('div',{class:'node',style:stCol(r.id)},h('b',{text:r.name||'Rep'}),h('small',{text:st.from}),lds?h('small',{text:lds+' leader'+(lds===1?'':'s')+' below'}):null),ks.length?h('ul',null,ks.map(k=>treeNode(k,seen))):null)}
+function openTree(uid){const old=document.querySelector('.ftree');if(old)old.remove();if(S.isOwner&&uid===S.uid){let u=uid,g=0;while(g++<20){const r=S.reps[u]||(u===S.uid?S.me:null);const p=r&&parentOf({...r,id:u});if(!p||!S.reps[p])break;u=p}uid=u}const me=repDoc(uid);const own=false;
+  const root={id:uid,name:own?coName():(me.name||'Me')};const seen={[uid]:1};const ks=kidsOf(uid);
+  const rootLi=h('li',null,h('div',{class:'node',style:own?'background:#111;color:#fff;border-color:#111':stCol(uid)},h('b',{text:root.name}),h('small',{text:own?'Owner':STAGES[stageIdx(uid)].from})),ks.length?h('ul',null,ks.map(k=>treeNode(k,seen))):null);
+  const all=downOf(uid);const lds=all.filter(x=>stageIdx(x.id)>=2).length;
+  const ov=h('div',{class:'ftree',role:'dialog','aria-label':'Team tree'},h('div',{class:'fbar'},h('div',null,h('h2',{style:'margin:0',text:(own?coName():root.name)+' team tree'}),h('div',{class:'hint',text:all.length+' people · '+lds+' leaders · '+niceDate(todayStr(),{day:'numeric',month:'long',year:'numeric'})})),
+    h('span',{style:'display:flex;gap:8px'},h('button',{class:'primary',onclick:()=>window.print()},'Save as PDF'),h('button',{onclick:()=>ov.remove()},'Close'))),
+    h('div',{class:'tree'},h('ul',null,rootLi)),treeLegend(),h('div',{class:'hint',style:'text-align:center;margin-top:6px',text:'Test people are left out.'}));
+  document.body.append(ov)}
+function treeCard(uid){const ld=r=>stageIdx(r.id)>=2;const d=kidsOf(uid).filter(ld),all=downOf(uid).filter(ld);const others=downOf(uid).length-all.length;if(!all.length&&!others)return null;const ind=all.filter(r=>!d.some(x=>x.id===r.id));
+  const nm=r=>r.name+' ('+STAGES[stageIdx(r.id)].from+')';
+  return h('div',{class:'panel',style:'padding:14px'},h('div',{class:'row',style:'display:flex;justify-content:space-between;align-items:center;gap:8px'},h('strong',{text:'Your leaders'}),h('span',{style:'display:flex;gap:8px;align-items:center'},h('span',{class:'hint',text:d.length+' direct · '+all.length+' total'}),h('button',{class:'icon','aria-label':'Team tree',title:'Team tree',style:'font-size:1.6rem;line-height:1;padding:6px 10px;background:none;border:none',onclick:()=>openTree(uid)},'🌳'))),
+    h('div',{class:'hint',style:'margin-top:6px'},h('b',{text:'Direct: '}),d.map(nm).join(', ')||'—'),ind.length?h('div',{class:'hint',style:'margin-top:4px'},h('b',{text:'Indirect: '}),ind.map(r=>nm(r)+' via '+repName(r.team)).join(', ')):null,
+    others?h('div',{class:'hint',style:'margin-top:4px',text:'+ '+others+' team member'+(others===1?'':'s')+' below Sales Leader (not counted)'}):null)}
+function b2bEnds(uids,amt){const w=weekMap(uids);return Object.keys(w).filter(k=>w[k]>=amt&&(w[addDays(k,-7)]||0)>=amt).sort().map(k=>addDays(k,6))}
+function teamProgress(uid,p){if(!p.team)return null;const t=p.team;const ld=r=>stageIdx(r.id)>=2;
+  const cnt=end=>{const ok=r=>ld(r)&&(!end||!(r.promo&&r.promo.slAt)||r.promo.slAt<=end);const d=kidsOf(uid).filter(ok).length,tot=downOf(uid).filter(ok).length;return[d,tot]};
+  let [d,tot]=cnt(null),done=d>=t.direct&&tot>=t.total,win=null;
+  if(p.sales&&p.sales.kind==='teamb2b'){const ends=b2bEnds([uid].concat(downOf(uid).map(r=>r.id)),p.sales.amt);done=false;
+    for(const e of ends){const [a,b]=cnt(e);if(a>=t.direct&&b>=t.total){done=true;win=e;d=a;tot=b;break}}}
+  const ind=tot-d;
+  return{direct:d,indirect:ind,total:tot,needDirect:t.direct,needTotal:t.total,what:t.what,win,
+    pctDirect:Math.min(100,d/t.direct*100),pctTotal:Math.min(100,tot/t.total*100),done}}
 function extrasDone(uid,p){const m=promoOf(uid).m||{};const req=(p.extras||[]).filter(x=>!x.optional);const n=req.filter(x=>!!m[p.k+'_'+x.k]).length;return n>=(p.need||req.length)}
 function stageDone(uid,p){if(p.appointed||p.top)return false;const s=salesProgress(uid,p),t=teamProgress(uid,p);return(!s||s.done)&&(!t||t.done)&&extrasDone(uid,p)}
-async function setPromo(uid,patch){const r=S.reps[uid]||{};const cur=r.promo||{};const next={...cur,...patch,m:{...(cur.m||{}),...(patch.m||{})}};
+async function setPromo(uid,patch){const r=S.reps[uid]||{};const cur=r.promo||{};if(patch.stage&&STAGES.findIndex(x=>x.k===patch.stage)>=2&&!cur.slAt)patch={...patch,slAt:todayStr()};const next={...cur,...patch,m:{...(cur.m||{}),...(patch.m||{})}};
   S.reps[uid]={...r,promo:next};if(uid===S.uid)S.me=S.reps[uid];render();await write(()=>S.db.doc('reps/'+uid).update({promo:patch}))}
 function bar(pct,done){return h('div',{class:'prog'+(done?' hit':'')},h('i',{style:`width:${Math.max(0,Math.min(100,pct))}%`}))}
 function counter(uid,field,label){const v=num(promoOf(uid)[field]);const can=leader()&&uid!==S.uid||S.isOwner;
@@ -1689,7 +1759,7 @@ function currentCard(uid){const i=stageIdx(uid);const p=STAGES[i];const m=promoO
   if(tp)card.append(h('div',{class:'psec'},h('div',{class:'lbl',text:'Team members progress'}),
     h('div',{class:'prow'},h('span',{text:`${tp.needDirect} direct ${tp.what}`}),h('b',{class:tp.direct>=tp.needDirect?'achieved':null,text:`${tp.direct} of ${tp.needDirect}`})),bar(tp.pctDirect,tp.direct>=tp.needDirect),
     h('div',{class:'prow'},h('span',{text:`${tp.needTotal} ${tp.what} in total (direct + indirect)`}),h('b',{class:tp.total>=tp.needTotal?'achieved':null,text:`${tp.total} of ${tp.needTotal}`})),bar(tp.pctTotal,tp.total>=tp.needTotal),
-    h('div',{class:'counters'},counter(uid,'direct','Direct'),counter(uid,'indirect','Indirect'))));
+    h('div',{class:'hint small',text:'Counted automatically from who\u2019s on whose team (Sales Leaders and up).'+(p.sales&&p.sales.kind==='teamb2b'?' Leaders count if they were promoted by the end of the two qualifying weeks.':'')+(tp.win?' Qualified in the two weeks ending '+niceDate(tp.win,{day:'numeric',month:'short'})+'.':'')})));
   if((p.extras||[]).length)card.append(h('div',{class:'psec'},h('div',{class:'lbl',text:p.need?('Also needed: any '+p.need+' of '+p.extras.length+' \u00b7 '+p.extras.filter(x=>m[p.k+'_'+x.k]).length+' ticked'+(extrasDone(uid,p)?' \u2713':'')):'Also needed'}),...(p.extras.map(x=>{const id=`ex-${p.k}-${x.k}-${uid}`;
     return h('div',{class:'citem'+(m[p.k+'_'+x.k]?' on':'')},h('input',{type:'checkbox',id,checked:!!m[p.k+'_'+x.k],onchange:e=>setPromo(uid,{m:{[p.k+'_'+x.k]:e.target.checked}})}),h('label',{for:id,text:x.l+(x.optional?' (optional)':'')}))}))));
   if(leader()&&uid!==S.uid&&stageDone(uid,p))card.append(h('button',{class:'primary',onclick:()=>setPromo(uid,{stage:STAGES[i+1].k})},'Promote to '+p.to));
@@ -1705,6 +1775,7 @@ function pathTable(uid){const cur=uid?stageIdx(uid):-1;const tb=h('tbody');
       uid?cell(tp?{pct:(Math.min(tp.direct,tp.needDirect)+Math.min(tp.total,tp.needTotal))/(tp.needDirect+tp.needTotal)*100,done:tp.done}:null,tp?`${tp.direct}/${tp.needDirect} direct · ${tp.total}/${tp.needTotal} total`:''):null))});
   return h('div',{class:'stack'},h('div',{class:'bar'},h('h3',{text:'Promotion path'}),h('span',{class:'hint',text:uid?'Every step from Sales Associate, with '+(uid===S.uid?'your':repName(uid)+'’s')+' progress.':'Every step from Sales Associate. Tap a name above to see their progress.'})),
     h('div',{class:'panel scroll'},h('table',{class:'train'},h('thead',null,h('tr',null,h('th',{text:'Step',style:'text-align:left'}),h('th',{text:'Sales',style:'text-align:left'}),h('th',{text:'Team members',style:'text-align:left'}),uid?h('th',{text:'Sales progress',style:'text-align:left'}):null,uid?h('th',{text:'Team progress',style:'text-align:left'}):null)),tb)))}
+function canPromote(uid){return S.isOwner||(uid!==S.uid&&['tm','ad','dir','md'].includes(promoOf(S.uid).stage||(S.me&&S.me.promo&&S.me.promo.stage)))}
 function renderPromo(v){
   if(needsTeam()){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading the team’s history…'})));loadAllTeam();return}
   if(!leader()){
@@ -1714,11 +1785,11 @@ function renderPromo(v){
   const ros=repList(true);if(!ros.length){v.append(noReps());return}
   const tb=h('tbody');ros.forEach(r=>{const i=stageIdx(r.id);const p=STAGES[i];const sp=!p.top&&!p.appointed?salesProgress(r.id,p):null,tp=!p.top&&!p.appointed?teamProgress(r.id,p):null;
     tb.append(h('tr',{class:S.promoSel===r.id?'sel':null},h('td',{class:'name'},h('button',{class:'linkbtn',onclick:()=>{S.promoSel=r.id;render()}},r.name)),
-      h('td',null,h('select',{id:'role-'+r.id,'aria-label':r.name+' current role',onchange:e=>{setPromo(r.id,{stage:e.target.value});toast(r.name+' is now '+e.target.selectedOptions[0].textContent)}},STAGES.map(x=>h('option',{value:x.k,selected:x.k===p.k},x.from)))),
+      h('td',null,!canPromote(r.id)?h('span',{text:p.from}):h('select',{id:'role-'+r.id,'aria-label':r.name+' current role',onchange:e=>{const up=STAGES.findIndex(x=>x.k===e.target.value)>i;setPromo(r.id,up?{stage:e.target.value,promotedAt:new Date().toISOString(),promotedTo:e.target.value}:{stage:e.target.value});toast(r.name+' is now '+e.target.selectedOptions[0].textContent)}},STAGES.map(x=>h('option',{value:x.k,selected:x.k===p.k},x.from)))),
       h('td',{text:p.top?'—':p.to+(p.appointed?' (appointed)':'')}),
       h('td',{class:'pathbar'},sp?[bar(sp.done?100:sp.pct,sp.done),h('span',{class:sp.done?'achieved small':'hint small',text:sp.short+(sp.lastHit&&!sp.done?' · last week ✓':'')})]:'—'),
       h('td',{class:'pathbar'},tp?[bar((Math.min(tp.direct,tp.needDirect)+Math.min(tp.total,tp.needTotal))/(tp.needDirect+tp.needTotal)*100,tp.done),h('span',{class:tp.done?'achieved small':'hint small',text:`${tp.direct}/${tp.needDirect} direct · ${tp.total}/${tp.needTotal} total`})]:'—'),
-      h('td',null,stageDone(r.id,p)?h('span',{class:'achieved',text:'✓ Ready'}):'')))});
+      h('td',null,stageDone(r.id,p)?h('span',{style:'display:flex;gap:6px;align-items:center;flex-wrap:wrap'},h('span',{class:'achieved',text:'✓ Ready'}),!p.top&&STAGES[i+1]&&canPromote(r.id)?h('button',{class:'primary small',onclick:()=>{const nx=STAGES[i+1];setPromo(r.id,{stage:nx.k,promotedAt:new Date().toISOString(),promotedTo:nx.k});toast('🎉 '+r.name+' promoted to '+nx.from)}},'Promote to '+STAGES[i+1].from):null):'')))});
   v.append(h('div',{class:'panel scroll'},h('table',null,h('thead',null,h('tr',null,['Name','Current role','Working towards','Sales progress','Team members progress',''].map(x=>h('th',{text:x,style:'text-align:left'})))),tb)));
   const sel=S.promoSel&&S.reps[S.promoSel]?S.promoSel:null;
   if(sel){v.append(h('div',{class:'bar'},h('h3',{text:repName(sel)+'’s progress'})));v.append(currentCard(sel))}
@@ -1777,7 +1848,7 @@ function createTeamPanel(){const myTeam=S.teams[S.uid];
   if(myTeam){return h('div',{class:'panel'},h('div',{class:'field'},h('label',{text:'My team'}),
     h('input',{type:'text',id:'myTeamName',value:myTeam.name||'','aria-label':'Team name',onchange:e=>{const n=e.target.value.trim();if(n)saveTeam(S.uid,{name:n}).then(ok=>ok&&toast('Team name saved'))}}),
     logoPicker('myTeamLogo',myTeam.logo,data=>saveTeam(S.uid,{logo:data}).then(ok=>ok&&toast('Logo saved')),()=>saveTeam(S.uid,{logo:null}),'Team logo'),
-    !leader()?h('span',{class:'hint',text:window.KAIZEN_GOOGLE?'To see your members’ full detail, ask Ameliah to make you a team leader.':'To see your members’ full detail, ask Ameliah to give you Editor access from the Share menu.'}):null))}
+    !leader()?h('span',{class:'hint',text:'You’ll see your members’ numbers, goals and reflections as soon as they’re on your team. Close and reopen the app if they don’t show yet.'}):null))}
   if(!canCreateTeam())return null;
   return h('div',{class:'panel'},h('div',{class:'field'},h('label',{for:'newTeamName',text:'Create your team'}),
     h('span',{class:'hint',text:'Name your team within Kaizen. You can add a logo once it’s created, and people pick your team when they join.'}),
@@ -1792,7 +1863,7 @@ function renderTeam(v){
       h('input',{id:'teamName',type:'text',value:S.settings.teamName||'',placeholder:'e.g. Kaizen Enterprises',onchange:e=>write(()=>S.db.doc('settings/main').set({...S.settings,teamName:e.target.value.trim()}),'Name saved')})),
       h('div',{class:'field'},h('label',{text:'Company logo'}),logoPicker('logoFile',S.logo&&S.logo.data,data=>write(()=>S.db.doc('settings/logo').set({data,updatedAt:new Date().toISOString()}),'Logo saved').then(ok=>{if(ok){S.logo={data};render()}}),()=>write(()=>S.db.doc('settings/logo').delete(),'Logo removed'),'Company logo'))));
   }else v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My team'}),h('div',{class:'hint',text:'Your team’s name, logo and members.'}))));
-  const cp=createTeamPanel();if(cp)v.append(cp);
+  const cp=createTeamPanel();if(cp)v.append(cp);{const tc=treeCard(S.uid);if(tc)v.append(tc)}
   if(S.isOwner){const cl=campaigns();const saveC=(list,def)=>{S.campaignsCfg={list,def:def||defCampaign()};render();write(()=>S.db.doc('settings/campaigns').set(S.campaignsCfg),'Campaigns saved')};
     const cp=h('div',{class:'panel'});cp.append(h('div',{class:'field'},h('label',{text:'Campaigns'}),h('span',{class:'hint',text:'Every logged day is tagged with a campaign. The default is pre-selected when people log. Once there\u2019s more than one, a campaign filter appears at the top for everyone.'})));
     const rl=h('div',{class:'rules'});cl.forEach((c,i)=>rl.append(h('div',{class:'rule'},
@@ -1816,7 +1887,7 @@ function renderTeam(v){
     if(!ts.length)tl.append(h('div',{class:'empty'},h('span',{text:'No other teams yet. Everyone is on '+coName()+' until Sales Leaders and up create their own teams.'})));
     ts.forEach(t=>{const n=repListAll(false).filter(r=>r.team===t.id).length;
       tl.append(h('div',{class:'teamrow'},teamLogo(t.id),h('input',{type:'text',id:'tname-'+t.id,value:t.name||'','aria-label':'Team name',onchange:e=>{const nm=e.target.value.trim();if(nm)saveTeam(t.id,{name:nm})}}),
-        h('span',{class:'hint',text:`Led by ${repName(t.leader||t.id)} · ${n} member${n===1?'':'s'}`}),
+        h('span',{class:'hint',text:`Led by ${repName(t.leader||t.id)} · ${kidsOf(t.leader||t.id).filter(r=>stageIdx(r.id)>=2).length} direct leaders · ${downOf(t.leader||t.id).filter(r=>stageIdx(r.id)>=2).length} total · ${downOf(t.leader||t.id).length} people`}),
         h('button',{onclick:()=>{if(S.confirmDel!=='t'+t.id){S.confirmDel='t'+t.id;render();return}S.confirmDel=null;write(()=>S.db.doc('teams/'+t.id).delete(),'Team removed').then(ok=>{if(ok){delete S.teams[t.id];render()}})}},S.confirmDel==='t'+t.id?'Tap again to remove':'Remove')))});
     v.append(tl)}
   v.append(h('div',{class:'panel notice'},h('strong',{text:'Adding people: '}),
@@ -1850,7 +1921,7 @@ function loginsPanel(){const box=h('div',{class:'stack'});
       l.role==='owner'?null:h('button',{onclick:()=>{if(S.confirmDel!=='l'+l.uid){S.confirmDel='l'+l.uid;render();return}S.confirmDel=null;act('remove',l.uid,null,'Access removed')}},S.confirmDel==='l'+l.uid?'Tap again to remove':'Remove')))});
   box.append(list);
   box.append(h('div',{class:'hint',text:'Your own PIN is changed from the spreadsheet: Kaizen KPIs menu → Set or reset owner PIN.'}));return box}
-function renderMyTeam(v){const t=S.me&&S.me.team;
+function renderMyTeam(v){const t=S.me&&S.me.team;{const tc=treeCard(S.uid);if(tc)v.append(tc)}
   v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My team'}),h('div',{class:'hint',text:'The team you’re part of within '+((S.settings.teamName||'').trim()||'Kaizen')+'.'}))));
   v.append(h('div',{class:'panel teamcard'},teamLogo(t,'tlogo big'),h('div',null,h('strong',{class:'ftitle',text:teamName(t)}),t&&S.teams[t]?h('div',{class:'hint',text:'Led by '+(S.teams[t].leader===S.uid?'you':'your team leader')}):h('div',{class:'hint',text:'Led by Ameliah'})),
     h('div',{class:'hint',text:'To change teams, ask Ameliah.'})));
