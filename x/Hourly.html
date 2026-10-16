@@ -25,6 +25,15 @@ textarea{resize:vertical;min-height:64px}
 .top .sub{color:var(--muted);font-size:.85rem}
 .top .sp{flex:1}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.sect{font-family:var(--display);font-weight:700;font-size:1rem;letter-spacing:.04em;color:var(--muted);margin:14px 0 6px}
+.fold{padding:0;overflow:hidden;margin-top:8px}.fold.open{border:2px solid var(--accent)}
+.foldh{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;padding:14px;cursor:pointer;min-height:56px}
+.foldh .ft{flex:1;display:flex;flex-direction:column;gap:2px}.foldh small{color:var(--muted);font-size:.82rem}.foldh small.ok{color:var(--ok)}.foldh .chev{color:var(--muted)}
+.foldb{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
+.pills{display:flex;flex-wrap:wrap;gap:8px}.pills button{min-height:40px;padding:0 14px;border-radius:999px;font-weight:600}.pills button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tgprev{background:var(--bg);border-radius:12px;padding:12px;font-size:.82rem;white-space:pre-wrap;max-height:220px;overflow:auto;margin:0;font-family:inherit}
+.banner{background:var(--accent);color:#fff;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-top:10px}.banner b{flex:1}.banner button{background:#fff;color:var(--accent);border:0;font-weight:700}
+.morectr{all:unset;box-sizing:border-box;width:100%;display:flex;justify-content:space-between;padding:12px 2px 2px;font-weight:600;cursor:pointer}.morectr span{color:var(--muted);font-weight:500}
 .card h2{font-family:var(--display);font-size:1.15rem;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px}
 .lbl{font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;display:block}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -327,13 +336,13 @@ function threeList(label,D,key,old){if(!Array.isArray(D[key])){D[key]=['','','']
   return h('div',{style:'margin-top:12px'},h('span',{class:'lbl',text:label}),h('div',{style:'display:flex;flex-direction:column;gap:6px'},[0,1,2].map(i=>{const el=h('input',{type:'text',placeholder:(i+1)+'.','aria-label':label+' '+(i+1),oninput:e=>{D[key][i]=e.target.value;markDirty()}});el.value=D[key][i]||'';return el})))}
 function streaks(){let cur=0,best=0,run=0;const last=Math.max(0,...Object.keys(S.doc.slots).map(Number).filter(i=>F.some(f=>num(S.doc.slots[i][f.k]))));
   for(let i=1;i<=last;i++){if(hit(i)===true){run++;best=Math.max(best,run)}else run=0}cur=run;return{cur,best}}
-function inStreak(n){if(hit(n)!==true)return false;return hit(n-1)===true||hit(n+1)===true}
+function inStreak(n){return hit(n)===true}
 async function pushStreak(){try{const st=streaks();const ref=db.doc('board/'+S.me.id);const d=await ref.get();const o=(d.exists&&d.data().streak)||{};
   if(o.date===S.date&&o.best===st.best&&o.cur===st.cur)return;const sv={date:S.date,best:st.best,cur:st.cur,name:S.me.name};d.exists?await ref.update({streak:sv}):await ref.set({name:S.me.name,streak:sv})}catch(_){}}
-function streakComp(){if(!S.board)return null;const rows=Object.entries(S.board).map(([id,b])=>({id,n:(b&&b.name)||(b&&b.streak&&b.streak.name)||'Rep',st:b&&b.streak})).filter(x=>x.st&&x.st.date===S.date&&x.st.best>=2).sort((p,q)=>q.st.best-p.st.best||q.st.cur-p.st.cur);
+function streakComp(){if(!S.board)return null;const rows=Object.entries(S.board).map(([id,b])=>({id,n:(b&&b.name)||(b&&b.streak&&b.streak.name)||'Rep',st:b&&b.streak})).filter(x=>x.st&&x.st.date===S.date&&x.st.best>=1).sort((p,q)=>q.st.best-p.st.best||q.st.cur-p.st.cur);
   return h('div',{class:'card',style:'padding:10px 14px'},h('div',{style:'display:flex;justify-content:space-between;align-items:baseline'},h('b',{text:'🔥 Hot streak comp'}),h('span',{class:'hint',style:'font-size:.75rem',text:'Most hours won in a row today'})),
     rows.length?h('div',{style:'display:flex;flex-direction:column;gap:4px;margin-top:6px'},rows.slice(0,8).map((x,i)=>h('div',{style:'display:flex;justify-content:space-between;font-size:.9rem'+(x.id===S.me.id?';font-weight:800':'')},
-      h('span',{text:(i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':(i+1)+'. ')+x.n}),h('span',{text:'🔥'.repeat(Math.min(x.st.best,5))+' '+x.st.best+(x.st.cur>=2?' · on one now':'')})))):h('div',{class:'hint',style:'font-size:.8rem;margin-top:4px',text:'No one’s won 2 hours in a row yet today. Be the first!'}))}
+      h('span',{text:(i===0?'🥇 ':i===1?'🥈 ':i===2?'🥉 ':(i+1)+'. ')+x.n}),h('span',{text:'🔥'.repeat(Math.min(x.st.best,5))+' '+x.st.best+(x.st.cur>=1?' · on one now':'')})))):h('div',{class:'hint',style:'font-size:.8rem;margin-top:4px',text:'No one’s won an hour yet today. Be the first!'}))}
 function rosterHrs(){const sh=num(S.doc.targets.shiftHours)||8;if(S.date!==today())return sh;const st=startMin();if(st==null)return totals().hours?Math.min(sh,totals().hours):0;const n=new Date();const m=n.getHours()*60+n.getMinutes()-st;return Math.max(0.5,Math.min(sh,m/60))}
 function goalCard(){const T=S.doc.targets;const goal=num(T.retail);if(!goal)return null;
   const t=totals();const left=Math.max(0,goal-t.retail);const pc=Math.min(100,t.retail/goal*100);const sh=num(T.shiftHours)||8;
@@ -349,7 +358,7 @@ function goalCard(){const T=S.doc.targets;const goal=num(T.retail);if(!goal)retu
     h('div',{style:'position:relative;height:8px;border-radius:4px;background:var(--line);margin:6px 0'},h('i',{style:'display:block;height:100%;border-radius:4px;background:'+col+';width:'+pc.toFixed(1)+'%;transition:width .4s'}),
       exp>0&&exp<goal?h('b',{style:'position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.6;left:'+(exp/goal*100).toFixed(1)+'%'}):null),
     left>0?h('div',{class:'hint',style:'font-size:.8rem',text:'Need '+(bNeed!=null?bNeed+' buyers':'')+(sNeed!=null?' · '+sNeed+' stops':'')+(hrsLeft?' · '+money(left/hrsLeft)+'/hr':'')+(avg?' (at '+money(avg)+' avg'+(conv?', '+Math.round(conv*100)+'% conv':'')+')':'')}):h('div',{class:'hint',style:'font-size:.8rem',text:'Target smashed. Everything from here is a bonus.'}),
-    (()=>{const st=streaks();return st.cur>=2?h('div',{style:'font-size:.85rem;margin-top:3px;font-weight:800;color:var(--warn)',text:'🔥'.repeat(Math.min(st.cur,5))+' '+st.cur+' hours won in a row!'}):null})(),
+    (()=>{const st=streaks();return st.cur>=1?h('div',{style:'font-size:.85rem;margin-top:3px;font-weight:800;color:var(--warn)',text:'🔥'.repeat(Math.min(st.cur,5))+' '+st.cur+' hours won in a row!'}):null})(),
     best?h('div',{style:'font-size:.8rem;margin-top:3px'},'⭐ Best hour so far: ',h('b',{text:'Hour '+best.k+(hourRange(+best.k)?' ('+hourRange(+best.k)+')':'')+' · '+money(best.r)})):null)}
 function breakNudge(a){const D=S.doc;if(S.date!==today()||!D.start||S.view!=='mine')return;D.nudges=D.nudges||[];
   const ch=clockHour();if(!ch)return;
@@ -417,17 +426,50 @@ function eodJourney(){const D=S.doc,T=D.targets,t=totals(),hrs=num(D.targets.shi
 async function copyTxt(txt){try{await navigator.clipboard.writeText(txt);toast('Copied, paste it into Telegram');return}catch(_){}
   const ta=h('textarea',{style:'position:fixed;top:0;left:0;opacity:0'});ta.value=txt;document.body.append(ta);ta.select();let ok=false;try{ok=document.execCommand('copy')}catch(_){}ta.remove();
   if(ok){toast('Copied, paste it into Telegram');return}S.showTg=txt;render()}
-function tgCard(){const D=S.doc;const row=(which,label,key,ph)=>h('div',{style:'margin-top:10px'},h('span',{class:'lbl',text:label}),h('div',{class:'rule',style:'display:flex;gap:6px'},
-    (()=>{const el=h('input',{type:'text',placeholder:ph,'aria-label':label,style:'flex:1;min-width:0',oninput:e=>{D[key]=e.target.value;markDirty()}});el.value=D[key]||'';return el})(),
-    h('button',{class:'primary',onclick:()=>copyTxt(tgText(which))},'Copy '+which)));
-  return h('div',{class:'card'},h('h2',{text:'Telegram check-ins'}),h('div',{class:'hint',text:'Type your focus, tap Copy, then paste into the group.'}),
-    row('2pm','2pm · focus for the second half','focus2','e.g. Distances!'),row('4pm','4pm · focus for end of day','focus4','e.g. Gong'),
-    h('h2',{text:'End of day',style:'margin-top:16px'}),
-    (()=>{const ta=(lbl,key,ph,rows)=>h('label',{style:'display:block;margin-top:8px'},h('span',{class:'lbl',text:lbl}),(()=>{const el=h(rows?'textarea':'input',{type:'text',rows:rows||null,placeholder:ph,'aria-label':lbl,style:'width:100%',oninput:e=>{D[key]=e.target.value;markDirty()}});el.value=D[key]||'';return el})());
-      return h('div',null,h('div',{style:'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px'},ta('Cash $','cash','50'),ta('EFTPOS $','eftpos','350'),ta('Transaction fee %','fee','100')),ta('Strategy','strategy','e.g. Events Alt'),ta('Daily focus (habits), one per line','habits','Stops\nNail checkpoints',2),ta('Wins, one per line','wins','11 buyers day one',3),ta('Areas for improvement, one per line','improve','Stopping',3),
-        h('div',{class:'hint',style:'margin-top:6px',text:'Grateful and objectives come from Edit day. Hours and totals fill in automatically.'}),
-        h('div',{style:'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap'},h('button',{class:'primary',style:'flex:1',onclick:()=>copyTxt(eodJourney())},'Copy for Journey chat'),h('button',{class:'primary',style:'flex:1',onclick:()=>copyTxt(eodFinal())},'Copy Final KPIs')))})(),
-    S.showTg?h('div',{style:'margin-top:10px'},h('div',{class:'hint',text:'Copying is blocked here. Press and hold the text below to copy it.'}),(()=>{const ta=h('textarea',{rows:14,style:'width:100%',readonly:true});ta.value=S.showTg;return ta})(),h('button',{onclick:()=>{S.showTg=null;render()}},'Close')):null)}
+function fold(key,title,sub,body,ok){S.fold=S.fold||{};const open=!!S.fold[key];return h('div',{class:'card fold'+(open?' open':''),id:'fold-'+key},
+  h('button',{class:'foldh','aria-expanded':String(open),onclick:()=>{S.fold[key]=!open;render()}},h('span',{class:'ft'},h('b',{text:title}),sub?h('small',{class:ok?'ok':null,text:sub}):null),h('span',{class:'chev',text:open?'▾':'▸'})),open?h('div',{class:'foldb'},body()):null)}
+function openFold(key){S.fold=S.fold||{};S.fold[key]=true;render();setTimeout(()=>{const el=document.getElementById('fold-'+key);if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'start'})},60)}
+function uniq(a){const o=[],seen={};a.forEach(x=>{x=String(x||'').trim();const k=x.toLowerCase();if(x&&!seen[k]){seen[k]=1;o.push(x)}});return o}
+function linesOf(t){return uniq(String(t||'').split(/\n/))}
+function rememberPrefs(){const D=S.doc;const P=S.prefs=S.prefs||{strategies:[],habits:[]};P.strategies=uniq([D.strategy].concat(P.strategies||[])).slice(0,8);P.habits=uniq(linesOf(D.habits).concat(P.habits||[])).slice(0,12);
+  try{db.doc('reps/'+S.me.id).update({eodPrefs:P})}catch(_){}}
+async function loadPast(){S.past={recent:null,week:[]};try{const wk0=(()=>{const d=new Date(S.date+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));return toStr(d)})();
+  for(let k=1;k<=7;k++){const dt=addDays(S.date,-k);const r=await db.doc(`reps/${S.me.id}/hourly/${dt}`).get();if(!r.exists)continue;const x=r.data();const imp=linesOf(x.improve);
+    if(imp.length&&!S.past.recent)S.past.recent={date:dt,items:imp};if(dt>=wk0)S.past.week.push(...imp)}}catch(_){}render()}
+function yesterdayCard(){const D=S.doc,P=S.past;if(S.date!==today()||!P||!P.recent)return null;const it=P.recent.items;
+  if(D.planDone)return h('div',{class:'card',style:'margin-top:10px'},h('div',{class:'hint',text:'Today’s plan for '+it.join(', ')}),h('b',{text:D.planToday||''}));
+  const inp=h('textarea',{rows:2,placeholder:'How will you work on it today?','aria-label':'Your plan for today',style:'width:100%;margin-top:8px',oninput:e=>{D.planToday=e.target.value;markDirty()}});inp.value=D.planToday||'';
+  return h('div',{class:'card',style:'margin-top:10px;border-color:var(--accent)'},h('div',{class:'hint',text:'Last shift you said you’d work on'}),h('b',{text:it.join(' · ')}),inp,
+    h('button',{class:'primary',style:'margin-top:8px;width:100%',onclick:()=>{if(!(D.planToday||'').trim()){toast('Write your plan first');return}D.planDone=true;markDirty();render()}},'Lock in my plan'))}
+function weekCard(){if(S.date!==today()||new Date().getDay()!==5||!S.past)return null;const all=S.past.week.concat(linesOf(S.doc.improve));if(!all.length)return null;
+  const c={};all.forEach(x=>{const k=x.toLowerCase();c[k]=c[k]||{t:x,n:0};c[k].n++});const L=Object.values(c).sort((a,b)=>b.n-a.n);
+  return h('div',{class:'card',style:'margin-top:8px'},h('b',{text:'Your week so far'}),h('div',{class:'hint',text:'What you wrote down to work on this week. Notice a pattern?'}),
+    h('div',{class:'pills',style:'margin-top:8px'},L.map(x=>h('span',{style:'padding:8px 12px;border-radius:999px;border:1px solid var(--line);font-weight:600',text:x.t+(x.n>1?' ×'+x.n:'')}))))}
+function checkBanner(){const D=S.doc;if(S.date!==today()||S.view!=='mine')return null;const hr=new Date().getHours();const w=hr===14?'2pm':hr===16?'4pm':null;if(!w||D['copied'+w])return null;
+  return h('div',{class:'banner'},h('b',{text:'Time for your '+w+' check-in'}),h('button',{onclick:()=>openFold('t'+w)},'Open'))}
+function tgCard(){const D=S.doc;const t=totals();
+  const ck=(w,key,lbl,ph)=>fold('t'+w,w+' check-in',D['copied'+w]?'Copied ✓':(D[key]?'Focus: '+D[key]:'Add your focus'),()=>{const el=h('input',{type:'text',placeholder:ph,'aria-label':lbl,style:'width:100%',oninput:e=>{D[key]=e.target.value;markDirty()}});el.value=D[key]||'';
+    return [h('label',null,h('span',{class:'lbl',text:lbl}),el),h('button',{class:'primary',onclick:async()=>{await copyTxt(tgText(w));D['copied'+w]=true;markDirty();render()}},'Copy '+w+' check-in')]},!!D['copied'+w]);
+  const filled=[D.cash,D.eftpos,D.strategy,D.habits,D.wins,D.improve].filter(v=>String(v||'').trim()).length;
+  const eod=fold('eod','End of day',D.finished?'Submitted ✓':'Journey chat + Final KPIs · '+filled+' of 6 done',()=>{
+    const inp=(lbl,key,ph,im)=>{const el=h('input',{type:'text',inputmode:im||null,placeholder:ph,'aria-label':lbl,style:'width:100%',oninput:e=>{D[key]=e.target.value;markDirty();const m=document.getElementById('cashchk');if(m)m.textContent=cashMsg()}});el.value=D[key]||'';return h('label',null,h('span',{class:'lbl',text:lbl}),el)};
+    const cashMsg=()=>{const c=num(D.cash),e=num(D.eftpos);if(!String(D.cash||'').trim()&&!String(D.eftpos||'').trim())return '';const s2=c+e;return s2===Math.round(t.retail)?'Cash + EFTPOS = $'+s2+', matches retail ✓':'Cash + EFTPOS = $'+s2+', retail is $'+Math.round(t.retail)};
+    const P=S.prefs||{};const strats=uniq([D.strategy].concat(P.strategies||[]));
+    const stratSel=S.stratOwn||!strats.length?(()=>{const el=h('input',{type:'text',placeholder:'e.g. Events Alt','aria-label':'Strategy',style:'width:100%',oninput:e=>{D.strategy=e.target.value;markDirty()}});el.value=D.strategy||'';return el})():
+      h('select',{'aria-label':'Strategy',onchange:e=>{if(e.target.value==='__own'){S.stratOwn=true;D.strategy='';render();return}D.strategy=e.target.value;markDirty()}},h('option',{value:''},'Choose a strategy'),strats.map(x=>h('option',{value:x,selected:x===D.strategy},x)),h('option',{value:'__own'},'+ Type a new one'));
+    const mine=linesOf(D.habits);const opts=uniq(mine.concat(P.habits||[]));const tog=x=>{const L=linesOf(D.habits);const k=L.findIndex(y=>y.toLowerCase()===x.toLowerCase());if(k>=0)L.splice(k,1);else L.push(x);D.habits=L.join('\n');markDirty();render()};
+    const addH=h('input',{type:'text',placeholder:'Add a habit','aria-label':'Add a habit',style:'flex:1;min-width:0',onkeydown:e=>{if(e.key==='Enter'&&e.target.value.trim())tog(e.target.value.trim())}});
+    const ta=(lbl,key,ph)=>{const el=h('textarea',{rows:3,placeholder:ph,'aria-label':lbl,style:'width:100%',oninput:e=>{D[key]=e.target.value;markDirty()}});el.value=D[key]||'';return h('label',null,h('span',{class:'lbl',text:lbl}),el,h('div',{class:'hint',text:'One per line'}))};
+    return [h('div',{style:'display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px'},inp('Cash $','cash','0','decimal'),inp('EFTPOS $','eftpos','0','decimal'),inp('Fee %','fee','100','decimal')),h('div',{class:'hint',id:'cashchk',text:cashMsg()}),
+      h('label',null,h('span',{class:'lbl',text:'Strategy'}),stratSel),
+      h('div',null,h('span',{class:'lbl',text:'Daily focus (habits)'}),opts.length?h('div',{class:'pills'},opts.map(x=>h('button',{class:mine.some(y=>y.toLowerCase()===x.toLowerCase())?'on':null,onclick:()=>tog(x)},x))):null,
+        h('div',{style:'display:flex;gap:6px;margin-top:8px'},addH,h('button',{onclick:()=>{if(addH.value.trim())tog(addH.value.trim())}},'Add'))),
+      ta('Wins','wins','What did your best hour do differently?'),ta('Areas for improvement','improve','Where did sales slip away today?'),
+      h('pre',{class:'tgprev',text:eodJourney()}),
+      h('div',{style:'display:grid;grid-template-columns:1fr 1fr;gap:8px'},h('button',{class:'primary',onclick:()=>{rememberPrefs();copyTxt(eodJourney())}},'Copy Journey chat'),h('button',{onclick:()=>copyTxt(eodFinal())},'Copy Final KPIs')),
+      h('button',{class:'primary',id:'submitFinal',style:'width:100%;min-height:52px;background:var(--ok);border-color:var(--ok)',onclick:()=>{rememberPrefs();submitFinal()}},D.finished?'Submit final KPIs again ›':'Submit final KPIs ›')]});
+  return h('div',null,h('div',{class:'sect',text:'TELEGRAM'}),ck('2pm','focus2','Focus for the second half','e.g. Distances!'),ck('4pm','focus4','Focus for end of day','e.g. Gong'),eod,
+    S.showTg?h('div',{class:'card',style:'margin-top:8px'},h('div',{class:'hint',text:'Copying is blocked here. Press and hold the text below to copy it.'}),(()=>{const x=h('textarea',{rows:14,style:'width:100%',readonly:true});x.value=S.showTg;return x})(),h('button',{onclick:()=>{S.showTg=null;render()}},'Close')):null)}
 function finishCard(){const D=S.doc;const t=totals();
   const box=(v,k)=>h('div',{class:'stat'},h('div',{class:'v',style:'font-size:1.4rem',text:v}),h('div',{class:'k',text:k}));
   return h('div',{class:'card',style:'border-color:'+(D.finished?'var(--ok)':'var(--accent)')},
@@ -449,6 +491,7 @@ function render(){HOURS=S.view==='team'?Math.max(10,...Object.values(S.team||{})
   const ready=num(T.retail)>0&&(D.site||'').trim();if(S.setupOpen==null)S.setupOpen=!ready;
   if(S.setupOpen){setupCards(a,D);a.append(h('button',{onclick:()=>{S.setupOpen=false;render()}},'Done · show my tally'))}
   else a.append(h('div',{class:'card',style:'padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px'},h('div',{style:'min-width:0'},h('b',{text:(D.roadie?'🚐 ':'🏙️ ')+(D.site||'No site set')}),h('div',{class:'hint',text:(((S.camps||[]).find(c=>c.id===(D.campaign||S.homeCamp))||{}).name||'')+' · Target '+money(T.retail)+(D.start?' · started '+hourRange(1).split('–')[0]:'')})),h('button',{onclick:()=>{S.setupOpen=true;render()}},'Edit day')));
+  {const b=checkBanner();if(b)a.append(b)}{const y=yesterdayCard();if(y)a.append(y)}{const w=weekCard();if(w)a.append(w)}
   breakNudge(a);
   {const g=goalCard();if(g)a.append(g)}
   S.mode='tally';renderTally(a);
@@ -458,8 +501,8 @@ function render(){HOURS=S.view==='team'?Math.max(10,...Object.values(S.team||{})
     h('div',{class:'stat'},h('div',{class:'v',text:rosterHrs()?money(t.retail/rosterHrs()):'—'}),h('div',{class:'k',text:'Retail per hour'}))));
   {const c=streakComp();if(c)a.append(c)}
   a.append(tgCard());
-  a.append(h('div',{class:'card'},field('Notes',D,'notes','',true)));
-  a.append(finishCard());
+  a.append(fold('notes','Notes',(D.notes||'').trim()?String(D.notes).trim().slice(0,40):'',()=>[field('Notes',D,'notes','',true)]));
+  if(!D.finished)a.append(h('button',{class:'primary',style:'width:100%;min-height:54px;margin-top:12px;background:var(--ok);border-color:var(--ok)',onclick:()=>openFold('eod')},'Finish my day ›'));
   const ns=S.date===today()?nextSync():null;
   a.append(h('div',{class:'card sync'},h('span',{text:(D.syncedAt?'Synced to Kaizen KPIs at '+new Date(D.syncedAt).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'})+'. ':'Not synced to Kaizen KPIs yet. ')+(ns?'Next automatic sync '+ns+'.':'')}),h('button',{onclick:()=>syncNow()},'Sync now')));
   renderBar();window.scrollTo(0,keepY)}
@@ -502,8 +545,8 @@ function renderTeam(a){if(!S.team){a.append(h('div',{class:'empty',text:'Loading
   try{const l=await db.doc('settings/logo').get();if(l.exists&&l.data().data)S.logo=l.data().data}catch(_){}
   if(S.leader){db.collection('reps').onSnapshot(sn=>{const o={};sn.docs.forEach(d=>o[d.id]=d.data());S.reps=o})}
   try{db.collection('board').onSnapshot(sn=>{const o={};sn.docs.forEach(d=>o[d.id]=d.data());S.board=o;if(S.view==='mine'&&!S.dirty)render()})}catch(_){}
-  try{const md=await db.doc('reps/'+S.me.id).get();const cfg=await db.doc('settings/campaigns').get();const def=cfg.exists&&cfg.data().def||'paralympics';const camp=(md.exists&&md.data().campaign)||def;let l=(cfg.exists&&cfg.data().list)||[];if(!l.length)l=[{id:'paralympics',name:'Paralympics'}];if(!l.some(c=>/wound/i.test(c.name||c.id)))l=l.concat([{id:'wounded',name:'Wounded Heroes'}]);{const seen={};l=l.filter(c=>{const k=String(c.name||c.id).trim().toLowerCase();if(seen[k])return false;seen[k]=1;return true})}S.camps=l.filter(c=>c.active!==false||/wound|paraly/i.test(c.name||c.id));S.homeCamp=camp;S.step=campStep(camp)}catch(_){S.step=25;S.camps=[{id:'paralympics',name:'Paralympics'},{id:'wounded',name:'Wounded Heroes'}];S.homeCamp='paralympics'}
-  load();
+  try{const md=await db.doc('reps/'+S.me.id).get();S.prefs=(md.exists&&md.data().eodPrefs)||{strategies:[],habits:[]};const cfg=await db.doc('settings/campaigns').get();const def=cfg.exists&&cfg.data().def||'paralympics';const camp=(md.exists&&md.data().campaign)||def;let l=(cfg.exists&&cfg.data().list)||[];if(!l.length)l=[{id:'paralympics',name:'Paralympics'}];if(!l.some(c=>/wound/i.test(c.name||c.id)))l=l.concat([{id:'wounded',name:'Wounded Heroes'}]);{const seen={};l=l.filter(c=>{const k=String(c.name||c.id).trim().toLowerCase();if(seen[k])return false;seen[k]=1;return true})}S.camps=l.filter(c=>c.active!==false||/wound|paraly/i.test(c.name||c.id));S.homeCamp=camp;S.step=campStep(camp)}catch(_){S.step=25;S.camps=[{id:'paralympics',name:'Paralympics'},{id:'wounded',name:'Wounded Heroes'}];S.homeCamp='paralympics'}
+  load();setTimeout(loadPast,1500);
   setInterval(()=>{if(S.dirty&&S.view==='mine')save(true)},60000);
   setInterval(()=>{if(S.view!=='mine'||!S.doc||S.mode!=='tally')return;const c=clockHour();if(!c||c===S.hour)return;if(S.manual&&Date.now()-S.manual<10*60000)return;
     if(S.dirty)save(true);const was=S.hour;S.hour=c;S.manual=0;render();if(c>was){toast('Hour '+c+' has started');if(S.doc.slots[String(was)]&&F.some(f=>num(S.doc.slots[String(was)][f.k])))checkIn(was);try{navigator.vibrate&&navigator.vibrate(150)}catch(_){}}},20000);
