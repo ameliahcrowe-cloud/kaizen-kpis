@@ -459,8 +459,8 @@ function scorecards_(wk) {
   const get = p => (M[p] && !M[p].del) ? M[p].data : null;
   const logo = ((get('settings/logo') || {}).data) || '';
   const coName = ((get('settings/main') || {}).teamName) || 'Kaizen Enterprises';
-  const reps = Object.keys(M).filter(p => /^reps\/[^/]+$/.test(p) && !M[p].del && M[p].data && M[p].data.active !== false && (SCORE_INCLUDE_TEST || !M[p].data.test)).map(p => ({ id: p.split('/')[1], r: M[p].data }));
-  const allReps = Object.keys(M).filter(p => /^reps\/[^/]+$/.test(p) && !M[p].del && M[p].data && M[p].data.active !== false).map(p => ({ id: p.split('/')[1], r: M[p].data }));
+  const reps = Object.keys(M).filter(p => /^reps\/[^/]+$/.test(p) && !M[p].del && M[p].data && M[p].data.active !== false && (SCORE_INCLUDE_TEST || !M[p].data.test) && ['u_0902e9eb82174b99b8e2', 'u_32e3e5910f7b422aa08f'].indexOf(p.split('/')[1]) < 0).map(p => ({ id: p.split('/')[1], r: M[p].data }));
+  const allReps = Object.keys(M).filter(p => /^reps\/[^/]+$/.test(p) && !M[p].del && M[p].data && M[p].data.active !== false && ['u_0902e9eb82174b99b8e2', 'u_32e3e5910f7b422aa08f'].indexOf(p.split('/')[1]) < 0).map(p => ({ id: p.split('/')[1], r: M[p].data }));
   const parentOf = x => { const tm = x.r.team || ''; if (!tm) return x.id === 'u_owner' ? null : 'u_owner'; if (tm === x.id) return null; return tm; };
   const downOf = (uid, seen) => { seen = seen || { [uid]: 1 }; let o = []; allReps.filter(x => !seen[x.id] && parentOf(x) === uid && (SCORE_INCLUDE_TEST || !x.r.test)).forEach(x => { seen[x.id] = 1; o.push(x); o = o.concat(downOf(x.id, seen)); }); return o; };
   const STG = ['sa', 'sc', 'sl', 'tl', 'tm', 'ad', 'dir', 'md'];
