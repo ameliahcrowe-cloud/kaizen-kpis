@@ -372,8 +372,8 @@ function orexis_(hourly) {
   rep("'All of '+((S.settings.teamName||'').trim()||'Kaizen')", "'All of Orexis'");
   rep('Synced to Kaizen KPIs', 'Synced to Orexis KPIs'); rep('Not synced to Kaizen KPIs', 'Not synced to Orexis KPIs'); rep('open Kaizen KPIs for', 'open Orexis KPIs for'); rep('numbers are in Kaizen KPIs', 'numbers are in Orexis KPIs'); rep('numbers to Kaizen KPIs', 'numbers to Orexis KPIs');
   // no Kaizen anywhere in the Orexis apps, except Ameliah's own team label
-  rep("coName()+' (direct)'", "'KZ_TEAM_LABEL'");
-  rep('Kaizen', 'Orexis'); rep('Orexis Enterprises', 'Orexis Innovations'); rep('KZ_TEAM_LABEL', 'Kaizen Enterprises');
+  rep("S.settings.teamName||''", "'Orexis Innovations'");
+  rep('Kaizen', 'Orexis'); rep('Orexis Enterprises', 'Orexis Innovations');
   const css = ':root{--bg:#F6F3EE!important;--line:#e3dfd7!important;--muted:#5b6275!important;--ink:#1E2740!important;--accent:#2E3A59!important;--accent-soft:#fbe7cf!important}' +
     'body{background:#F6F3EE!important}header.top,.top{background:#2E3A59!important;color:#F5B56E!important;border-radius:14px;padding:12px 14px!important;margin-bottom:10px}' +
     'header.top h1,.top h1,#teamTitle{color:#F5B56E!important;letter-spacing:.12em}#teamSub,.top .sub{color:#c9cfe0!important}' +
