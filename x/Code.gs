@@ -374,6 +374,8 @@ function orexis_(hourly) {
   // no Kaizen anywhere in the Orexis apps, except Ameliah's own team label
   rep("S.settings.teamName||''", "'Orexis Innovations'");
   rep('Kaizen', 'Orexis'); rep('Orexis Enterprises', 'Orexis Innovations');
+  // Kaizen test people never appear in Orexis
+  rep('applyDocs(r.docs);', 'applyDocs((r.docs||[]).filter(d=>!/^(reps|conf|teams)\\/(u_0902e9eb82174b99b8e2|u_32e3e5910f7b422aa08f)(\\/|$)/.test(d.p)));');
   const css = ':root{--bg:#F6F3EE!important;--line:#e3dfd7!important;--muted:#5b6275!important;--ink:#1E2740!important;--accent:#2E3A59!important;--accent-soft:#fbe7cf!important}' +
     'body{background:#F6F3EE!important}header.top,.top{background:#2E3A59!important;color:#F5B56E!important;border-radius:14px;padding:12px 14px!important;margin-bottom:10px}' +
     'header.top h1,.top h1,#teamTitle{color:#F5B56E!important;letter-spacing:.12em}#teamSub,.top .sub{color:#c9cfe0!important}' +
