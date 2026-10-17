@@ -474,7 +474,7 @@ function tgCard(){const D=S.doc;const t=totals();
       h('pre',{class:'tgprev',text:eodJourney()}),
       h('button',{class:'primary',onclick:()=>{rememberPrefs();copyTxt(eodJourney())}},'Copy Journey chat'),
       h('button',{class:'primary',id:'submitFinal',style:'width:100%;min-height:52px;background:var(--ok);border-color:var(--ok)',onclick:()=>{rememberPrefs();submitFinal()}},D.finished?'Submit final KPIs again ›':'Submit final KPIs ›')]});
-  return h('div',null,h('div',{class:'sect',text:'TELEGRAM'}),ck('2pm','focus2','Focus for the second half','e.g. Distances!'),ck('4pm','focus4','Focus for end of day','e.g. Gong'),eod,
+  return h('div',null,h('div',{class:'sect',text:'TELEGRAM'}),(()=>{const pk=S.ckPick||(new Date().getHours()<15?'2pm':'4pm');return h('div',null,h('label',null,h('span',{class:'lbl',text:'Check-in'}),h('select',{'aria-label':'Which check-in',style:'width:100%;margin-bottom:8px',onchange:e=>{S.ckPick=e.target.value;render()}},[['2pm','2pm check-in'],['4pm','4pm check-in']].map(([k,l])=>h('option',{value:k,selected:pk===k},l)))),pk==='2pm'?ck('2pm','focus2','Focus for the second half','e.g. Distances!'):ck('4pm','focus4','Focus for end of day','e.g. Gong'))})(),eod,
     S.showTg?h('div',{class:'card',style:'margin-top:8px'},h('div',{class:'hint',text:'Copying is blocked here. Press and hold the text below to copy it.'}),(()=>{const x=h('textarea',{rows:14,style:'width:100%',readonly:true});x.value=S.showTg;return x})(),h('button',{onclick:()=>{S.showTg=null;render()}},'Close')):null)}
 function finishCard(){const D=S.doc;const t=totals();
   const box=(v,k)=>h('div',{class:'stat'},h('div',{class:'v',style:'font-size:1.4rem',text:v}),h('div',{class:'k',text:k}));
