@@ -516,7 +516,7 @@ const HMETRICS=METRICS.concat([{k:'hours',l:'Hours'}]);
 const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const PB_DAY=[['retail','Retail',1],['stops','Stops'],['buyers','Buyers'],['upsells','Upsells'],['upsellRetail','Upsell retail',1],['medals','Medals'],['rph','RPH',1]];
 const PB_WEEK=[['retail','Retail',1],['stops','Stops'],['buyers','Buyers'],['upsells','Upsells'],['upsellRetail','Upsell retail',1],['medals','Medals']];
-const LEADER_TABS=[['log','Log day'],['week','Week'],['board','Leaderboard'],['totals','Totals'],['goals','Goals'],['coaching','Coaching'],['reflect','Reflect'],['bonus','Bonus'],['promo','Promotion'],['pbs','PBs'],['team','Team']];
+const LEADER_TABS=[['log','Log day'],['week','Week'],['board','Leaderboard'],['totals','Totals'],['goals','Goals'],['coaching','Coaching'],['reflect','Reflect'],['bonus','Bonus'],['promo','Promotion'],['pbs','PBs'],['team','Team'],['pbboard','PB Board']];
 const REP_TABS=[['log','My day'],['week','My week'],['board','Leaderboard'],['totals','My totals'],['goals','My goals'],['coaching','Coaching'],['reflect','Reflect'],['bonus','My bonus'],['promo','Promotion'],['pbs','PBs'],['myteam','My team']];
 const EXEC_URL='https://script.google.com/macros/s/AKfycbysdcYkFm9h77HCdBzClsJZKArAVZJHSd4n6GU-clFZ7F912IRouvqPp3wtQNBylwvopA/exec';
 if(window.KOVA){for(const T of [REP_TABS,LEADER_TABS]){T.unshift(['live','Live']);T.push(['mypb','My PBs'])}}
@@ -655,7 +655,7 @@ async function refreshPB(uid,quiet){
   if(ok){if(S.reps[uid])S.reps[uid]={...S.reps[uid],pb};if(uid===S.uid&&S.me)S.me={...S.me,pb};if(recs.length&&!quiet)toast('New PB! '+recs.join(' · '),4000)}}
 
 /* ---------- header & tabs ---------- */
-function tabs(){return leader()?LEADER_TABS:REP_TABS}
+function tabs(){return leader()?LEADER_TABS.filter(([k])=>k!=='pbboard'||S.isOwner):REP_TABS}
 function renderHeader(){
   const lg=document.getElementById('teamLogo');const src=window.OREXIS_LOGO||(S.logo&&S.logo.data);if(src&&String(src).startsWith('data:image/')){if(lg.getAttribute('src')!==src)lg.src=src;lg.hidden=false}else lg.hidden=true;
   const name=('Orexis Innovations').trim();
@@ -710,8 +710,8 @@ function render(){renderHeader();const v=document.getElementById('view');
     if(!leader()&&!S.me){renderJoin(v);return}
     if(leader()&&S.legacy&&S.legacy.entries.length)v.append(legacyPanel());
     const db_=!S.admin&&(S.tab==='log'||S.tab==='reflect'||S.tab==='hourly'||!S.tab);document.body.classList.toggle('hasDaybar',db_);if(db_)v.append(dayBar());
-    if(!S.admin&&(S.tab==='log'||!S.tab))v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;margin-bottom:-6px'},h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;align-items:center'},hourlyBtn(),h('button',{id:'syncHourly',class:'icon',title:'Pull my numbers from Hourly now','aria-label':'Pull my numbers from Hourly now',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;min-width:44px'},S.hSyncBusy?'…':'⟳')));
-    (S.admin&&isAdminUser()?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
+    if(!S.admin&&(S.tab==='log'||!S.tab))v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;gap:8px;margin-bottom:-6px'},h('button',{onclick:async()=>{const ok=await copyRich(dailyWrapText());toast(ok?'Day copied — paste into Telegram':'Couldn’t copy on this device')}},'📋 Copy day to Telegram'),h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;align-items:center'},hourlyBtn(),h('button',{id:'syncHourly',class:'icon',title:'Pull my numbers from Hourly now','aria-label':'Pull my numbers from Hourly now',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;min-width:44px'},S.hSyncBusy?'…':'⟳')));
+    (S.admin&&isAdminUser()?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{pbboard:renderPBBoard,log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
     markTest(v);cardify(v)});kovaEmbeds()}
 /* phone helpers: day switcher, swipe, tables as cards */
 
@@ -1969,6 +1969,36 @@ function openSupport(){const old=document.getElementById('supportBox');if(old)ol
     h('div',{class:'panel',style:'max-width:440px;width:100%;background:var(--panel,#fff);padding:18px;box-sizing:border-box'},h('h3',{text:'💬 Message Orexis admin',style:'margin:0 0 6px'}),h('div',{class:'hint',text:'Questions, problems or requests. Admin gets it by email.',style:'margin-bottom:10px'}),ta,
       h('div',{style:'display:flex;gap:8px;justify-content:flex-end;margin-top:10px'},h('button',{onclick:close},'Cancel'),send)));
   document.body.append(box);ta.focus()}
+/* ---------- DAILY WRAP for Telegram ---------- */
+function dailyWrapText(){const d=S.date,ids=(S.isOwner?repListAll(false):repList(true)).filter(r=>!r.test).map(r=>r.id);
+  const rows=ids.map(id=>{const e=sourceAll(id,'period').find(x=>x.date===d)||rawEntry(id,d)||{};return{id,n:repName(id),r:num(e.retail),s:num(e.stops),b:num(e.buyers),h:num(e.hours)}}).filter(x=>x.r||x.s);
+  const T=rows.reduce((a,x)=>({r:a.r+x.r,s:a.s+x.s,b:a.b+x.b,h:a.h+x.h}),{r:0,s:0,b:0,h:0});
+  const gongs=rows.filter(x=>x.r>=std('gong')),bells=rows.filter(x=>x.r>=std('bell')&&x.r<std('gong'));const top=rows.slice().sort((a,b)=>b.r-a.r).slice(0,3);
+  const L=['**Orexis Daily Wrap · '+niceDate(d,{weekday:'short',day:'numeric',month:'short'})+'**','',
+    '**Team:** '+money(T.r)+' retail · '+T.s+' stops · '+T.b+' buyers'+(T.b?' · '+money(T.r/T.b)+' $AV':'')+(T.h?' · '+money(T.r/T.h)+' RPH':''),'',
+    '**🥁 Gongs:** '+(gongs.length?gongs.map(x=>x.n+' ('+money(x.r)+')').join(', '):'—'),
+    '**🔔 Bells:** '+(bells.length?bells.map(x=>x.n+' ('+money(x.r)+')').join(', '):'—'),'',
+    '**🏆 Top 3**',...top.map((x,i)=>['🥇','🥈','🥉'][i]+' '+x.n+' · '+money(x.r)+' · '+x.s+' stops · '+x.b+' buyers')];
+  return L.join('\n')}
+/* ---------- PB BOARD (Ben + admin) ---------- */
+function renderPBBoard(v){if(!S.isOwner){go('log');return}
+  const people=repListAll(false).filter(r=>!r.test);const recent=addDays(todayStr(),-7);
+  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'🏆 PB Board'}),h('div',{class:'hint',text:'Orexis record holders and this week’s new personal bests.'}))));
+  const sect=(title,kind,rows)=>{const grid=h('div',{style:'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px'});
+    rows.forEach(([k,l])=>{let best=null;people.forEach(r=>{const x=((r.pb||{})[kind]||{})[k];if(x&&(!best||x.v>best.x.v))best={r,x}});
+      const when=best?(best.x.date||best.x.week||best.x.month||''):'';const isNew=when&&when>=recent;
+      grid.append(h('div',{class:'panel',style:'text-align:center;padding:14px 10px;margin:0;'+(isNew?'box-shadow:inset 0 0 0 2px #F5B56E':'')},
+        h('div',{class:'hint',style:'font-size:.7rem;text-transform:uppercase;letter-spacing:.08em',text:l}),
+        h('div',{style:'font-family:var(--display);font-weight:700;font-size:1.8rem;color:#2E3A59;line-height:1.1;margin:4px 0',text:best?fmtK(k,best.x.v):'—'}),
+        best?h('div',{style:'display:flex;align-items:center;justify-content:center;gap:6px'},avatar(best.r.id,24),h('span',{style:'font-weight:600;font-size:.9rem',text:best.r.name})):null,
+        when?h('div',{class:'hint',style:'font-size:.72rem;margin-top:2px',text:(kind==='day'?niceDate(when,{day:'numeric',month:'short'}):kind==='week'?'WC '+niceDate(when,{day:'numeric',month:'short'}):when)+(isNew?' · NEW':'')}):null))});
+    v.append(h('div',{class:'bar'},h('h3',{text:title})),grid)};
+  sect('Best day','day',PB_DAY);sect('Best week','week',PB_WEEK.concat([['rph','RPH',1]]));
+  const news=[];people.forEach(r=>['day','week'].forEach(kind=>{const pb=(r.pb||{})[kind]||{};for(const k in pb){const x=pb[k];const w=x.date||x.week;if(w&&w>=recent)news.push({r,k,kind,x,w})}}));
+  news.sort((a,b)=>b.w.localeCompare(a.w));
+  v.append(h('div',{class:'bar'},h('h3',{text:'🔥 New PBs this week'}),h('span',{class:'hint',text:news.length+' new'})));
+  v.append(h('div',{class:'panel'},news.length?news.slice(0,30).map(n=>h('div',{style:'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)'},avatar(n.r.id,26),h('b',{style:'flex:1',text:n.r.name}),
+    h('span',{text:(((PB_DAY.concat(PB_WEEK,[['rph','RPH']])).find(x=>x[0]===n.k)||[,n.k])[1])+' '+(n.kind==='day'?'day':'week')+': '+fmtK(n.k,n.x.v)}))):h('div',{class:'hint',text:'No new PBs in the last 7 days yet.'})))}
 /* ---------- NEW-START TRACKER: first 2 weeks ---------- */
 function newStartsPanel(ids){const td=todayStr();const bell=std('bell');
   const list=ids.map(id=>({id,r:S.reps[id]||{}})).filter(x=>x.r&&!x.r.test&&x.r.joinedAt&&String(x.r.joinedAt).slice(0,10)>=addDays(td,-13));
@@ -1981,14 +2011,18 @@ function newStartsPanel(ids){const td=todayStr();const bell=std('bell');
     const es=sourceAll(id,'period').filter(e=>e.date>=j&&e.date<=addDays(j,13)).sort((a,b)=>a.date.localeCompare(b.date));
     const worked=es.filter(e=>num(e.stops)||num(e.retail)||num(e.hours));const st=worked.reduce((a,e)=>a+num(e.stops),0),by=worked.reduce((a,e)=>a+num(e.buyers),0),rt=worked.reduce((a,e)=>a+num(e.retail),0);
     const fs=worked.find(e=>num(e.buyers)>0),fb=worked.find(e=>num(e.retail)>=bell);const spd=worked.length?st/worked.length:0;
-    const flags=[];if(dayN>=4&&!fs)flags.push('No sale yet');if(dayN>=5&&worked.length<Math.ceil(dayN*5/7*0.5))flags.push('Low attendance');if(worked.length>=2&&spd<std('stops')*0.6)flags.push('Low stops');
-    const ok=!flags.length;const nd=d=>niceDate(d,{weekday:'short',day:'numeric',month:'short'});
+    const flags=[];if(dayN>=4&&!fs)flags.push('No sale yet');if(dayN>=5&&worked.length<Math.ceil(dayN*5/7*0.5))flags.push('Low attendance');
+    const SC=STAGES[0].sales.amt,need=SC/10,first10=worked.slice(0,10),r10=first10.reduce((a,e)=>a+num(e.retail),0),pace=first10.length?r10/first10.length:0;
+    const promoted=r10>=SC,left=10-first10.length;
+    const ramp=n=>Math.round(10+(std('stops')-10)*Math.min(1,(n-1)/9));const sd=worked.map((e,i)=>({n:i+1,v:num(e.stops),t:ramp(i+1)}));const lastD=sd[sd.length-1];const ok=sd.length?lastD.v>=lastD.t:dayN<3;if(sd.length&&!ok)flags.unshift('Stops below the ramp (day '+lastD.n+': '+lastD.v+', aim '+lastD.t+'+)');if(!promoted&&first10.length&&pace<need)flags.push('Behind SC pace ('+money(pace)+'/day, needs '+money(need)+')');const nd=d=>niceDate(d,{weekday:'short',day:'numeric',month:'short'});
     const chip=(l,v,good)=>h('div',{style:'flex:1;min-width:84px;background:var(--bg);border-radius:10px;padding:8px 10px'},h('div',{class:'hint',style:'font-size:.7rem;text-transform:uppercase;letter-spacing:.06em',text:l}),h('div',{style:'font-weight:700;font-size:1.05rem'+(good===false?';color:#c2410c':good?';color:#1f7a4d':''),text:v}));
     box.append(h('div',{class:'panel',style:'border-left:4px solid '+(ok?'#1f7a4d':'#F5B56E')},
       h('div',{style:'display:flex;align-items:center;gap:10px;margin-bottom:8px'},avatar(id,34),h('div',{style:'flex:1'},h('strong',{text:r.name||'New start'}),h('div',{class:'hint',text:'Started '+nd(j)+' · Day '+dayN+' of 14'+(r.team?' · '+teamName(r.team):'')})),
         h('span',{style:'font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:999px;'+(ok?'background:#e3f4ea;color:#1f7a4d':'background:#fbe7cf;color:#8a4b08'),text:ok?'✓ On track':'Needs support'})),
-      h('div',{style:'height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-bottom:10px'},h('div',{style:`height:100%;width:${Math.round(dayN/14*100)}%;background:#F5B56E`})),
-      h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'},chip('Days worked',String(worked.length),dayN>=5?worked.length>=Math.ceil(dayN*5/7*0.5):null),chip('Stops',String(st)+(worked.length?' · '+spd.toFixed(1)+'/day':''),worked.length>=2?spd>=std('stops')*0.6:null),
+      sd.length?h('div',{style:'display:flex;gap:4px;flex-wrap:wrap;margin:0 0 8px'},sd.slice(0,10).map(d=>h('span',{title:'Day '+d.n+': '+d.v+' stops (aim '+d.t+'+)',style:'font-size:.72rem;padding:3px 7px;border-radius:999px;font-weight:700;'+(d.v>=d.t?'background:#e3f4ea;color:#1f7a4d':'background:#fbe7cf;color:#8a4b08'),text:'D'+d.n+' '+d.v+'/'+d.t}))):null,
+      h('div',{style:'margin:0 0 6px;font-size:.85rem'},h('b',{text:promoted?'🎉 SC promotion reached: ':'SC promotion: '}),money(r10)+' of '+money(SC)+' in '+first10.length+' of 10 days'+(promoted?'':left>0?' · needs '+money(Math.max(0,(SC-r10)/left))+'/day for the next '+left:' · window closed')),
+      h('div',{style:'height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-bottom:10px'},h('div',{style:`height:100%;width:${Math.min(100,Math.round(r10/SC*100))}%;background:${ok?'#1f7a4d':'#F5B56E'}`})),
+            h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'},chip('Days worked',String(worked.length),dayN>=5?worked.length>=Math.ceil(dayN*5/7*0.5):null),chip('Stops',String(st)+(worked.length?' · '+spd.toFixed(1)+'/day':''),sd.length?ok:null),
         chip('Buyers',String(by)),chip('Retail',money(rt)),chip('First sale',fs?nd(fs.date):'—',dayN>=4?!!fs:null),chip('First bell 🔔',fb?nd(fb.date):'—',fb?true:null)),
       flags.length?h('div',{class:'hint',style:'margin-top:8px;color:#8a4b08',text:'⚠️ '+flags.join(' · ')}):null))});
   return box}
