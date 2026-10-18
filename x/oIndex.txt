@@ -328,7 +328,7 @@ textarea{font-family:inherit;font-size:inherit}
       <label for="lgPin">PIN</label>
       <input id="lgPin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="4 to 8 digits">
       <button class="primary" type="submit">Log in</button>
-      <p class="lghint">Forgot your PIN? Ask Ameliah to reset it.</p>
+      <p class="lghint">Forgot your PIN? Ask Orexis admin to reset it.</p>
     </form>
     <form id="lgNew" hidden>
       <label for="nwUser">Your name</label>
@@ -1901,7 +1901,7 @@ async function setRepTeam(uid,team){const r=S.reps[uid]||{};S.reps[uid]={...r,te
   const ok=await write(()=>S.db.doc('reps/'+uid).update({team}),'Team updated');if(ok&&S.board[uid])write(()=>S.db.doc('board/'+uid).update({team}))}
 function createTeamPanel(){const myTeam=S.teams[S.uid];
   if(myTeam){return h('div',{class:'panel'},h('div',{class:'field'},h('label',{text:'My team'}),
-    h('input',{type:'text',id:'myTeamName',value:myTeam.name||'','aria-label':'Team name',onchange:e=>{const n=e.target.value.trim();if(n)saveTeam(S.uid,{name:n}).then(ok=>ok&&toast('Team name saved'))}}),
+    h('strong',{class:'ftitle',text:teamName(S.uid)}),
     logoPicker('myTeamLogo',myTeam.logo,data=>saveTeam(S.uid,{logo:data}).then(ok=>ok&&toast('Logo saved')),()=>saveTeam(S.uid,{logo:null}),'Team logo'),
     !leader()?h('span',{class:'hint',text:'You’ll see your members’ numbers, goals and reflections as soon as they’re on your team. Close and reopen the app if they don’t show yet.'}):null))}
   if(!canCreateTeam())return null;
@@ -2012,8 +2012,8 @@ function loginsPanel(){const box=h('div',{class:'stack'});
   box.append(h('div',{class:'hint',text:'Admin and owner PINs are changed from the spreadsheet: Orexis KPIs menu → Set or reset owner PIN.'}));return box}
 function renderMyTeam(v){const t=S.me&&S.me.team;{const tc=treeCard(S.uid);if(tc)v.append(tc)}
   v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My team'}),h('div',{class:'hint',text:'The team you’re part of within '+(('Orexis Innovations').trim()||'Orexis')+'.'}))));
-  v.append(h('div',{class:'panel teamcard'},teamLogo(t,'tlogo big'),h('div',null,h('strong',{class:'ftitle',text:teamName(t)}),t&&S.teams[t]?h('div',{class:'hint',text:'Led by '+(S.teams[t].leader===S.uid?'you':'your team leader')}):h('div',{class:'hint',text:'Led by Ameliah'})),
-    h('div',{class:'hint',text:'To change teams, ask Ameliah.'})));
+  v.append(h('div',{class:'panel teamcard'},teamLogo(t,'tlogo big'),h('div',null,h('strong',{class:'ftitle',text:teamName(t)}),h('div',{class:'hint',text:t&&t!==S.uid?'Led by '+repName(t):'You’re at the top'})),
+    h('div',{class:'hint',text:'Only Orexis admin can change this.'})));
   const cp=createTeamPanel();if(cp)v.append(cp);
   else v.append(h('div',{class:'hint',text:'Once you reach Sales Leader you can create your own team here, with its own name and logo.'}))}
 

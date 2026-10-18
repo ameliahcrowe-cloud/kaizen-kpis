@@ -233,7 +233,7 @@ function register(name, pin, team) {
   try {
     ensureSheets_();
     const acc = readAccess_();
-    if (!acc.some(a => a.role === 'owner')) throw new Error('The app isn’t set up yet. Ask Ameliah to finish setup.');
+    if (!acc.some(a => a.role === 'owner')) throw new Error('The app isn’t set up yet. Ask Orexis admin to finish setup.');
     if (acc.some(a => a.name.toLowerCase() === name.toLowerCase())) throw new Error('Someone with that name already has a login. Add your last name or initial.');
     const t = loadTable_();
     if (team && (!t.map['teams/' + team] || t.map['teams/' + team].del)) team = '';
