@@ -310,7 +310,7 @@ function write(token, ops) {
       if (c.role !== 'owner' && seg.length === 2 && seg[0] === 'reps' && op.op !== 'delete' && op.data && 'team' in op.data) {
         const was = cur && !cur.del ? (cur.data.team || '') : '';
         const now = op.data.team || '';
-        if (now !== was && !(seg[1] === c.uid && now === c.uid)) throw new Error('Only Ameliah or Ben can change who someone is direct to.');
+        if (now !== was && !(seg[1] === c.uid && now === c.uid)) throw new Error('Only Orexis admin can change this.');
       }
       if (c.role !== 'owner' && seg.length === 2 && seg[0] === 'reps' && op.data && op.data.promo && ('stage' in op.data.promo || 'promotedAt' in op.data.promo)) {
         const was = cur && !cur.del ? ((cur.data.promo || {}).stage || 'sa') : 'sa';
