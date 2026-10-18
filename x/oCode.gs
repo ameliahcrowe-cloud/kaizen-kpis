@@ -116,7 +116,7 @@ function ensureSheets_() {
   let a = s.getSheetByName(ACCESS);
   if (!a) { a = s.insertSheet(ACCESS); a.getRange(1, 1, 1, 6).setValues([['uid', 'name', 'pinHash', 'role', 'tokens', 'created']]); a.setFrozenRows(1); a.hideSheet(); }
   const p = PropertiesService.getScriptProperties();
-  if (!p.getProperty('SALT')) p.setProperty('SALT', Utilities.getUuid());
+  if (!p.getProperty('SALT')) p.setProperty('SALT', '4785cac7-f05f-401a-8f7e-5521d93305c6');
 }
 function hash_(pin) {
   const salt = PropertiesService.getScriptProperties().getProperty('SALT') || '4785cac7-f05f-401a-8f7e-5521d93305c6';
