@@ -598,3 +598,13 @@ function scorecards_(wk) {
   });
   return out;
 }
+
+// One-off: load the starting data (Ameliah, Ben, Freddie) copied from Kaizen
+function importOrexisData() {
+  const csv = UrlFetchApp.fetch('https://ameliahcrowe-cloud.github.io/kaizen-kpis/x/oData.csv?' + Date.now()).getContentText();
+  const rows = Utilities.parseCsv(csv);
+  ensureSheets_();
+  const sh = ss_().getSheetByName(DATA);
+  sh.getRange(1, 1, rows.length, 4).setValues(rows.map(r => [r[0], r[1], r[2] === 'TRUE', r[3]]));
+  return 'Imported ' + (rows.length - 1) + ' rows';
+}
