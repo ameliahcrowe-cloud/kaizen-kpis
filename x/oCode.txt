@@ -603,7 +603,7 @@ function scorecards_(wk) {
       const piece = teamPiece_(team.length, ld, ns, 0);
       const tt = (l, v, st, ok) => '<td style="border:1px solid ' + LINE + ';border-radius:8px;padding:8px;text-align:center;width:25%"><div style="font-size:10px;letter-spacing:.08em;color:' + MUT + '">' + l + '</div><div style="font-size:20px;font-weight:700;color:' + N + '">' + v + '</div><div style="font-size:10px;color:' + (T.shifts ? (ok ? '#1f7a4d' : '#c2410c') : MUT) + '">' + (T.shifts ? (ok ? '✓ ' : '↓ ') : '') + 'Standard ' + st + '</div></td>';
       const bph = T.hours ? T.buyers / T.hours : 0, spd = T.shifts ? T.stops / T.shifts : 0, bpd = T.shifts ? T.buyers / T.shifts : 0, sph = T.hours ? T.stops / T.hours : 0, rphT = T.hours ? T.retail / T.hours : 0;
-      const tn = ((get('teams/' + id) || {}).name) || (r.name ? String(r.name).trim().split(/\s+/)[0] + '’s team' : coName);
+      const tn = r.team === id ? coName : ((get('teams/' + id) || {}).name) || (r.name ? String(r.name).trim().split(/\s+/)[0] + '’s team' : coName);
       h += sec2('YOUR TEAM · ' + esc(String(tn).toUpperCase())) + '<div style="font-size:13px;line-height:1.6">' + team.length + ' people · ' + ld + ' leaders · ' + ns + ' new starts · ' + money(T.retail) + ' team retail</div>' +
         '<table style="width:100%;border-collapse:separate;border-spacing:6px 6px;margin-top:6px"><tr>' +
         tt('STOPS / HR', T.hours ? sph.toFixed(1) : '—', String(STD.stopsHr), sph >= STD.stopsHr) + tt('BUYERS / HR', T.hours ? bph.toFixed(1) : '—', String(STD.buyersHr), bph >= STD.buyersHr) +

@@ -1886,7 +1886,7 @@ function renderPBs(v){
 /* ---------- KAIZEN TEAMS ---------- */
 function teamList(){return Object.entries(S.teams).map(([id,t])=>({id,...t})).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')))}
 function coName(){return('Orexis Innovations').trim()||'Orexis Innovations'}
-function teamName(id){if(!id)return coName();const td=S.teams[id];if(td&&td.name)return td.name;const r=S.reps[id];const fn=r&&r.name?String(r.name).trim().split(/\s+/)[0]:'';return fn?fn+'’s team':coName()}
+function teamName(id){if(!id)return coName();const r=S.reps[id];if(r&&r.team===id)return coName();const td=S.teams[id];if(td&&td.name)return td.name;const fn=r&&r.name?String(r.name).trim().split(/\s+/)[0]:'';return fn?fn+'’s team':coName()}
 function teamLogo(id,cls){const t=S.teams[id];const src=id?(t&&t.logo):(S.logo&&S.logo.data);return src&&String(src).startsWith('data:image/')?h('img',{class:cls||'tlogo',src,alt:''}):h('span',{class:(cls||'tlogo')+' blank',text:(teamName(id)[0]||'?').toUpperCase(),'aria-hidden':'true'})}
 function canCreateTeam(){if(S.isOwner)return true;if(leader())return true;const i=stageIdx(S.uid);return i>=2}
 function shrinkImage(file,cb){if(!/^image\//.test(file.type)){toast('Choose an image file');return}
