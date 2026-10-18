@@ -605,6 +605,6 @@ function importOrexisData() {
   const rows = Utilities.parseCsv(csv);
   ensureSheets_();
   const sh = ss_().getSheetByName(DATA);
-  sh.getRange(1, 1, rows.length, 4).setValues(rows.map(r => [r[0], r[1], r[2] === 'TRUE', r[3]]));
+  sh.getRange(1, 1, rows.length, 4).setValues(rows.map((r, i) => i ? [r[0], r[1], r[2] === 'TRUE', r[3]] : r.slice(0, 4)));
   return 'Imported ' + (rows.length - 1) + ' rows';
 }
