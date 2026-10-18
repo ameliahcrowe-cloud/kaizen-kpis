@@ -1181,7 +1181,7 @@ const PLAN_KPIS=[['buyers','Buyers'],['medals','Medals'],['avgSale','Sale Avg',1
 function planLastWeek(uid){const lw=addDays(S.week,-7);let t=totalsFor([uid],'week',lw);if(!t.stops&&!t.retail&&!t.hours){t=blank();entriesIn(uid,lw,addDays(lw,6)).forEach(e=>sumInto(t,e))}return{lw,t}}
 function planLW(k,t){if(['contacts','presentations','closes'].includes(k))return null;const v=k==='hours'?t.hours:kpiVal(k,t);return v==null||!isFinite(v)||(!v&&k!=='hours')?null:v}
 function planShow(k,v){if(v==null||v==='')return'—';if(k==='avgSale'||k==='rph'||k==='retail')return money(+v);return String(Math.round(+v*10)/10)}
-function planText(uid){const g=wgOf(uid,'plan'),r=S.reps[uid]||{};const L=PLAN_KPIS.map(([k,l,m])=>'- '+l+': '+(g[k]?(m?'$':'')+g[k]:''));
+function planText(uid){const g=wgOf(uid,'plan'),r=S.reps[uid]||{};const {t}=planLastWeek(uid);const L=PLAN_KPIS.map(([k,l,m])=>{const lv=planLW(k,t);const v=g[k]||(lv!=null?Math.round(lv*(k==='hours'?10:1))/(k==='hours'?10:1):'');return '- '+l+': '+(v!==''?(m?'$':'')+v:'')});
   const fl=(PLAN_KPIS.find(x=>x[0]===g.focus)||[,''])[1];
   return [(r.name||'My')+'’s Weekly Goals','','Key Motivator for the week:',g.motivator||'','','KPI Targets',...L,'','Which KPI Target is the biggest focus for yourself? ',fl,'','Retail Goal: '+(g.retail?'$'+g.retail:''),'','Personal Goal: '+(wgOf(uid,'personal').t||''),'Learning Goal: '+(wgOf(uid,'learning').t||''),'Buisness Goal: '.replace('Buis','Busi')+(wgOf(uid,'business').t||'')].join('\n')}
 function weekPlanPanel(uid){const g=wgOf(uid,'plan');const {lw,t}=planLastWeek(uid);const p=h('div',{class:'panel rform'});
@@ -1190,7 +1190,7 @@ function weekPlanPanel(uid){const g=wgOf(uid,'plan');const {lw,t}=planLastWeek(u
   p.append(h('h4',{text:'KPI targets'}),h('div',{class:'hint',text:'Last week (WC '+niceDate(lw,{day:'numeric',month:'short'})+') is shown so you know what to beat.'}));
   const grid=h('div',{class:'wp-grid'},h('span',{class:'hint',text:'KPI'}),h('span',{class:'hint',text:'Last week'}),h('span',{class:'hint',text:'Target'}));
   PLAN_KPIS.forEach(([k,l,m])=>{const on=g.focus===k;const lv=planLW(k,t);
-    grid.append(h('span',{class:on?'hl':null,text:(on?'⭐ ':'')+l}),h('span',{class:'lw'+(on?' hl':''),text:lv==null?'—':planShow(k,lv)}),inp(k,m?'$':'Target'))});
+    const ti=inp(k,m?'$':'Target');if(!g[k]&&lv!=null)ti.value=String(Math.round(lv*(k==='hours'?10:1))/(k==='hours'?10:1));grid.append(h('span',{class:on?'hl':null,text:(on?'⭐ ':'')+l}),h('span',{class:'lw'+(on?' hl':''),text:lv==null?'—':planShow(k,lv)}),ti)});
   p.append(grid);
   p.append(h('h4',{text:'Which KPI target is your biggest focus?'}),h('div',{class:'rule'},h('select',{id:'wp-focus','aria-label':'Biggest focus KPI',onchange:e=>setWG(uid,'plan',{focus:e.target.value})},h('option',{value:''},'Choose a KPI to beat'),PLAN_KPIS.map(([k,l])=>h('option',{value:k,selected:g.focus===k},l))),
     g.focus?h('span',{class:'hint',text:'Last week: '+planShow(g.focus,planLW(g.focus,t))+(g[g.focus]?' → target '+planShow(g.focus,g[g.focus]):'')}):null));
