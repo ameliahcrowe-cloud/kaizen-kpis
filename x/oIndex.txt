@@ -516,7 +516,7 @@ const HMETRICS=METRICS.concat([{k:'hours',l:'Hours'}]);
 const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const PB_DAY=[['retail','Retail',1],['stops','Stops'],['buyers','Buyers'],['upsells','Upsells'],['upsellRetail','Upsell retail',1],['medals','Medals'],['rph','RPH',1]];
 const PB_WEEK=[['retail','Retail',1],['stops','Stops'],['buyers','Buyers'],['upsells','Upsells'],['upsellRetail','Upsell retail',1],['medals','Medals']];
-const LEADER_TABS=[['log','Log day'],['week','Week'],['board','Leaderboard'],['totals','Totals'],['goals','Goals'],['coaching','Coaching'],['reflect','Reflect'],['bonus','Bonus'],['promo','Promotion'],['pbs','PBs'],['team','Team'],['pbboard','PB Board']];
+const LEADER_TABS=[['log','Log day'],['week','Week'],['board','Leaderboard'],['totals','Totals'],['goals','Goals'],['coaching','Coaching'],['reflect','Reflect'],['bonus','Bonus'],['promo','Promotion'],['pbs','PBs'],['team','Team'],['sas','Sales Associates'],['pbboard','PB Board']];
 const REP_TABS=[['log','My day'],['week','My week'],['board','Leaderboard'],['totals','My totals'],['goals','My goals'],['coaching','Coaching'],['reflect','Reflect'],['bonus','My bonus'],['promo','Promotion'],['pbs','PBs'],['myteam','My team']];
 const EXEC_URL='https://script.google.com/macros/s/AKfycbysdcYkFm9h77HCdBzClsJZKArAVZJHSd4n6GU-clFZ7F912IRouvqPp3wtQNBylwvopA/exec';
 if(window.KOVA){for(const T of [REP_TABS,LEADER_TABS]){T.unshift(['live','Live']);T.push(['mypb','My PBs'])}}
@@ -711,7 +711,7 @@ function render(){renderHeader();const v=document.getElementById('view');
     if(leader()&&S.legacy&&S.legacy.entries.length)v.append(legacyPanel());
     const db_=!S.admin&&(S.tab==='log'||S.tab==='reflect'||S.tab==='hourly'||!S.tab);document.body.classList.toggle('hasDaybar',db_);if(db_)v.append(dayBar());
     if(!S.admin&&(S.tab==='log'||!S.tab))v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;gap:8px;margin-bottom:-6px'},h('button',{onclick:async()=>{const ok=await copyRich(dailyWrapText());toast(ok?'Day copied — paste into Telegram':'Couldn’t copy on this device')}},'📋 Copy day to Telegram'),h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;align-items:center'},hourlyBtn(),h('button',{id:'syncHourly',class:'icon',title:'Pull my numbers from Hourly now','aria-label':'Pull my numbers from Hourly now',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;min-width:44px'},S.hSyncBusy?'…':'⟳')));
-    (S.admin&&isAdminUser()?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{pbboard:renderPBBoard,log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
+    (S.admin&&isAdminUser()?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{sas:renderSAs,pbboard:renderPBBoard,log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
     markTest(v);cardify(v)});kovaEmbeds()}
 /* phone helpers: day switcher, swipe, tables as cards */
 
@@ -1916,7 +1916,7 @@ function createTeamPanel(){const me=S.reps[S.uid]||{};if(me.team===S.uid)return 
     h('input',{type:'text',id:'myTeamName',value:myTeam.name||'',placeholder:((me.name||'My').split(/\s+/)[0])+'’s team','aria-label':'Team name',onchange:e=>{const n=e.target.value.trim();saveTeam(S.uid,{name:n,leader:S.uid}).then(ok=>ok&&toast('Team name saved'))}}),
     logoPicker('myTeamLogo',myTeam.logo,data=>saveTeam(S.uid,{logo:data,leader:S.uid}).then(ok=>ok&&toast('Logo saved')),()=>saveTeam(S.uid,{logo:null}),'Team logo')))}
 /* leader view: owner sees everything; team leaders manage their own team */
-function renderTeam(v){const OWN=S.isOwner&&(S.admin||!isAdminUser());if(!S.admin)v.append(photoPanel(S.uid));{const ids=OWN?repListAll(false).map(r=>r.id):downOf(S.uid).map(r=>r.id);const ns=newStartsPanel(ids);if(ns)v.append(ns)}
+function renderTeam(v){const OWN=S.isOwner&&(S.admin||!isAdminUser());if(!S.admin)v.append(photoPanel(S.uid));
   if(OWN){v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Orexis'}),h('div',{class:'hint',text:'The teams within Orexis and who is on each.'}))));
   }else v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My team'}),h('div',{class:'hint',text:'Your team’s name, logo and members.'}))));
   const cp=createTeamPanel();if(cp)v.append(cp);{const tc=treeCard(S.uid);if(tc)v.append(tc)}
@@ -1980,6 +1980,9 @@ function dailyWrapText(){const d=S.date,ids=(S.isOwner?repListAll(false):repList
     '**🔔 Bells:** '+(bells.length?bells.map(x=>x.n+' ('+money(x.r)+')').join(', '):'—'),'',
     '**🏆 Top 3**',...top.map((x,i)=>['🥇','🥈','🥉'][i]+' '+x.n+' · '+money(x.r)+' · '+x.s+' stops · '+x.b+' buyers')];
   return L.join('\n')}
+function renderSAs(v){const ids=(S.isOwner?repListAll(false):downOf(S.uid)).map(r=>r.id);
+  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Sales Associates'}),h('div',{class:'hint',text:'Everyone not yet promoted to Sales Consultant: their first 2 weeks, stops ramp and SC promotion progress.'}))));
+  const p=newStartsPanel(ids);v.append(p||h('div',{class:'panel empty'},h('span',{text:'No Sales Associates right now. New starts appear here as soon as they join.'})))}
 /* ---------- PB BOARD (Ben + admin) ---------- */
 function renderPBBoard(v){if(!S.isOwner){go('log');return}
   const people=repListAll(false).filter(r=>!r.test);const recent=addDays(todayStr(),-7);
@@ -2001,13 +2004,13 @@ function renderPBBoard(v){if(!S.isOwner){go('log');return}
     h('span',{text:(((PB_DAY.concat(PB_WEEK,[['rph','RPH']])).find(x=>x[0]===n.k)||[,n.k])[1])+' '+(n.kind==='day'?'day':'week')+': '+fmtK(n.k,n.x.v)}))):h('div',{class:'hint',text:'No new PBs in the last 7 days yet.'})))}
 /* ---------- NEW-START TRACKER: first 2 weeks ---------- */
 function newStartsPanel(ids){const td=todayStr();const bell=std('bell');
-  const list=ids.map(id=>({id,r:S.reps[id]||{}})).filter(x=>x.r&&!x.r.test&&x.r.joinedAt&&String(x.r.joinedAt).slice(0,10)>=addDays(td,-13));
+  const list=ids.map(id=>({id,r:S.reps[id]||{}})).filter(x=>x.r&&!x.r.test&&x.r.joinedAt&&stageIdx(x.id)===0);
   if(!list.length)return null;
   if(leader()&&needsTeam&&needsTeam()&&!S.allTeamReady)loadAllTeam();
   const box=h('div',{class:'stack'});
   box.append(h('div',{class:'bar'},h('h3',{text:'🌱 New starts · first 2 weeks'}),h('span',{class:'hint',text:'Who’s settling in and who needs support early.'})));
   list.sort((a,b)=>String(b.r.joinedAt).localeCompare(String(a.r.joinedAt))).forEach(({id,r})=>{
-    const j=String(r.joinedAt).slice(0,10);const dayN=Math.min(14,Math.round((new Date(td)-new Date(j))/864e5)+1);
+    const j=String(r.joinedAt).slice(0,10);const dayN=Math.round((new Date(td)-new Date(j))/864e5)+1;
     const es=sourceAll(id,'period').filter(e=>e.date>=j&&e.date<=addDays(j,13)).sort((a,b)=>a.date.localeCompare(b.date));
     const worked=es.filter(e=>num(e.stops)||num(e.retail)||num(e.hours));const st=worked.reduce((a,e)=>a+num(e.stops),0),by=worked.reduce((a,e)=>a+num(e.buyers),0),rt=worked.reduce((a,e)=>a+num(e.retail),0);
     const fs=worked.find(e=>num(e.buyers)>0),fb=worked.find(e=>num(e.retail)>=bell);const spd=worked.length?st/worked.length:0;
@@ -2017,7 +2020,7 @@ function newStartsPanel(ids){const td=todayStr();const bell=std('bell');
     const ramp=n=>Math.round(10+(std('stops')-10)*Math.min(1,(n-1)/9));const sd=worked.map((e,i)=>({n:i+1,v:num(e.stops),t:ramp(i+1)}));const lastD=sd[sd.length-1];const ok=sd.length?lastD.v>=lastD.t:dayN<3;if(sd.length&&!ok)flags.unshift('Stops below the ramp (day '+lastD.n+': '+lastD.v+', aim '+lastD.t+'+)');if(!promoted&&first10.length&&pace<need)flags.push('Behind SC pace ('+money(pace)+'/day, needs '+money(need)+')');const nd=d=>niceDate(d,{weekday:'short',day:'numeric',month:'short'});
     const chip=(l,v,good)=>h('div',{style:'flex:1;min-width:84px;background:var(--bg);border-radius:10px;padding:8px 10px'},h('div',{class:'hint',style:'font-size:.7rem;text-transform:uppercase;letter-spacing:.06em',text:l}),h('div',{style:'font-weight:700;font-size:1.05rem'+(good===false?';color:#c2410c':good?';color:#1f7a4d':''),text:v}));
     box.append(h('div',{class:'panel',style:'border-left:4px solid '+(ok?'#1f7a4d':'#F5B56E')},
-      h('div',{style:'display:flex;align-items:center;gap:10px;margin-bottom:8px'},avatar(id,34),h('div',{style:'flex:1'},h('strong',{text:r.name||'New start'}),h('div',{class:'hint',text:'Started '+nd(j)+' · Day '+dayN+' of 14'+(r.team?' · '+teamName(r.team):'')})),
+      h('div',{style:'display:flex;align-items:center;gap:10px;margin-bottom:8px'},avatar(id,34),h('div',{style:'flex:1'},h('strong',{text:r.name||'New start'}),h('div',{class:'hint',text:'Started '+nd(j)+' · '+(dayN<=14?'Day '+dayN+' of 14':'Day '+dayN)+(r.team?' · '+teamName(r.team):'')})),
         h('span',{style:'font-size:.75rem;font-weight:700;padding:4px 10px;border-radius:999px;'+(ok?'background:#e3f4ea;color:#1f7a4d':'background:#fbe7cf;color:#8a4b08'),text:ok?'✓ On track':'Needs support'})),
       sd.length?h('div',{style:'display:flex;gap:4px;flex-wrap:wrap;margin:0 0 8px'},sd.slice(0,10).map(d=>h('span',{title:'Day '+d.n+': '+d.v+' stops (aim '+d.t+'+)',style:'font-size:.72rem;padding:3px 7px;border-radius:999px;font-weight:700;'+(d.v>=d.t?'background:#e3f4ea;color:#1f7a4d':'background:#fbe7cf;color:#8a4b08'),text:'D'+d.n+' '+d.v+'/'+d.t}))):null,
       h('div',{style:'margin:0 0 6px;font-size:.85rem'},h('b',{text:promoted?'🎉 SC promotion reached: ':'SC promotion: '}),money(r10)+' of '+money(SC)+' in '+first10.length+' of 10 days'+(promoted?'':left>0?' · needs '+money(Math.max(0,(SC-r10)/left))+'/day for the next '+left:' · window closed')),
