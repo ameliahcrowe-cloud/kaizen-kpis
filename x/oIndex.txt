@@ -2228,7 +2228,7 @@ document.getElementById('nextDay').onclick=()=>setDate(addDays(wkTab()?(S.tab===
 document.getElementById('todayBtn').onclick=()=>setDate(todayStr());
 document.getElementById('datePick').onchange=e=>setDate(e.target.value);
 document.getElementById('campFilter').onchange=e=>{S.campFilter=e.target.value;render()};
-document.getElementById('viewMode').onchange=e=>{if(e.target.value==='admin'){S.admin=true;S.viewMe=false;S.tab='admin';S.msheet=false;onWeekChange();render();scrollTo(0,0);return}S.admin=false;if(S.tab==='admin')S.tab='log';S.viewMe=e.target.value==='me';try{localStorage.setItem('kz_view',S.viewMe?'me':'team')}catch(x){}S.growthSel=null;S.coachSel=null;S.promoSel=null;if(S.viewMe&&!REP_TABS.some(t=>t[0]===S.tab))S.tab='log';onWeekChange();render()};
+document.getElementById('viewMode').onchange=e=>{if(e.target.value==='admin'){try{localStorage.setItem('kz_view','admin')}catch(x){}S.admin=true;S.viewMe=false;S.tab='admin';S.msheet=false;onWeekChange();render();scrollTo(0,0);return}S.admin=false;if(S.tab==='admin')S.tab='log';S.viewMe=e.target.value==='me';try{localStorage.setItem('kz_view',S.viewMe?'me':'team')}catch(x){}S.growthSel=null;S.coachSel=null;S.promoSel=null;if(S.viewMe&&!REP_TABS.some(t=>t[0]===S.tab))S.tab='log';onWeekChange();render()};
 document.getElementById('teamFilter').onchange=e=>{S.teamFilter=e.target.value;S.growthSel=null;S.coachSel=null;S.promoSel=null;render()};
 let hash=(location.hash||'').slice(1);if(hash==='month')hash='totals';if(LEADER_TABS.some(t=>t[0]===hash))S.tab=hash;
 S.week=weekStart(S.date);render();
@@ -2240,7 +2240,7 @@ S.week=weekStart(S.date);render();
   if(!db||!user){status('Sign in to claude.ai to use the tracker.','warn');S.ready=true;render();return}
   S.db=db;S.uid=await user.id();S.isOwner=await user.isOwner();S.isAdmin=!S.isOwner&&await user.canEdit();if(S.isAdmin)S.teamFilter='all';
   if(!S.uid&&!S.isOwner){status('Your account can’t log numbers here. Ask your team leader to invite you by email from the Share menu.','warn');S.ready=true;render();return}
-  S.viewMe=true;
+  {let vw='me';try{vw=localStorage.getItem('kz_view')||'me'}catch(e){}S.viewMe=vw==='me';if(vw==='admin'&&S.isOwner&&S.uid==='u_owner'){S.admin=true;S.viewMe=false;S.tab='admin'}}
   if(!leader()&&!REP_TABS.some(t=>t[0]===S.tab))S.tab='log';
   const parts={settings:false,reps:false,mine:!S.uid};
   const check=()=>{if(!S.ready&&parts.settings&&parts.reps&&parts.mine)S.ready=true;render()};
