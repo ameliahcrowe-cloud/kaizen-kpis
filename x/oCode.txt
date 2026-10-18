@@ -1,0 +1,632 @@
+/**
+ * Kaizen KPIs — Google Apps Script web app.
+ * Paste this into Code.gs (Extensions → Apps Script in the Kaizen KPIs Google Sheet).
+ * All data lives in this spreadsheet. People log in with their name and a PIN.
+ */
+const APP_TITLE = 'Orexis KPIs';
+const OWNER_NAME = 'Ameliah';          // the owner's login name
+const OWNER_UID = 'u_owner';
+const DATA = 'Data', ACCESS = 'Access';
+const CHUNK = 45000;                   // characters per cell (Sheets limit is 50,000)
+const MAX_CHUNKS = 20;
+
+/* ---------- web app ---------- */
+function doGet(e) {
+  if (e && e.parameter && e.parameter.app === 'cards') return cardsJson_(e.parameter);
+  if (e && e.parameter && e.parameter.app === 'kova') return HtmlService.createHtmlOutputFromFile('Kova')
+    .setTitle('Kova')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  if (e && e.parameter && e.parameter.app === 'pb') return HtmlService.createHtmlOutputFromFile('PB')
+    .setTitle('PB Board')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  if (e && e.parameter && e.parameter.app === 'hourly') return HtmlService.createHtmlOutputFromFile('Hourly')
+    .setTitle('Orexis Hourly')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  return HtmlService.createHtmlOutputFromFile('Index')
+    .setTitle(APP_TITLE)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/* ---------- spreadsheet menu (owner setup) ---------- */
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu(APP_TITLE)
+    .addItem('Set or reset owner PIN', 'setOwnerPin')
+    .addItem('Turn on daily backups & hourly syncs', 'setupBackups')
+    .addItem('Back up now', 'backupNow')
+    .addToUi();
+}
+
+/* ---------- backups: a dated copy of this sheet every night, last 30 kept ---------- */
+const BACKUP_FOLDER = 'Kaizen KPIs backups', BACKUP_KEEP = 30;
+function backupFolder_() {
+  const it = DriveApp.getFoldersByName(BACKUP_FOLDER);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(BACKUP_FOLDER);
+}
+function backupNow() {
+  const ss = ss_(), folder = backupFolder_();
+  const stamp = Utilities.formatDate(new Date(), 'Australia/Melbourne', 'yyyy-MM-dd HHmm');
+  DriveApp.getFileById(ss.getId()).makeCopy('Kaizen KPIs backup ' + stamp, folder);
+  const files = [], it = folder.getFiles();
+  while (it.hasNext()) files.push(it.next());
+  files.sort((a, b) => b.getDateCreated() - a.getDateCreated());
+  files.slice(BACKUP_KEEP).forEach(f => f.setTrashed(true));
+  return 'Backed up: ' + stamp;
+}
+function setupBackups() {
+  ScriptApp.getProjectTriggers().filter(t => ['backupNow', 'syncHourly'].indexOf(t.getHandlerFunction()) >= 0).forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('backupNow').timeBased().everyDays(1).atHour(2).inTimezone('Australia/Melbourne').create();
+  // hourly tracker -> day log at 12pm, 3:45pm and 9pm (Google runs these within ~15 minutes of the time)
+  [[12, 0], [15, 45], [21, 0]].forEach(([h, m]) => ScriptApp.newTrigger('syncHourly').timeBased().everyDays(1).atHour(h).nearMinute(m).inTimezone('Australia/Melbourne').create());
+  return backupNow() + ' · hourly syncs on at 12pm, 3:45pm, 9pm';
+}
+
+/* ---------- hourly tracker: add each rep's hours for today into their day log ---------- */
+const H_FIELDS = ['stops', 'buyers', 'retail', 'upsells', 'upsellRetail', 'medals'];
+function mondayOf_(d) { const x = new Date(d + 'T00:00:00Z'); const wd = (x.getUTCDay() + 6) % 7; x.setUTCDate(x.getUTCDate() - wd); return x.toISOString().slice(0, 10); }
+function syncHourly(dateArg) {
+  const date = typeof dateArg === 'string' ? dateArg : Utilities.formatDate(new Date(), 'Australia/Melbourne', 'yyyy-MM-dd');
+  const lock = LockService.getScriptLock(); lock.waitLock(25000);
+  try {
+    const t = loadTable_(); const out = []; const nowIso = new Date().toISOString();
+    Object.keys(t.map).forEach(path => {
+      const seg = path.split('/');
+      if (seg.length !== 4 || seg[0] !== 'reps' || seg[2] !== 'hourly' || seg[3] !== date) return;
+      const doc = t.map[path]; if (doc.del || !doc.data || !doc.data.slots) return;
+      const tot = {}; H_FIELDS.forEach(k => tot[k] = 0); let n = 0;
+      Object.keys(doc.data.slots).forEach(k => { const x = doc.data.slots[k] || {}; if (H_FIELDS.some(f => Number(x[f]) || 0)) n++; H_FIELDS.forEach(f => tot[f] += Number(x[f]) || 0); });
+      const ep = 'reps/' + seg[1] + '/entries/' + date; const cur = t.map[ep] && !t.map[ep].del ? (t.map[ep].data || {}) : {};
+      const rep = t.map['reps/' + seg[1]] && t.map['reps/' + seg[1]].data || {};
+      const body = Object.assign({}, cur, tot, { date, week: mondayOf_(date), month: date.slice(0, 7), hours: (Number(cur.hours) || 0) > 0 ? Number(cur.hours) : (Number(doc.data.targets && doc.data.targets.shiftHours) || 8), fromHourly: true, roadie: !!doc.data.roadie, updatedAt: nowIso });
+      if (!body.campaign && rep.campaign) body.campaign = rep.campaign;
+      out.push({ path: ep, data: body });
+      out.push({ path, data: Object.assign({}, doc.data, { syncedAt: nowIso }) });
+    });
+    if (out.length) putDocs_(t, out);
+    return out.length / 2;
+  } finally { lock.releaseLock(); }
+}
+function setOwnerPin() {
+  const ui = SpreadsheetApp.getUi();
+  const r = ui.prompt(APP_TITLE, 'Choose a PIN (4 to 8 digits) for ' + OWNER_NAME + ':', ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  const pin = r.getResponseText().trim();
+  if (!/^\d{4,8}$/.test(pin)) { ui.alert('Please use 4 to 8 digits.'); return; }
+  ensureSheets_();
+  const acc = readAccess_();
+  const row = acc.find(a => a.uid === OWNER_UID);
+  if (row) { row.pinHash = hash_(pin); writeAccessRow_(row); }
+  else appendAccess_({ uid: OWNER_UID, name: OWNER_NAME, pinHash: hash_(pin), role: 'owner', tokens: [], created: new Date().toISOString() });
+  const t = loadTable_();
+  if (!t.map['reps/' + OWNER_UID] || t.map['reps/' + OWNER_UID].del) {
+    putDocs_(t, [{ path: 'reps/' + OWNER_UID, data: { name: OWNER_NAME, team: '', active: true, order: 0, joinedAt: new Date().toISOString() } }]);
+  }
+  if (!t.map['settings/main']) putDocs_(t, [{ path: 'settings/main', data: { teamName: 'Kaizen Enterprises' } }]);
+  ui.alert('Done. Log in to the app as "' + OWNER_NAME + '" with that PIN.');
+}
+
+/* ---------- sheets ---------- */
+function ss_() { return SpreadsheetApp.getActiveSpreadsheet(); }
+function ensureSheets_() {
+  const s = ss_();
+  let d = s.getSheetByName(DATA);
+  if (!d) { d = s.insertSheet(DATA); d.getRange(1, 1, 1, 4).setValues([['path', 'updated', 'deleted', 'json']]); d.setFrozenRows(1); }
+  let a = s.getSheetByName(ACCESS);
+  if (!a) { a = s.insertSheet(ACCESS); a.getRange(1, 1, 1, 6).setValues([['uid', 'name', 'pinHash', 'role', 'tokens', 'created']]); a.setFrozenRows(1); a.hideSheet(); }
+  const p = PropertiesService.getScriptProperties();
+  if (!p.getProperty('SALT')) p.setProperty('SALT', '4785cac7-f05f-401a-8f7e-5521d93305c6');
+}
+function hash_(pin) {
+  const salt = PropertiesService.getScriptProperties().getProperty('SALT') || '4785cac7-f05f-401a-8f7e-5521d93305c6';
+  return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + ':' + pin));
+}
+
+/* Access sheet: one row per login */
+function readAccess_() {
+  const sh = ss_().getSheetByName(ACCESS); if (!sh) return [];
+  const v = sh.getDataRange().getValues(); const out = [];
+  for (let i = 1; i < v.length; i++) {
+    if (!v[i][0]) continue;
+    let tokens = []; try { tokens = JSON.parse(v[i][4] || '[]'); } catch (e) {}
+    out.push({ row: i + 1, uid: String(v[i][0]), name: String(v[i][1]), pinHash: String(v[i][2]), role: String(v[i][3] || 'rep'), tokens, created: v[i][5] });
+  }
+  return out;
+}
+function writeAccessRow_(a) {
+  ss_().getSheetByName(ACCESS).getRange(a.row, 1, 1, 6).setValues([[a.uid, a.name, a.pinHash, a.role, JSON.stringify(a.tokens || []), a.created || '']]);
+}
+function appendAccess_(a) {
+  ss_().getSheetByName(ACCESS).appendRow([a.uid, a.name, a.pinHash, a.role, JSON.stringify(a.tokens || []), a.created || '']);
+}
+
+/* Data sheet: one row per document, JSON split across cells */
+function loadTable_() {
+  const sh = ss_().getSheetByName(DATA);
+  const last = sh.getLastRow(); const width = Math.max(4, sh.getLastColumn());
+  const v = last > 1 ? sh.getRange(2, 1, last - 1, width).getValues() : [];
+  const map = {};
+  v.forEach((r, i) => {
+    if (!r[0]) return;
+    let json = ''; for (let c = 3; c < r.length; c++) { if (r[c] === '' || r[c] == null) break; json += r[c]; }
+    let data = null; if (json) { try { data = JSON.parse(json); } catch (e) { data = null; } }
+    map[String(r[0])] = { row: i + 2, ts: Number(r[1]) || 0, del: r[2] === true || r[2] === 'TRUE', data };
+  });
+  return { sh, map };
+}
+function putDocs_(t, docs) { // docs: [{path, data, del}]
+  const now = Date.now();
+  docs.forEach((d, k) => {
+    const ts = now + k;
+    const json = d.del ? '' : JSON.stringify(d.data || {});
+    if (json.length > CHUNK * MAX_CHUNKS) throw new Error('TOO_LARGE');
+    const cells = []; for (let i = 0; i < json.length; i += CHUNK) cells.push(json.slice(i, i + CHUNK));
+    const cur = t.map[d.path];
+    const width = Math.max(cells.length, cur && cur.width ? cur.width : 1);
+    const row = [d.path, ts, !!d.del].concat(cells);
+    if (cur) {
+      // clear old overflow cells, then write
+      const lastCol = t.sh.getLastColumn();
+      if (lastCol > 3) t.sh.getRange(cur.row, 4, 1, lastCol - 3).clearContent();
+      t.sh.getRange(cur.row, 1, 1, row.length).setValues([row]);
+      t.map[d.path] = { row: cur.row, ts, del: !!d.del, data: d.del ? null : d.data };
+    } else {
+      t.sh.appendRow(row);
+      t.map[d.path] = { row: t.sh.getLastRow(), ts, del: !!d.del, data: d.del ? null : d.data };
+    }
+  });
+  return now + docs.length;
+}
+
+/* ---------- sessions ---------- */
+function newToken_() { return Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '').slice(0, 8); }
+function auth_(token) {
+  if (!token) throw new Error('AUTH');
+  const acc = readAccess_();
+  const a = acc.find(x => (x.tokens || []).indexOf(token) >= 0);
+  if (!a) throw new Error('AUTH');
+  return a;
+}
+function tooMany_(name) {
+  const c = CacheService.getScriptCache(); const k = 'fail:' + name.toLowerCase();
+  return Number(c.get(k) || 0) >= 6;
+}
+function noteFail_(name) {
+  const c = CacheService.getScriptCache(); const k = 'fail:' + name.toLowerCase();
+  c.put(k, String(Number(c.get(k) || 0) + 1), 600);
+}
+function issue_(a) {
+  const tok = newToken_();
+  a.tokens = (a.tokens || []).concat([tok]).slice(-20);
+  writeAccessRow_(a);
+  return { token: tok, uid: a.uid, role: a.role, name: a.name };
+}
+
+/* ---------- public API (called from the page) ---------- */
+function publicInfo() {
+  ensureSheets_();
+  const t = loadTable_();
+  const main = (t.map['settings/main'] || {}).data || {};
+  const logo = (t.map['settings/logo'] || {}).data || {};
+  const teams = Object.keys(t.map).filter(p => /^teams\/[^/]+$/.test(p) && !t.map[p].del)
+    .map(p => ({ id: p.split('/')[1], name: (t.map[p].data || {}).name || 'Team' }));
+  return { name: main.teamName || 'Orexis Innovations', logo: logo.data || null, teams, hasOwner: readAccess_().some(a => a.role === 'owner') };
+}
+function login(name, pin) {
+  name = String(name || '').trim(); pin = String(pin || '').trim();
+  if (!name || !pin) throw new Error('Enter your name and PIN.');
+  if (tooMany_(name)) throw new Error('Too many tries. Wait 10 minutes and try again.');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const a = readAccess_().find(x => x.name.toLowerCase() === name.toLowerCase());
+    if (!a || a.pinHash !== hash_(pin)) { noteFail_(name); throw new Error('That name and PIN don’t match.'); }
+    return issue_(a);
+  } finally { lock.releaseLock(); }
+}
+function register(name, pin, team) {
+  name = String(name || '').trim().replace(/\s+/g, ' '); pin = String(pin || '').trim(); team = ''; // only the owner assigns teams
+  if (name.length < 2 || name.length > 40) throw new Error('Enter your first and last name.');
+  if (!/^\d{4,8}$/.test(pin)) throw new Error('Your PIN needs 4 to 8 digits.');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    ensureSheets_();
+    const acc = readAccess_();
+    if (!acc.some(a => a.role === 'owner')) throw new Error('The app isn’t set up yet. Ask Ameliah to finish setup.');
+    if (acc.some(a => a.name.toLowerCase() === name.toLowerCase())) throw new Error('Someone with that name already has a login. Add your last name or initial.');
+    const t = loadTable_();
+    if (team && (!t.map['teams/' + team] || t.map['teams/' + team].del)) team = '';
+    const uid = 'u_' + Utilities.getUuid().replace(/-/g, '').slice(0, 20);
+    const a = { uid, name, pinHash: hash_(pin), role: 'rep', tokens: [], created: new Date().toISOString() };
+    appendAccess_(a);
+    putDocs_(t, [{ path: 'reps/' + uid, data: { name, team, active: true, order: Date.now(), joinedAt: new Date().toISOString() } }]);
+    const fresh = readAccess_().find(x => x.uid === uid);
+    return issue_(fresh);
+  } finally { lock.releaseLock(); }
+}
+function logout(token) {
+  try { const a = auth_(token); a.tokens = a.tokens.filter(x => x !== token); writeAccessRow_(a); } catch (e) {}
+  return true;
+}
+
+/* permissions mirror the app's rules, enforced here */
+function ctx_(a, t) {
+  let role = a.role;
+  // anyone who leads a team (Sales Leader and up who created one) automatically gets leader access to its members
+  if (role === 'rep' && t.map['teams/' + a.uid] && !t.map['teams/' + a.uid].del) role = 'tl';
+  const c = { uid: a.uid, role: role, members: {} };
+  if (role === 'tl') Object.keys(t.map).forEach(p => {
+    const m = /^reps\/([^/]+)$/.exec(p); if (m && !t.map[p].del && (t.map[p].data || {}).team === a.uid) c.members[m[1]] = true;
+  });
+  return c;
+}
+function canRead_(c, path) {
+  if (c.role === 'owner') return true;
+  const s = path.split('/'), top = s[0], id = s[1];
+  if (top === 'settings' || top === 'summary' || top === 'teams' || top === 'board') return true;
+  if (top === 'reps' || top === 'conf') return id === c.uid || (c.role === 'tl' && !!c.members[id]);
+  return false;
+}
+function canWrite_(c, path) {
+  if (c.role === 'owner') return true;
+  const s = path.split('/'), top = s[0], id = s[1];
+  if (top === 'teams') return s.length === 2 && id === c.uid;
+  if (top === 'board') return s.length === 2 && (id === c.uid || (c.role === 'tl' && !!c.members[id]));
+  if (top === 'reps') return id === c.uid || (c.role === 'tl' && !!c.members[id]);
+  if (top === 'conf') return c.role === 'tl' && !!c.members[id];
+  return false;
+}
+function sync(token, since) {
+  const a = auth_(token); const now = Date.now();
+  const t = loadTable_(); const c = ctx_(a, t); since = Number(since) || 0;
+  const docs = [];
+  Object.keys(t.map).forEach(p => {
+    const r = t.map[p]; if (r.ts <= since) return; if (!canRead_(c, p)) return;
+    docs.push(r.del ? { p, del: 1 } : { p, d: r.data });
+  });
+  return { now, docs, me: { uid: a.uid, role: c.role, name: a.name }, full: since === 0 };
+}
+function merge_(a, b) {
+  const o = Object.assign({}, a || {});
+  Object.keys(b || {}).forEach(k => {
+    const v = b[k];
+    if (v && typeof v === 'object' && !Array.isArray(v) && o[k] && typeof o[k] === 'object' && !Array.isArray(o[k])) o[k] = merge_(o[k], v);
+    else o[k] = v;
+  });
+  return o;
+}
+function write(token, ops) {
+  const a = auth_(token);
+  const lock = LockService.getScriptLock(); lock.waitLock(25000);
+  try {
+    const t = loadTable_(); const c = ctx_(a, t); const out = [];
+    (ops || []).forEach(op => {
+      const path = String(op.path || '');
+      if (!/^[A-Za-z0-9_\-.~:@+]+(\/[A-Za-z0-9_\-.~:@+]+)*$/.test(path) || path.split('/').length % 2) throw new Error('BAD_PATH');
+      if (!canWrite_(c, path)) throw new Error('DENIED');
+      const cur = t.map[path];
+      const seg = path.split('/');
+      if (c.role !== 'owner' && seg.length === 2 && seg[0] === 'reps' && op.op !== 'delete' && op.data && 'team' in op.data) {
+        const was = cur && !cur.del ? (cur.data.team || '') : '';
+        const now = op.data.team || '';
+        if (now !== was && !(seg[1] === c.uid && now === c.uid)) throw new Error('Only Ameliah can change which team someone is on.');
+      }
+      if (c.role !== 'owner' && seg.length === 2 && seg[0] === 'reps' && op.data && op.data.promo && ('stage' in op.data.promo || 'promotedAt' in op.data.promo)) {
+        const was = cur && !cur.del ? ((cur.data.promo || {}).stage || 'sa') : 'sa';
+        if ((op.data.promo.stage || was) !== was || 'promotedAt' in op.data.promo) {
+          const mine = ((t.map['reps/' + c.uid] || {}).data || {}).promo || {};
+          if (['tm', 'ad', 'dir', 'md'].indexOf(mine.stage) < 0 || seg[1] === c.uid) throw new Error('Only admins and Team Managers can approve promotions.');
+        }
+      }
+      if (op.op === 'delete') out.push({ path, del: true });
+      else if (op.op === 'update') {
+        if (!cur || cur.del) throw new Error('MISSING');
+        out.push({ path, data: merge_(cur.data, op.data || {}) });
+      } else out.push({ path, data: op.data || {} });
+    });
+    putDocs_(t, out);
+    return { ok: true, docs: out.map(d => d.del ? { p: d.path, del: 1 } : { p: d.path, d: d.data }) };
+  } finally { lock.releaseLock(); }
+}
+
+/* owner-only login management */
+function adminAccess(token, action, uid, value) {
+  const me = auth_(token);
+  if (me.role !== 'owner') throw new Error('DENIED');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const acc = readAccess_();
+    if (action === 'list') return acc.map(x => ({ uid: x.uid, name: x.name, role: x.role }));
+    const a = acc.find(x => x.uid === uid); if (!a) throw new Error('Not found');
+    if (a.role === 'owner') throw new Error('The owner login can only be changed from the spreadsheet menu.');
+    if (action === 'role') { if (['rep', 'tl'].indexOf(value) < 0) throw new Error('Bad role'); a.role = value; a.tokens = a.tokens; writeAccessRow_(a); }
+    else if (action === 'pin') { if (!/^\d{4,8}$/.test(String(value))) throw new Error('PIN needs 4 to 8 digits'); a.pinHash = hash_(String(value)); a.tokens = []; writeAccessRow_(a); }
+    else if (action === 'remove') { a.tokens = []; a.pinHash = 'removed'; a.name = a.name + ' (removed ' + new Date().toISOString().slice(0, 10) + ')'; writeAccessRow_(a); }
+    else if (action === 'rename') { const n = String(value || '').trim(); if (!n) throw new Error('Name needed'); if (acc.some(x => x.uid !== uid && x.name.toLowerCase() === n.toLowerCase())) throw new Error('That name is taken'); a.name = n; writeAccessRow_(a); }
+    return { ok: true };
+  } finally { lock.releaseLock(); }
+}
+
+/* ---------- weekly scorecards: emailed to the owner every Saturday night ----------
+   Built only from each person's data and Ameliah's coaching material:
+   - Knowing your numbers: priority Stops -> Stop to buyer % -> Sale average -> Upsells, with Low / Avg / Strong bands
+   - Feedback rules: 3 good things, 1 focus area, finish on a positive
+   - Their own self-review: 3 good things, 2 learnings, 1 focus (daily reflections) + weekly review
+   Each person's card is attached as its own printable PDF. */
+const OREXIS_LOGO = 'data:image/png;base64,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';
+const OREXIS_LOGO_LIGHT = 'data:image/jpeg;base64,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';
+/* Orexis-branded versions of the two apps: same data, same logins, Orexis look */
+function orexis_(hourly) {
+  let s = HtmlService.createHtmlOutputFromFile(hourly ? 'Hourly' : 'Index').getContent();
+  const rep = (a, b) => { s = s.split(a).join(b); };
+  rep('#7b1e2e', '#424965'); rep('#f4e6e8', '#fbe7cf'); rep('#6e1423', '#2E3A59');
+  rep('<title>Kaizen KPIs</title>', '<title>Orexis KPIs</title>'); rep('<title>Kaizen Hourly</title>', '<title>Orexis Hourly</title>');
+  rep("if(info.logo){", "if(window.OREXIS_LOGO)info.logo=window.OREXIS_LOGO;if(info.logo){");
+  rep("info.name||'Kaizen KPIs'", "'Orexis Innovations'");
+  rep("const src=S.logo&&S.logo.data;", "const src=window.OREXIS_LOGO||(S.logo&&S.logo.data);");
+  rep("(name||'Kaizen KPIs')", "'Orexis Innovations'");
+  rep("if(l.exists&&l.data().data)S.logo=l.data().data}catch(_){}", "if(l.exists&&l.data().data)S.logo=l.data().data}catch(_){}S.logo=window.OREXIS_LOGO||S.logo;");
+  rep("h('h1',{text:'Hourly KPIs'})", "h('h1',{text:'Orexis Hourly'})");
+  rep('https://ameliahcrowe-cloud.github.io/kaizen-kpis/', 'https://ameliahcrowe-cloud.github.io/kaizen-kpis/orexis/');
+  rep("'All of '+((S.settings.teamName||'').trim()||'Kaizen')", "'All of Orexis'");
+  rep('Synced to Kaizen KPIs', 'Synced to Orexis KPIs'); rep('Not synced to Kaizen KPIs', 'Not synced to Orexis KPIs'); rep('open Kaizen KPIs for', 'open Orexis KPIs for'); rep('numbers are in Kaizen KPIs', 'numbers are in Orexis KPIs'); rep('numbers to Kaizen KPIs', 'numbers to Orexis KPIs');
+  // no Kaizen anywhere in the Orexis apps, except Ameliah's own team label
+  rep("S.settings.teamName||''", "'Orexis Innovations'");
+  rep('Kaizen', 'Orexis'); rep('Orexis Enterprises', 'Orexis Innovations');
+  // Kaizen test people never appear in Orexis
+  rep('applyDocs(r.docs);', 'applyDocs((r.docs||[]).filter(d=>!/^(reps|conf|teams)\\/(u_0902e9eb82174b99b8e2|u_32e3e5910f7b422aa08f)(\\/|$)/.test(d.p)));');
+  const css = ':root{--bg:#F6F3EE!important;--line:#e3dfd7!important;--muted:#5b6275!important;--ink:#1E2740!important;--accent:#2E3A59!important;--accent-soft:#fbe7cf!important}' +
+    'body{background:#F6F3EE!important}header.top,.top{background:#2E3A59!important;color:#F5B56E!important;border-radius:14px;padding:12px 14px!important;margin-bottom:10px}' +
+    'header.top h1,.top h1,#teamTitle{color:#F5B56E!important;letter-spacing:.12em}#teamSub,.top .sub{color:#c9cfe0!important}' +
+    'header.top button,.top button,header.top input,header.top select{background:#414A63!important;color:#fff!important;border-color:#5a6688!important}' +
+    'nav.tabs button[aria-selected=true]{border-bottom-color:#F5B56E!important}#mnav button[aria-selected=true]{color:#2E3A59!important;background:#fbe7cf!important}' +
+    'h2,h3{color:#2E3A59}.card{border-color:#e3dfd7}';
+  s = s.replace('</style>', css + '</style>');
+  s = s.replace('<head>', '<head><script>window.OREXIS=1;window.OREXIS_LOGO=' + JSON.stringify(OREXIS_LOGO) + '</script>');
+  if (s.indexOf('window.OREXIS=1') < 0) s = '<script>window.OREXIS=1;window.OREXIS_LOGO=' + JSON.stringify(OREXIS_LOGO) + '</script>' + s;
+  return HtmlService.createHtmlOutput(s).setTitle(hourly ? 'Orexis Hourly' : 'Orexis KPIs')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+// Test run: only these people's cards, emailed straight to these addresses
+function scorecardTest() {
+  const names = ['Ameliah', 'Ben Cotter', 'Freddie Juffkins'], to = 'ameliah.crowe@gmail.com';
+  const today = Utilities.formatDate(new Date(), 'Australia/Melbourne', 'yyyy-MM-dd'), wk = (new Date(today + 'T12:00:00Z').getUTCDay() % 6 === 0) ? mondayOf_(today) : addDaysS_(mondayOf_(today), -7), tag = wk.slice(8, 10) + '/' + wk.slice(5, 7);
+  const cards = scorecards_(wk).filter(c => names.indexOf(c.name.replace(/ \(test\)$/, '')) >= 0);
+  const pdfs = cards.map(c => Utilities.newBlob(page_(c.html), 'text/html', 'x.html').getAs('application/pdf').setName('Scorecard WC ' + tag.replace('/', '-') + ' - ' + c.name.replace(/ \(test\)$/, '') + '.pdf'));
+  MailApp.sendEmail({ to: to, subject: 'Orexis weekly scorecards · TEST · WC ' + tag, name: 'Orexis Innovations',
+    htmlBody: '<div style="font-family:Helvetica,Arial,sans-serif;font-size:14px">Test run of the new weekly scorecards: ' + cards.map(c => c.name.replace(/ \(test\)$/, '')).join(', ') + '. Each one is attached as a printable PDF.</div>', attachments: pdfs });
+  return 'Sent ' + cards.length + ' to ' + to;
+}
+const SCORE_TO = 'ameliah.crowe@gmail.com,ben@orexisinnovations.com';
+const CARDS_KEY = 'wKv1eaCIRiiYnRpDUfZy3kWf1PXY9imP';
+const SCORE_INCLUDE_TEST = true; // trial: include test people in scorecards
+const BANDS = {
+  stops: { low: 15, strong: 20 },   // per shift: <15 low, 15-20 avg, 20+ strong
+  conv: { low: 65, strong: 75 },    // stop to buyer %: <65 low, 65-75 avg, 75+ strong
+  avg: { low: 50, strong: 65 },     // sale average $: <50 low, 50-65 avg, 65+ strong
+  ups: { low: 15, strong: 30 }      // buyers to upsells %: <15 low, 15-30 avg, 30%+ strong (KPI doc: 30% upsells)
+};
+// One mechanical piece of feedback per focus (feedback rules), from Ameliah's training docs
+const FOCUS_LIB = {
+  stops: { area: 'Stopping', topic: 'Stopping · Staying in the zone', why: 'Low stops = not staying in the zone. Don’t miss anyone walking past, and finish your lines on everyone you try to stop. Stop more, win more: every stop is worth about $50.',
+    tip: 'Distances 6m / 3m / 1.5m: “Hey there” → “Just a one off” → “for the Paralympics”. Eye contact from hello until they stop. Less words, more silence. High tone on hello, low tone on the call to action.' },
+  conv: { area: 'Stop to buyer', topic: 'Cracking the egg · Handling concerns', why: 'Stop to buyer % is dictated by your ability to deal with concerns. If it’s low, the engagement or the intro rapport isn’t there yet.',
+    tip: 'Crack the egg first: giggle = gottem. Then nail “How much is it?”: “Thanks for asking, most people run away! You basically get to pick.” How much is a green light, they want to support.' },
+  avg: { area: 'Sale average', topic: 'Landing impulses · Building value', why: 'A low $ average means not enough value built in the cause, or not enough confidence in the close.',
+    tip: 'Land “Paralympians are self-funded” and pause. Pitch the medals low and slow, then close assumptively on the medal pack, not the minimum.' },
+  ups: { area: 'Upselling', topic: 'Upselling · AARR', why: 'Every upsell is a second sale. Price is only an issue if the value isn’t there.',
+    tip: '“Can I be a bit cheeky?” Then AARR: Appreciate, Anchor high (2 up, 1 down), Re-educate on what the money does, Re-close low and slow. Ask everyone.' },
+  mind: { area: 'Mentality', topic: 'Bulletproof attitude · Circle of influence', why: 'The pitch is there but the results aren’t yet, so it’s a mentality piece. Let your attitude drive your sales, not your sales drive your attitude.',
+    tip: 'Control the controllables: attitude, energy, work ethic, KPIs. “Ok, next one” after every interaction. Ask “Why am I here today?” 3–4 times a day.' },
+  cons: { area: 'Consistency', topic: 'Creating consistency · Law of averages', why: 'Big swings day to day. Standards are the bridge between your vision and your results. The gap between your best and worst should be small.',
+    tip: 'Set a daily benchmark for stops, buyers and retail and tick it off every day. Review your KPIs every hour, then reset.' }
+};
+// What each team needs: lowest band first, in the same priority order
+const PEOPLE_NEED = { stops: 'Stopping', conv: 'Concerns', avg: 'Impulses', ups: 'Upselling', mind: 'Belief', cons: 'Consistency' };
+function teamPiece_(size, leaders, newStarts, core) {
+  // From: 5M model, Effective leadership, Focus training (Tarqs), Creating buy in (Shayne Way), Waaka, Tim Cimino, Ameliah's leader notes
+  if (!size) return { t: 'Recruitment · Creating buy in', d: 'Get your first new start. People come in for you: tell your story, create stability, show the data.', book: 'The Ideal Team Player' };
+  if (newStarts && newStarts * 2 >= size) return { t: 'Win early', d: newStarts + ' of ' + size + ' are new starts. Model then mentor: first hour just watch. Celebrate everything (first stop, first reject, first sale). Video pitch on day 5, 10 and 20. The goal is to get them back tomorrow.', book: 'Leaders Eat Last' };
+  if (!leaders && size < 4) return { t: 'Build a core player', d: 'Small team, no leaders yet. Hang, train, develop: who am I hanging with, training and developing this week? Build the person and the sales will come.', book: 'The Ideal Team Player' };
+  if (leaders < 2) return { t: 'Develop your next leader', d: size + ' people, ' + leaders + ' leader' + (leaders === 1 ? '' : 's') + '. 5M: Model, Mentor, Monitor (just watch), Motivate, Multiply. Spend your time on the 2–3 with goals. Show your goal stack early.', book: 'Multipliers' };
+  if (size >= 8) return { t: 'Team identity', d: size + ' people, ' + leaders + ' leaders. Team nights, weekly chats, team numbers for promotions. Train in 2/4/6 week blocks, not week to week.', book: 'The Five Dysfunctions of a Team' };
+  return { t: 'Touch points', d: size + ' people, ' + leaders + ' leaders' + (core ? ', ' + core + ' core' : '') + '. Split your time: key people, rising stars, bottom 10%. More one on one time, more team nights. People don’t quit businesses, they quit people.', book: 'Multipliers' };
+}
+// Ameliah's leader tips, one per card
+const LEADER_TIPS = ['Make everyone you work with feel better.', 'Being kind beats being right.', 'Avoid opinions. Allow people to be wrong.', 'The right thing said at the wrong time is wrong.', 'Give a compliment before you give feedback.', 'More team nights, more time with just team members.', 'Show your team the elevator pitch of your goal stack early on.', 'Ask first: “Would you like some feedback?”'];
+function setupScorecards() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'weeklyScorecards').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('weeklyScorecards').timeBased().onWeekDay(ScriptApp.WeekDay.SATURDAY).atHour(20).inTimezone('Australia/Melbourne').create();
+  return 'Scorecards will email every Saturday about 8pm';
+}
+function addDaysS_(d, n) { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); }
+function weeklyScorecards(weekArg) {
+  const today = Utilities.formatDate(new Date(), 'Australia/Melbourne', 'yyyy-MM-dd');
+  const wk = typeof weekArg === 'string' ? weekArg : mondayOf_(today);
+  const to = SCORE_TO || Session.getEffectiveUser().getEmail(), tag = wk.slice(8, 10) + '/' + wk.slice(5, 7);
+  const cards = scorecards_(wk);
+  const pdfs = cards.map(c => Utilities.newBlob(page_(c.html), 'text/html', 'x.html').getAs('application/pdf').setName('Scorecard WC ' + tag.replace('/', '-') + ' - ' + c.name + '.pdf'));
+  cards.forEach((c, i) => GmailApp.createDraft(to, 'Your scorecard · WC ' + tag + ' · ' + c.name, 'Your scorecard is attached.', { htmlBody: page_(c.html), attachments: [pdfs[i]], name: 'Orexis Innovations' }));
+  MailApp.sendEmail({ to: to, subject: 'Weekly scorecards · WC ' + tag + ' (' + cards.length + ')', name: 'Orexis scorecards',
+    htmlBody: '<div style="font-family:Helvetica,Arial,sans-serif;font-size:14px">' + cards.length + ' scorecards attached as PDFs, ready to print. Each one is also in your Gmail <b>Drafts</b> to add notes and send on.</div>',
+    attachments: pdfs });
+  return 'Sent ' + cards.length + ' scorecards to ' + to;
+}
+function page_(inner) { return '<html><head><meta charset="utf-8"><style>@page{size:A4;margin:12mm}body{margin:0;font-family:Helvetica,Arial,sans-serif;color:#1d1416}</style></head><body>' + inner + '</body></html>'; }
+function scorecards_(wk) {
+  const t = loadTable_(), M = t.map, end = addDaysS_(wk, 6);
+  const get = p => (M[p] && !M[p].del) ? M[p].data : null;
+  const logo = ((get('settings/logo') || {}).data) || '';
+  const coName = ((get('settings/main') || {}).teamName) || 'Orexis Innovations';
+  const reps = Object.keys(M).filter(p => /^reps\/[^/]+$/.test(p) && !M[p].del && M[p].data && M[p].data.active !== false && (SCORE_INCLUDE_TEST || !M[p].data.test) && ['u_0902e9eb82174b99b8e2', 'u_32e3e5910f7b422aa08f'].indexOf(p.split('/')[1]) < 0).map(p => ({ id: p.split('/')[1], r: M[p].data }));
+  const allReps = Object.keys(M).filter(p => /^reps\/[^/]+$/.test(p) && !M[p].del && M[p].data && M[p].data.active !== false && ['u_0902e9eb82174b99b8e2', 'u_32e3e5910f7b422aa08f'].indexOf(p.split('/')[1]) < 0).map(p => ({ id: p.split('/')[1], r: M[p].data }));
+  const parentOf = x => { const tm = x.r.team || ''; if (!tm) return x.id === 'u_owner' ? null : 'u_owner'; if (tm === x.id) return null; return tm; };
+  const downOf = (uid, seen) => { seen = seen || { [uid]: 1 }; let o = []; allReps.filter(x => !seen[x.id] && parentOf(x) === uid && (SCORE_INCLUDE_TEST || !x.r.test)).forEach(x => { seen[x.id] = 1; o.push(x); o = o.concat(downOf(x.id, seen)); }); return o; };
+  const STG = ['sa', 'sc', 'sl', 'tl', 'tm', 'ad', 'dir', 'md'];
+  const dayOf = (id, d) => get('conf/' + id + '/days/' + d) || get('reps/' + id + '/entries/' + d);
+  const sum = (id, a, b) => { const s = { stops: 0, buyers: 0, retail: 0, upsells: 0, upsellRetail: 0, medals: 0, hours: 0, shifts: 0, days: [] };
+    for (let d = a; d <= b; d = addDaysS_(d, 1)) { const e = dayOf(id, d); const has = e && (Number(e.stops) || Number(e.retail) || Number(e.hours));
+      s.days.push({ d, retail: e ? Number(e.retail) || 0 : 0, worked: !!has, roadie: !!(e && e.roadie), hours: e ? Number(e.hours) || 0 : 0 });
+      if (has) { s.shifts++; ['stops', 'buyers', 'retail', 'upsells', 'upsellRetail', 'medals', 'hours'].forEach(k => s[k] += Number(e[k]) || 0); } } return s; };
+  const kp = s => { const n = Math.max(1, s.shifts); return { stops: s.stops / n, conv: s.stops ? s.buyers / s.stops * 100 : 0, avg: s.buyers ? s.retail / s.buyers : 0, ups: s.buyers ? s.upsells / s.buyers * 100 : 0, rph: s.hours ? s.retail / s.hours : 0, buyers: s.buyers / n }; };
+  const band = (k, v) => v >= BANDS[k].strong ? 'STRONG' : v >= BANDS[k].low ? 'AVG' : 'LOW';
+  const BC = { STRONG: '#1f7a4d', AVG: '#b86e00', LOW: '#c2410c' };
+  const money = n => '$' + Math.round(n).toLocaleString('en-AU');
+  const DN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const ROLE = { sa: 'Sales Associate', sc: 'Sales Consultant', sl: 'Sales Leader', tl: 'Team Leader', tm: 'Team Manager', ad: 'Assistant Director', dir: 'Director', md: 'Managing Director' };
+  const zone = v => v >= 150 ? 'Diamond' : v >= 125 ? 'Platinum' : v >= 100 ? 'Gold' : v >= 80 ? 'Silver' : 'Red'; // RPH zones from the KPI topic
+  const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const M1 = '#7b1e2e', MUT = '#6b5b60', LINE = '#e6dcde';
+  const out = [];
+  reps.map(x => ({ ...x, s: sum(x.id, wk, end) })).sort((a, b) => b.s.retail - a.s.retail).forEach(({ id, r, s }) => {
+    const P = sum(id, addDaysS_(wk, -28), addDaysS_(wk, -1)); const K = kp(s), U = P.shifts ? kp(P) : null;
+    const rows = [['Stops per shift', 'stops', K.stops, U && U.stops, x => x.toFixed(1), s.hours ? s.stops / s.hours * 8 : K.stops], ['Stop to buyer %', 'conv', K.conv, U && U.conv, x => Math.round(x) + '%'], ['Sale average', 'avg', K.avg, U && U.avg, money], ['Buyers to upsells %', 'ups', K.ups, U && U.ups, x => Math.round(x) + '%']];
+    // their own words
+    const refl = []; for (let d = wk; d <= end; d = addDaysS_(d, 1)) { const x = get('reps/' + id + '/reflections/' + d); if (x) refl.push(x); }
+    const own = { good: [], learn: [], focus: '' };
+    refl.forEach(x => { (x.well || []).forEach(w => { if (String(w || '').trim()) own.good.push(w) }); (x.learn || []).forEach(w => { if (String(w || '').trim()) own.learn.push(w) }); if (String(x.focus || '').trim()) own.focus = x.focus; });
+    const rev = get('reps/' + id + '/reviews/' + addDaysS_(wk, 7)) || get('reps/' + id + '/reviews/' + wk);
+    // 3 good things, all from the data
+    const good = [];
+    if (s.shifts) {
+      rows.filter(x => band(x[1], x[5] != null ? x[5] : x[2]) === 'STRONG').forEach(x => good.push(x[0] + ' ' + x[4](x[2]) + ', in the strong range'));
+      rows.forEach(x => { if (U && x[3] && x[2] > x[3] * 1.1 && band(x[1], x[2]) !== 'STRONG') good.push(x[0] + ' up from ' + x[4](x[3]) + ' to ' + x[4](x[2])); });
+      if (own.good.length && good.length < 3) good.push('Their own win: ' + own.good[0]);
+      const gongs = s.days.filter(d => d.worked && d.retail >= 1000).length, bells = s.days.filter(d => d.worked && d.retail >= 700 && d.retail < 1000).length; if (gongs) good.push(gongs + ' gong day' + (gongs > 1 ? 's' : '') + ' 🥁 ($1000+)'); if (bells) good.push(bells + ' bell day' + (bells > 1 ? 's' : '') + ' 🔔 ($700+)');
+      const pb = r.pb || {}; ['retail', 'stops', 'buyers', 'upsells', 'medals'].forEach(k => { const x = (pb.day || {})[k]; if (x && x.date >= wk && x.date <= end) good.push('New PB: ' + (k === 'retail' ? money(x.v) + ' retail' : x.v + ' ' + k) + ' in a day (' + DN[(new Date(x.date + 'T12:00:00Z').getUTCDay() + 6) % 7] + ')'); const w = (pb.week || {})[k]; if (w && w.week === wk) good.push('New best week for ' + k + ': ' + (k === 'retail' ? money(w.v) : w.v)); });
+      const best = s.days.filter(d => d.worked).sort((a, b) => b.retail - a.retail)[0]; if (best && best.retail) good.push('Best day: ' + DN[s.days.indexOf(best)] + ' ' + money(best.retail));
+      if (s.medals) good.push(s.medals + ' medal' + (s.medals > 1 ? 's' : '') + ' / premium pack' + (s.medals > 1 ? 's' : ''));
+    }
+    const three = good.slice(0, 3);
+    // 1 focus area: Planning education -> trial of elimination, then check mentality
+    const hrsPer = s.shifts ? s.hours / s.shifts : 8; const stops8 = s.hours ? s.stops / s.hours * 8 : K.stops; // stops scaled to an 8hr day
+    const bs = { stops: band('stops', stops8), conv: band('conv', K.conv), avg: band('avg', K.avg), ups: band('ups', K.ups) };
+    let fk = null;
+    if (s.shifts) {
+      fk = ['stops', 'conv', 'avg', 'ups'].find(k => bs[k] === 'LOW') || null;
+      const wd = s.days.filter(d => d.worked && d.hours).map(d => d.retail / d.hours); const swing = wd.length >= 3 && Math.max(...wd) > 3 * Math.max(1, Math.min(...wd));
+      if (!fk && ((rev && Number(rev.motivation) && Number(rev.motivation) <= 5) || (K.rph && K.rph < 100))) fk = 'mind';
+      if (!fk && swing) fk = 'cons';
+      if (!fk) fk = ['stops', 'conv', 'avg', 'ups'].find(k => bs[k] === 'AVG') || null;
+    }
+    const ft = fk ? FOCUS_LIB[fk] : null;
+    const days = s.days.filter(d => d.worked).map(d => d.retail).sort((a, b) => a - b); const bench = days.length ? Math.max(BANDS.avg.low * 5, Math.round(days[Math.floor(days.length / 2)] / 25) * 25) : 0;
+    const fval = fk === 'stops' ? K.stops.toFixed(1) + ' a shift (≈' + Math.round(stops8) + ' on an 8 hr day)' : fk === 'conv' ? Math.round(K.conv) + '%' : fk === 'avg' ? money(K.avg) : fk === 'ups' ? Math.round(K.ups) + '% of buyers' : fk === 'mind' ? (rev && rev.motivation ? 'motivation ' + rev.motivation + '/10' : money(K.rph) + '/hr') : fk === 'cons' ? 'best day ' + money(days[days.length - 1] || 0) + ', lowest ' + money(days[0] || 0) : '';
+    const ownF = (own.focus + ' ' + (rev && rev.plan || '')).toLowerCase(); const kw = { stops: /stop/, conv: /concern|objection|convert|close|buyer/, avg: /medal|impulse|price|average|\$av/, ups: /upsell/, mind: /mind|attitude|confiden|energy|belie/, cons: /consisten|benchmark|standard/ };
+    const matches = fk && kw[fk].test(ownF);
+    const learnt = (r.topics || {}); const topicDone = ft && Object.keys(learnt).some(k => learnt[k] && learnt[k].learnt && ft.topic.toLowerCase().indexOf(k.toLowerCase()) >= 0);
+    // next week numbers (their formula: stops x conversion x sale average = retail)
+    const hrs = s.shifts ? s.hours / s.shifts : 6;
+    const base = Math.max(s.retail, P.shifts ? P.retail / 4 : 0); const target = Math.ceil(base * 1.01 / 25) * 25;
+    const stopT = fk === 'stops' ? BANDS.stops.low : Math.max(BANDS.stops.low, Math.ceil(K.stops));
+    const role = ROLE[(r.promo || {}).stage] || 'Sales Associate';
+    const th = 'text-align:left;font-size:10px;letter-spacing:.06em;color:' + MUT + ';padding:6px 8px;border-bottom:1px solid ' + LINE;
+    const td = 'padding:7px 8px;border-bottom:1px solid ' + LINE + ';font-size:13px';
+    const sec = (title, body) => '<div style="margin-top:14px"><div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:' + M1 + ';margin-bottom:6px">' + title + '</div>' + body + '</div>';
+    const ul = a => '<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.5">' + a.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+    // ---- simple layout (Atlas-style): header, one line, 5 numbers, weeks, wins/challenges, 3 focuses ----
+    const N = '#424965', G = '#F5B56E';
+    const sec2 = t => '<div style="margin:16px 0 8px;font-size:11px;font-weight:700;letter-spacing:.14em;color:' + N + '"><span style="display:inline-block;width:18px;height:2px;background:' + G + ';vertical-align:middle;margin-right:8px"></span>' + t + '</div>';
+    const wkTag = d => d.slice(8, 10) + '/' + d.slice(5, 7);
+    // one-line summary
+    const strong = rows.filter(x => s.shifts && band(x[1], x[5] != null ? x[5] : x[2]) === 'STRONG').map(x => x[0].toLowerCase());
+    const line = !s.shifts ? 'No shifts logged this week. Let’s lock in regular shifts so you can build a rhythm.'
+      : (strong.length ? 'Your ' + strong[0] + ' is in the strong range. ' : 'You made ' + s.buyers + ' sale' + (s.buyers === 1 ? '' : 's') + ' across ' + s.shifts + ' shift' + (s.shifts === 1 ? '' : 's') + '. ') + (ft ? 'Next step: ' + ft.area.toLowerCase() + '.' : 'Keep it going and chase a PB.');
+    const tile = (l, v, sub) => '<td style="padding:0 14px 0 0;vertical-align:top"><div style="font-size:10px;letter-spacing:.1em;color:' + MUT + '">' + l + '</div><div style="font-size:24px;font-weight:700;color:' + N + '">' + v + '</div><div style="font-size:11px;color:' + MUT + '">' + sub + '</div></td>';
+    let h = '<div style="max-width:720px;margin:0 auto;background:#fff;font-family:Helvetica,Arial,sans-serif">' +
+      '<div style="background:' + N + ';color:#fff;padding:14px 20px;border-radius:6px">' +
+      '<table style="width:100%;border-collapse:collapse"><tr><td style="width:110px;vertical-align:middle"><img src="' + OREXIS_LOGO + '" style="height:44px;display:block;border:0"></td><td style="font-size:11px;letter-spacing:.2em;color:' + G + ';vertical-align:middle">' + 'OREXIS INNOVATIONS · WEEKLY SCORECARD</td><td style="text-align:right;font-size:11px;color:#dfe2ec;vertical-align:middle">WC ' + wkTag(wk) + '/' + wk.slice(0, 4) + '</td></tr></table>' +
+      '<div style="font-size:30px;letter-spacing:.04em;margin-top:8px">' + esc((r.name || 'Rep').toUpperCase()) + '</div>' +
+      '<div style="font-size:12px;color:#dfe2ec">' + role + ' · ' + s.shifts + ' shift' + (s.shifts === 1 ? '' : 's') + ' this week</div></div>' +
+      '<div style="font-size:14px;line-height:1.5;margin:14px 0">' + esc(line) + '</div>' +
+      '<table style="border-collapse:collapse"><tr>' +
+      tile('RETAIL', money(s.retail), s.shifts + ' shift' + (s.shifts === 1 ? '' : 's')) +
+      tile('RPH', s.hours ? money(K.rph) : '—', s.hours ? zone(K.rph) : '') +
+      tile('CONVERSION', s.shifts ? Math.round(K.conv) + '%' : '—', 'Standard ' + BANDS.conv.strong + '%') +
+      tile('STOPS / SHIFT', s.shifts ? K.stops.toFixed(1) : '—', 'Standard ' + BANDS.stops.strong) +
+      tile('SALE AVERAGE', s.shifts ? money(K.avg) : '—', 'Standard ' + money(BANDS.avg.strong)) + '</tr></table>';
+    // daily retail chart (table bars so it survives the PDF converter)
+    const mx = Math.max(700, ...s.days.map(d => d.retail));
+    h += sec2('THE WEEK') + '<table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr style="vertical-align:bottom">' + s.days.map(d => { const bh = Math.round(d.retail / mx * 90); const gong = d.worked && d.retail >= 1000, bell = d.worked && d.retail >= 700;
+      return '<td style="text-align:center;padding:0 6px;height:110px;vertical-align:bottom"><div style="font-size:10px;color:' + MUT + '">' + (d.worked ? money(d.retail) : '') + (gong ? ' 🥁' : bell ? ' 🔔' : '') + '</div><div style="height:' + Math.max(d.worked ? 3 : 0, bh) + 'px;background:' + (gong ? '#C8862A' : bell ? G : N) + ';border-radius:4px 4px 0 0"></div></td>'; }).join('') + '</tr><tr>' +
+      s.days.map((d, i) => '<td style="text-align:center;font-size:10px;color:' + MUT + ';border-top:1px solid ' + LINE + ';padding-top:3px">' + DN[i] + '</td>').join('') + '</tr></table>';
+    // tracker: standard vs this week vs their usual (last 4 weeks)
+    const TR = [['Stops / shift', K.stops, U && U.stops, BANDS.stops.strong, x => x.toFixed(1)], ['Conversion', K.conv, U && U.conv, BANDS.conv.strong, x => Math.round(x) + '%'], ['Sale average', K.avg, U && U.avg, BANDS.avg.strong, money], ['Upsells', K.ups, U && U.ups, BANDS.ups.strong, x => Math.round(x) + '%'], ['RPH', K.rph, U && U.rph, 100, money]];
+    const bar = (v, m, c, lab) => '<tr><td style="width:96px;white-space:nowrap;font-size:10px;color:' + MUT + ';padding:1px 6px 1px 0">' + lab + '</td><td style="padding:1px 0"><div style="height:8px;width:' + Math.max(1, Math.round(Math.min(1, (v || 0) / m) * 100)) + '%;background:' + c + ';border-radius:4px"></div></td></tr>';
+    h += sec2('TRACKER · STANDARD vs YOU vs YOUR USUAL') + '<table style="width:100%;border-collapse:collapse">' + TR.map(([l, v, u, st, f]) => { const m = Math.max(st, v || 0, u || 0) * 1.05;
+      return '<tr style="vertical-align:middle"><td style="width:120px;padding:6px 0;border-bottom:1px solid ' + LINE + '"><div style="font-size:12px;font-weight:700">' + l + '</div><div style="font-size:11px;color:' + MUT + '">' + (s.shifts ? f(v) : '—') + ' <span style="color:' + (s.shifts && v >= st ? '#1f7a4d' : '#c2410c') + '">' + (s.shifts ? (v >= st ? '✓' : '↓') : '') + '</span></div></td><td style="padding:6px 0;border-bottom:1px solid ' + LINE + '"><table style="width:100%;border-collapse:collapse">' +
+        bar(st, m, G, 'Standard ' + f(st)) + bar(s.shifts ? v : 0, m, N, 'You ' + (s.shifts ? f(v) : '—')) + bar(u || 0, m, '#b9adb0', 'Usual ' + (u != null ? f(u) : '—')) + '</table></td></tr>'; }).join('') + '</table>';
+    // last 4 weeks incl this one
+    const wks = [-21, -14, -7, 0].map(o => { const a = addDaysS_(wk, o), x = sum(id, a, addDaysS_(a, 6)); return { a, x }; });
+    h += sec2('YOUR WEEKS') + '<table style="width:100%;border-collapse:separate;border-spacing:6px 0"><tr>' + wks.map(({ a, x }) => '<td style="border:1px solid ' + LINE + ';border-radius:8px;padding:8px 10px;width:25%;vertical-align:top' + (a === wk ? ';border-color:' + N : '') + '"><div style="font-size:10px;letter-spacing:.1em;color:' + MUT + '">WC ' + wkTag(a) + '</div><div style="font-size:18px;font-weight:700">' + (x.shifts ? money(x.retail) : '—') + '</div><div style="font-size:11px;color:' + MUT + '">' + (x.shifts ? x.shifts + ' shift' + (x.shifts === 1 ? '' : 's') + ' · ' + x.buyers + ' supporters' : 'not rostered') + '</div></td>').join('') + '</tr></table>';
+    // wins & challenges
+    const ch = [];
+    if (s.shifts) {
+      rows.forEach(x => { const b = band(x[1], x[5] != null ? x[5] : x[2]); if (b === 'LOW') ch.push(x[0] + ' ' + x[4](x[2]) + ', under the ' + (x[1] === 'avg' ? money(BANDS.avg.strong) : x[1] === 'stops' ? BANDS.stops.strong : BANDS[x[1]].strong + '%') + ' standard.'); });
+      if (K.rph && K.rph < 100) ch.push(money(K.rph) + ' an hour, under Gold ($100).');
+    } else ch.push('No shifts this week.');
+    const two = (a, b) => '<table style="width:100%;border-collapse:collapse"><tr style="vertical-align:top"><td style="width:50%;padding-right:12px">' + a + '</td><td>' + b + '</td></tr></table>';
+    const li = a => '<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.6">' + a.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>';
+    h += two(sec2('WINS') + (three.length ? li(three) : '<div style="font-size:13px;color:' + MUT + '">—</div>'), sec2('CHALLENGES') + li(ch.slice(0, 3).length ? ch.slice(0, 3) : ['Nothing under standard. Push for a PB.']));
+    // 3 focuses for next week
+    const fx = [];
+    if (!s.shifts || s.shifts < 3) fx.push(['Lock in regular shifts', 'at least three a week.']);
+    if (ft) fx.push([ft.area + ':', ft.tip.split(/(?<=[.!?])\s/)[0]]);
+    fx.push([stopT + '+ stops a shift.', 'At your conversion that’s about ' + Math.ceil(stopT * Math.max(K.conv, BANDS.conv.low) / 100) + ' supporters a day.']);
+    if (fx.length < 3) fx.push([money(target) + ' retail next week', '(1% up). Upsell every sign-up.']);
+    h += sec2('FOCUS FOR NEXT WEEK') + '<ol style="margin:0;padding-left:20px;font-size:13px;line-height:1.6">' + fx.slice(0, 3).map(([a, b]) => '<li><b>' + esc(a) + '</b> ' + esc(b) + '</li>').join('') + '</ol>';
+    // team (leaders only), kept to a few lines
+    const team = downOf(id);
+    if (team.length || STG.indexOf((r.promo || {}).stage) >= 2) {
+      const T = { stops: 0, buyers: 0, retail: 0, upsells: 0, hours: 0, shifts: 0 }; team.forEach(m => { const x = sum(m.id, wk, end); ['stops', 'buyers', 'retail', 'upsells', 'hours', 'shifts'].forEach(k => T[k] += x[k]); });
+      const TK = kp(T), ld = team.filter(m => STG.indexOf((m.r.promo || {}).stage) >= 2).length, ns = team.filter(m => m.r.joinedAt && String(m.r.joinedAt).slice(0, 10) >= addDaysS_(end, -27)).length;
+      const tf = T.shifts ? ['stops', 'conv', 'avg', 'ups'].map(k => [k, k === 'stops' ? TK.stops : TK[k]]).find(([k, v]) => band(k, v) === 'LOW') : null;
+      const word = !T.shifts ? 'Activity' : tf ? PEOPLE_NEED[tf[0]] : (T.hours && T.retail / T.hours < 100 ? 'Belief' : 'Recognition');
+      const piece = teamPiece_(team.length, ld, ns, 0);
+      const tt = (l, v, st, ok) => '<td style="border:1px solid ' + LINE + ';border-radius:8px;padding:8px;text-align:center;width:25%"><div style="font-size:10px;letter-spacing:.08em;color:' + MUT + '">' + l + '</div><div style="font-size:20px;font-weight:700;color:' + N + '">' + v + '</div><div style="font-size:10px;color:' + (T.shifts ? (ok ? '#1f7a4d' : '#c2410c') : MUT) + '">' + (T.shifts ? (ok ? '✓ ' : '↓ ') : '') + 'Standard ' + st + '</div></td>';
+      const bph = T.hours ? T.buyers / T.hours : 0, spd = T.shifts ? T.stops / T.shifts : 0, bpd = T.shifts ? T.buyers / T.shifts : 0, sph = T.hours ? T.stops / T.hours : 0, rphT = T.hours ? T.retail / T.hours : 0;
+      const tn = ((get('teams/' + id) || {}).name) || (id === 'u_owner' || (r.promo || {}).stage === 'tm' ? coName : (r.name || '') + '’s team');
+      h += sec2('YOUR TEAM · ' + esc(String(tn).toUpperCase())) + '<div style="font-size:13px;line-height:1.6">' + team.length + ' people · ' + ld + ' leaders · ' + ns + ' new starts · ' + money(T.retail) + ' team retail</div>' +
+        '<table style="width:100%;border-collapse:separate;border-spacing:6px 6px;margin-top:6px"><tr>' +
+        tt('STOPS / HR', T.hours ? sph.toFixed(1) : '—', '3', sph >= 3) + tt('BUYERS / HR', T.hours ? bph.toFixed(1) : '—', '2', bph >= 2) +
+        tt('STOPS / DAY', T.shifts ? spd.toFixed(1) : '—', String(BANDS.stops.strong), spd >= BANDS.stops.strong) + tt('BUYERS / DAY', T.shifts ? bpd.toFixed(1) : '—', '12', bpd >= 12) + '</tr></table>' +
+        '<table style="width:100%;border-collapse:separate;border-spacing:6px 0"><tr>' +
+        tt('CONVERSION', T.stops ? Math.round(TK.conv) + '%' : '—', BANDS.conv.strong + '%', TK.conv >= BANDS.conv.strong) + tt('$ AV', T.buyers ? money(TK.avg) : '—', money(BANDS.avg.strong), TK.avg >= BANDS.avg.strong) +
+        tt('RPH', T.hours ? money(rphT) : '—', '$100', rphT >= 100) + '</tr></table>' +
+        two('<div style="font-size:10px;letter-spacing:.1em;color:' + MUT + ';margin-top:6px">WHAT THEY NEED</div><div style="font-size:20px;font-weight:700;color:' + N + '">' + word + '</div>', '<div style="font-size:10px;letter-spacing:.1em;color:' + MUT + ';margin-top:6px">NEXT TEAM PIECE</div><div style="font-size:13px"><b>' + piece.t + '.</b> ' + esc(piece.d) + '</div>');
+    }
+    h += '<div style="margin-top:22px;border-top:1px solid ' + LINE + ';padding-top:8px;font-size:10px;letter-spacing:.06em;color:' + MUT + '">STANDARDS PER SHIFT: ' + BANDS.stops.strong + ' STOPS · ' + BANDS.conv.strong + '% CONVERSION · ' + money(BANDS.avg.strong) + ' AVERAGE SALE · ' + BANDS.ups.strong + '% UPSELLS · $100+ RPH (GOLD)</div></div>';
+    out.push({ name: (r.name || 'Rep') + (r.test ? ' (test)' : ''), html: h });
+  });
+  return out;
+}
+
+// One-off: load the starting data (Ameliah, Ben, Freddie) copied from Kaizen
+function importOrexisData() {
+  const csv = UrlFetchApp.fetch('https://ameliahcrowe-cloud.github.io/kaizen-kpis/x/oData.csv?' + Date.now()).getContentText();
+  const rows = Utilities.parseCsv(csv);
+  ensureSheets_();
+  const sh = ss_().getSheetByName(DATA);
+  sh.getRange(1, 1, rows.length, 4).setValues(rows.map((r, i) => i ? [r[0], r[1], r[2] === 'TRUE', r[3]] : r.slice(0, 4)));
+  return 'Imported ' + (rows.length - 1) + ' rows';
+}
+
+/* ---------- printable PDFs (rendered by the Sunday GitHub job, emailed from here) ---------- */
+function cardsWeek_() { const today = Utilities.formatDate(new Date(), 'Australia/Sydney', 'yyyy-MM-dd'); return (new Date(today + 'T12:00:00Z').getUTCDay() % 6 === 0) ? mondayOf_(today) : addDaysS_(mondayOf_(today), -7); }
+function cardsJson_(p) {
+  if (p.key !== CARDS_KEY) return ContentService.createTextOutput('{"error":"key"}').setMimeType(ContentService.MimeType.JSON);
+  const wk = p.wk || cardsWeek_(), tag = wk.slice(8, 10) + '/' + wk.slice(5, 7);
+  const cards = scorecards_(wk).filter(c => !/\(test\)$/.test(c.name)).map(c => ({ name: c.name, html: page_(c.html) }));
+  return ContentService.createTextOutput(JSON.stringify({ wk: wk, tag: tag, cards: cards })).setMimeType(ContentService.MimeType.JSON);
+}
+function doPost(e) {
+  let b = {}; try { b = JSON.parse(e.postData.contents); } catch (x) { }
+  if (b.key !== CARDS_KEY) return ContentService.createTextOutput('bad key');
+  const tag = b.tag || '', to = b.test ? 'ameliah.crowe@gmail.com' : SCORE_TO;
+  const at = (b.pdfs || []).map(f => Utilities.newBlob(Utilities.base64Decode(f.b64), 'application/pdf', 'Scorecard WC ' + tag.replace('/', '-') + ' - ' + f.name + '.pdf'));
+  MailApp.sendEmail({ to: to, subject: 'Orexis weekly scorecards · WC ' + tag, name: 'Orexis Innovations',
+    htmlBody: '<div style="font-family:Helvetica,Arial,sans-serif;font-size:14px">Weekly scorecards for WC ' + tag + ', attached as printable PDFs: ' + (b.pdfs || []).map(f => f.name).join(', ') + '.</div>', attachments: at });
+  return ContentService.createTextOutput('sent ' + at.length + ' to ' + to);
+}
