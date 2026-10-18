@@ -1902,17 +1902,12 @@ async function saveTeam(id,patch){const cur=S.teams[id];S.teams[id]={...(cur||{}
   return write(()=>cur?S.db.doc('teams/'+id).update(patch):S.db.doc('teams/'+id).set({leader:id,createdAt:new Date().toISOString(),...patch}))}
 async function setRepTeam(uid,team){const r=S.reps[uid]||{};S.reps[uid]={...r,team};if(uid===S.uid)S.me=S.reps[uid];render();
   const ok=await write(()=>S.db.doc('reps/'+uid).update({team}),'Team updated');if(ok&&S.board[uid])write(()=>S.db.doc('board/'+uid).update({team}))}
-function createTeamPanel(){const myTeam=S.teams[S.uid];
-  if(myTeam){return h('div',{class:'panel'},h('div',{class:'field'},h('label',{text:'My team'}),
-    h('input',{type:'text',id:'myTeamName',value:myTeam.name||'',placeholder:teamName(S.uid),'aria-label':'Team name',onchange:e=>{const n=e.target.value.trim();saveTeam(S.uid,{name:n}).then(ok=>ok&&toast('Team name saved'))}}),
-    logoPicker('myTeamLogo',myTeam.logo,data=>saveTeam(S.uid,{logo:data}).then(ok=>ok&&toast('Logo saved')),()=>saveTeam(S.uid,{logo:null}),'Team logo'),
-    !leader()?h('span',{class:'hint',text:'You’ll see your members’ numbers, goals and reflections as soon as they’re on your team. Close and reopen the app if they don’t show yet.'}):null))}
-  if(!canCreateTeam())return null;
-  return h('div',{class:'panel'},h('div',{class:'field'},h('label',{for:'newTeamName',text:'Create your team'}),
-    h('span',{class:'hint',text:'Name your team within Orexis. You can add a logo once it’s created, and people pick your team when they join.'}),
-    h('div',{class:'rule'},h('input',{type:'text',id:'newTeamName',placeholder:'Team name','aria-label':'New team name'}),
-      h('button',{class:'primary',onclick:async()=>{const n=(document.getElementById('newTeamName').value||'').trim();if(!n){toast('Name your team first');return}
-        const ok=await saveTeam(S.uid,{name:n});if(ok){toast('Team created');if(S.reps[S.uid]&&S.reps[S.uid].team!==S.uid)setRepTeam(S.uid,S.uid)}}},'Create team'))))}
+function createTeamPanel(){const me=S.reps[S.uid]||{};if(me.team===S.uid)return null;
+  if(!S.teams[S.uid]&&!canCreateTeam())return null;const myTeam=S.teams[S.uid]||{};
+  return h('div',{class:'panel'},h('div',{class:'field'},h('label',{for:'myTeamName',text:'My team name & logo'}),
+    h('span',{class:'hint',text:'Shown on the leaderboard, scorecards and your team’s screens. Leave the name blank to use “'+((me.name||'My').split(/\s+/)[0])+'’s team”.'}),
+    h('input',{type:'text',id:'myTeamName',value:myTeam.name||'',placeholder:((me.name||'My').split(/\s+/)[0])+'’s team','aria-label':'Team name',onchange:e=>{const n=e.target.value.trim();saveTeam(S.uid,{name:n,leader:S.uid}).then(ok=>ok&&toast('Team name saved'))}}),
+    logoPicker('myTeamLogo',myTeam.logo,data=>saveTeam(S.uid,{logo:data,leader:S.uid}).then(ok=>ok&&toast('Logo saved')),()=>saveTeam(S.uid,{logo:null}),'Team logo')))}
 /* leader view: owner sees everything; team leaders manage their own team */
 function renderTeam(v){const OWN=S.isOwner&&(S.admin||!isAdminUser());
   if(OWN){v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Orexis'}),h('div',{class:'hint',text:'The teams within Orexis and who is on each.'}))));
@@ -1926,7 +1921,7 @@ function renderTeam(v){const OWN=S.isOwner&&(S.admin||!isAdminUser());
       v.append(h('div',{class:'panel'},h('div',{class:'field'},h('label',{for:'newTeamLeader',text:'Add a team for someone'}),
         h('span',{class:'hint',text:'They become the leader. Then use the “Direct to” box under Everyone to move people onto their team.'}),
         h('div',{class:'rule'},who,nm,h('button',{class:'primary',onclick:async()=>{const id=who.value,n=(nm.value||'').trim();if(!id){toast('Choose who leads it');return}if(!n){toast('Name the team first');return}
-          const ok=await saveTeam(id,{name:n,leader:id});if(ok){toast('Team created for '+repName(id));setRepTeam(id,id)}}},'Create team')))))}
+          const ok=await saveTeam(id,{name:n,leader:id});if(ok)toast('Team created for '+repName(id))}},'Create team')))))}
     const tl=h('div',{class:'panel teamlist'});
     if(!ts.length)tl.append(h('div',{class:'empty'},h('span',{text:'No other teams yet. Everyone is on '+coName()+' until Sales Leaders and up create their own teams.'})));
     ts.forEach(t=>{const n=repListAll(false).filter(r=>r.team===t.id).length;
