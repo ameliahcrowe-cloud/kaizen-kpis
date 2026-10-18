@@ -544,9 +544,12 @@ function money(n){return '$'+Math.round(n).toLocaleString('en-AU')}
 function fmt(m,n){return m.money?money(n):String(Math.round(n*10)/10)}
 function fmtK(k,n){const m=METRICS.find(x=>x.k===k);return m?fmt(m,n):(k==='rph'?money(n):String(n))}
 function pct(a,b){return b>0?Math.round(a/b*100)+'%':'—'}
+const STD_DEFAULT={bell:700,gong:1000,stops:20,conv:75,avg:65,ups:30,rph:100,silver:80,gold:100,platinum:125,diamond:150,buyersDay:12,stopsHr:3,buyersHr:2};
+function std(k){const v=Number(((S&&S.std)||{})[k]);return isFinite(v)&&v>0?v:STD_DEFAULT[k]}
+function isAdminUser(){return S.isOwner&&S.uid==='u_owner'}
 function zone(rph){if(rph==null||!isFinite(rph))return null;
-  if(rph<100)return['Red','m-red'];if(rph<120)return['Silver','m-silver'];
-  if(rph<160)return['Gold','m-gold'];if(rph<200)return['Platinum','m-plat'];return['Diamond','m-dia']}
+  if(rph<std('silver'))return['Red','m-red'];if(rph<std('gold'))return['Silver','m-silver'];
+  if(rph<std('platinum'))return['Gold','m-gold'];if(rph<std('diamond'))return['Platinum','m-plat'];return['Diamond','m-dia']}
 function h(tag,attrs,...kids){const el=document.createElement(tag);
   if(attrs)for(const k in attrs){const v=attrs[k];if(v==null||v===false)continue;
     if(k==='class')el.className=v;else if(k==='text')el.textContent=v;
@@ -663,7 +666,10 @@ function renderHeader(){
   const cfl=document.getElementById('campFilter');
   if(S.ready&&campaigns().length>1){cfl.hidden=false;const opts=[['all','All campaigns']].concat(campaigns().map(c=>[c.id,c.name]));const sig=JSON.stringify(opts)+S.campFilter;
     if(cfl.dataset.sig!==sig){cfl.replaceChildren(...opts.map(([k,l])=>h('option',{value:k,selected:(S.campFilter||'all')===k},l)));cfl.dataset.sig=sig}}else cfl.hidden=true;
-  const vm=document.getElementById('viewMode');vm.hidden=!(leadRole()&&S.ready&&S.uid);vm.value=S.viewMe?'me':'team';
+  const vm=document.getElementById('viewMode');vm.hidden=!(leadRole()&&S.ready&&S.uid);
+  {const vo=[['me','👤 Personal'],['team',S.isOwner&&!isAdminUser()?'🏢 Orexis':'👥 Team']].concat(isAdminUser()?[['admin','⚙️ Admin']]:[]);const sig=JSON.stringify(vo);
+   if(vm.dataset.sig!==sig){vm.replaceChildren(...vo.map(([k,l])=>h('option',{value:k},l)));vm.dataset.sig=sig}}
+  vm.value=S.admin&&isAdminUser()?'admin':S.viewMe?'me':'team';
   const tf=document.getElementById('teamFilter');
   if(S.isOwner&&!S.viewMe&&S.ready&&(teamList().length||S.teamFilter!=='all')){tf.hidden=false;const opts=[['all','All of Orexis']].concat(teamList().map(t=>[t.id,t.name||'Unnamed team']),[['none',coName()+' (direct)']]);
     const sig=JSON.stringify(opts)+S.teamFilter;if(tf.dataset.sig!==sig){tf.replaceChildren(...opts.map(([k,l])=>h('option',{value:k,selected:S.teamFilter===k},l)));tf.dataset.sig=sig}}else tf.hidden=true;
@@ -698,9 +704,9 @@ function render(){renderHeader();const v=document.getElementById('view');
     if(!S.db)return;
     if(!leader()&&!S.me){renderJoin(v);return}
     if(leader()&&S.legacy&&S.legacy.entries.length)v.append(legacyPanel());
-    const db_=(S.tab==='log'||S.tab==='reflect'||S.tab==='hourly'||!S.tab);document.body.classList.toggle('hasDaybar',db_);if(db_)v.append(dayBar());
-    if(S.tab==='log'||!S.tab)v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;margin-bottom:-6px'},h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;align-items:center'},hourlyBtn(),h('button',{id:'syncHourly',class:'icon',title:'Pull my numbers from Hourly now','aria-label':'Pull my numbers from Hourly now',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;min-width:44px'},S.hSyncBusy?'…':'⟳')));
-    (S.tab==='live'||S.tab==='mypb'?()=>{}:{log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
+    const db_=!S.admin&&(S.tab==='log'||S.tab==='reflect'||S.tab==='hourly'||!S.tab);document.body.classList.toggle('hasDaybar',db_);if(db_)v.append(dayBar());
+    if(!S.admin&&(S.tab==='log'||!S.tab))v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;margin-bottom:-6px'},h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;align-items:center'},hourlyBtn(),h('button',{id:'syncHourly',class:'icon',title:'Pull my numbers from Hourly now','aria-label':'Pull my numbers from Hourly now',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;min-width:44px'},S.hSyncBusy?'…':'⟳')));
+    (S.admin&&isAdminUser()?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
     markTest(v);cardify(v)});kovaEmbeds()}
 /* phone helpers: day switcher, swipe, tables as cards */
 
@@ -1904,23 +1910,9 @@ function createTeamPanel(){const myTeam=S.teams[S.uid];
         const ok=await saveTeam(S.uid,{name:n});if(ok){toast('Team created');if(S.reps[S.uid]&&S.reps[S.uid].team!==S.uid)setRepTeam(S.uid,S.uid)}}},'Create team'))))}
 /* leader view: owner sees everything; team leaders manage their own team */
 function renderTeam(v){
-  if(S.isOwner){
-    v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Orexis'}),h('div',{class:'hint',text:'Company name and logo, the teams within Orexis, and who is on each.'}))));
-    v.append(h('div',{class:'panel'},h('div',{class:'field'},h('label',{for:'teamName',text:'Company name'}),
-      h('input',{id:'teamName',type:'text',value:'Orexis Innovations',placeholder:'e.g. Orexis Innovations',onchange:e=>write(()=>S.db.doc('settings/main').set({...S.settings,teamName:e.target.value.trim()}),'Name saved')})),
-      h('div',{class:'field'},h('label',{text:'Company logo'}),logoPicker('logoFile',S.logo&&S.logo.data,data=>write(()=>S.db.doc('settings/logo').set({data,updatedAt:new Date().toISOString()}),'Logo saved').then(ok=>{if(ok){S.logo={data};render()}}),()=>write(()=>S.db.doc('settings/logo').delete(),'Logo removed'),'Company logo'))));
+  if(S.isOwner){v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Orexis'}),h('div',{class:'hint',text:'The teams within Orexis and who is on each.'}))));
   }else v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My team'}),h('div',{class:'hint',text:'Your team’s name, logo and members.'}))));
   const cp=createTeamPanel();if(cp)v.append(cp);{const tc=treeCard(S.uid);if(tc)v.append(tc)}
-  if(S.isOwner){const cl=campaigns();const saveC=(list,def)=>{S.campaignsCfg={list,def:def||defCampaign()};render();write(()=>S.db.doc('settings/campaigns').set(S.campaignsCfg),'Campaigns saved')};
-    const cp=h('div',{class:'panel'});cp.append(h('div',{class:'field'},h('label',{text:'Campaigns'}),h('span',{class:'hint',text:'Every logged day is tagged with a campaign. The default is pre-selected when people log. Once there\u2019s more than one, a campaign filter appears at the top for everyone.'})));
-    const rl=h('div',{class:'rules'});cl.forEach((c,i)=>rl.append(h('div',{class:'rule'},
-      h('input',{type:'text',id:'cname-'+c.id,value:c.name,'aria-label':'Campaign name',onchange:e=>{const n=e.target.value.trim();if(n)saveC(cl.map((x,j)=>j===i?{...x,name:n}:x))}}),
-      h('label',{class:'hint'},h('input',{type:'radio',name:'defcamp',id:'cdef-'+c.id,checked:defCampaign()===c.id,onchange:()=>saveC(cl,c.id)}),' Default'),
-      h('label',{class:'hint'},h('input',{type:'checkbox',id:'cact-'+c.id,checked:c.active!==false,onchange:e=>saveC(cl.map((x,j)=>j===i?{...x,active:e.target.checked}:x))}),' Active'))));
-    cp.append(rl);const ni=h('input',{type:'text',id:'newCamp',placeholder:'New campaign name','aria-label':'New campaign name'});
-    cp.append(h('div',{class:'formfoot'},h('div',{class:'rule'},ni,h('button',{class:'primary',onclick:()=>{const n=(ni.value||'').trim();if(!n){toast('Name the campaign first');return}
-      const id=slug(n)||('c'+Date.now().toString(36));if(cl.some(x=>x.id===id)){toast('That campaign already exists');return}saveC(cl.concat([{id,name:n,active:true}]))}},'Add campaign'))));
-    v.append(cp)}
   if(S.isOwner){const ts=teamList();
     v.append(h('div',{class:'bar'},h('h3',{text:'Teams within Orexis'}),h('span',{class:'hint',text:ts.length+' team'+(ts.length===1?'':'s')})));
     const free=repListAll(false,true).filter(r=>r.id!==S.uid&&!S.teams[r.id]);
@@ -1955,6 +1947,54 @@ function renderTeam(v){
   if(S.isOwner&&window.kaizenAdmin)v.append(loginsPanel());
   v.append(h('div',{class:'hint',text:'Marking someone inactive hides them from the daily log and goals. Their past numbers stay in the totals. 🧪 Test people (trials) are left out of all team numbers, the leaderboard, team PBs and the weekly wrap until you untick it.'}))}
 /* rep view of their team */
+/* ---------- ADMIN (Ameliah only) ---------- */
+const ADMIN_SECS=[['people','People'],['standards','Standards'],['scorecards','Scorecards'],['brand','Branding & settings']];
+function renderAdmin(v){S.adminSec=S.adminSec||'people';
+  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Admin'}),h('div',{class:'hint',text:'Only you can see this. Changes apply to everyone in Orexis.'}))));
+  v.append(h('div',{class:'seg',style:'flex-wrap:wrap'},ADMIN_SECS.map(([k,l])=>h('button',{class:S.adminSec===k?'primary':null,'aria-pressed':String(S.adminSec===k),onclick:()=>{S.adminSec=k;render()}},l))));
+  ({people:adminPeople,standards:adminStandards,scorecards:adminScorecards,brand:adminBrand})[S.adminSec](v)}
+function adminPeople(v){
+  const nm=h('input',{type:'text',id:'apName',placeholder:'First and last name','aria-label':'Name'}),pin=h('input',{type:'password',inputmode:'numeric',id:'apPin',placeholder:'PIN (4–8 digits)','aria-label':'PIN'});
+  const role=h('select',{id:'apRole','aria-label':'Role'},h('option',{value:'rep'},'Rep'),h('option',{value:'tl'},'Team leader'));
+  const team=h('select',{id:'apTeam','aria-label':'Team'},h('option',{value:''},coName()+' (direct)'),teamList().map(t=>h('option',{value:t.id},t.name||'Unnamed team')));
+  v.append(h('div',{class:'panel'},h('div',{class:'field'},h('label',{for:'apName',text:'Add a person'}),h('span',{class:'hint',text:'Creates their login. Tell them their name and PIN; they can log in straight away.'}),
+    h('div',{class:'rule',style:'flex-wrap:wrap'},nm,pin,role,team,h('button',{class:'primary',onclick:async()=>{try{await window.kaizenAdmin.act('add',null,{name:nm.value,pin:pin.value,role:role.value,team:team.value});toast('Login created for '+nm.value.trim());S.logins=null;location.reload()}catch(e){toast(String(e&&e.message||e).replace(/^Error: /,''))}}},'Add person')))));
+  renderTeam(v)}
+function adminStandards(v){const cur=S.std||{};const F=[['Bell & gong',[['bell','Bell day ($ retail)'],['gong','Gong day ($ retail)']]],
+  ['KPI standards',[['stops','Stops per shift'],['conv','Conversion %'],['avg','Sale average ($)'],['ups','Upsell %'],['rph','RPH ($)'],['stopsHr','Stops per hour'],['buyersHr','Buyers per hour'],['buyersDay','Buyers per day']]],
+  ['RPH zones (starts at)',[['silver','Silver'],['gold','Gold'],['platinum','Platinum'],['diamond','Diamond']]]];
+  const p=h('div',{class:'panel rform'});const vals={};
+  F.forEach(([t,fs])=>{p.append(h('h4',{text:t}));const g=h('div',{class:'wp-grid',style:'grid-template-columns:1fr 120px'});
+    fs.forEach(([k,l])=>{const i=h('input',{type:'text',inputmode:'decimal',id:'std-'+k,'aria-label':l,placeholder:String(STD_DEFAULT[k])});i.value=cur[k]!=null?cur[k]:STD_DEFAULT[k];vals[k]=i;g.append(h('span',{text:l}),i)});p.append(g)});
+  p.append(h('div',{class:'formfoot'},h('button',{onclick:()=>{Object.keys(vals).forEach(k=>vals[k].value=STD_DEFAULT[k])}},'Reset to defaults'),
+    h('button',{class:'primary',onclick:()=>{const o={};for(const k in vals){const n=Number(vals[k].value);if(!(n>0)){toast('Check '+k);return}o[k]=n}o.updatedAt=new Date().toISOString();S.std=o;write(()=>S.db.doc('settings/standards').set(o),'Standards saved').then(()=>render())}},'Save standards')));
+  v.append(p,h('div',{class:'hint',text:'Used by the zones in the app and by the weekly scorecards (bell/gong days, standards, team KPIs).'}))}
+function adminScorecards(v){const c=S.scSet||{};const to=h('input',{type:'text',id:'scTo',class:'wp-in','aria-label':'Send to'});to.value=c.to||'ameliah.crowe@gmail.com, ben@orexisinnovations.com';
+  const tt=h('input',{type:'text',id:'scTest',class:'wp-in','aria-label':'Test address'});tt.value=c.testTo||'ameliah.crowe@gmail.com';
+  const en=h('input',{type:'checkbox',id:'scOn',checked:c.enabled!==false});
+  const save=extra=>{const o={...c,to:to.value.split(/[,\s]+/).filter(Boolean).join(','),testTo:tt.value.trim(),enabled:en.checked,...(extra||{})};S.scSet=o;return write(()=>S.db.doc('settings/scorecards').set(o),extra&&extra.testAt?'Test requested — it arrives in about 10–15 minutes':'Scorecard settings saved')};
+  v.append(h('div',{class:'panel rform'},
+    h('h4',{text:'Weekly send'}),h('label',{style:'display:flex;gap:8px;align-items:center'},en,'Email scorecards every Sunday at 8am'),
+    h('h4',{text:'Send to'}),to,h('div',{class:'hint',text:'Separate emails with commas. Each person’s card is attached as a printable PDF.'}),
+    h('h4',{text:'Test address'}),tt,
+    h('div',{class:'formfoot'},h('button',{onclick:()=>save({testAt:new Date().toISOString()})},'📨 Send me a test now'),h('button',{class:'primary',onclick:()=>save()},'Save')),
+    c.testAt?h('div',{class:'hint',text:(c.testDone&&c.testDone>c.testAt)?'Last test sent '+new Date(c.testDone).toLocaleString('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit'}):'Test waiting to send…'}):null))}
+function adminBrand(v){
+    v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Branding & settings'}),h('div',{class:'hint',text:'Company name, logo and campaigns.'}))));
+    v.append(h('div',{class:'panel'},h('div',{class:'field'},h('label',{for:'teamName',text:'Company name'}),
+      h('input',{id:'teamName',type:'text',value:(S.settings&&S.settings.teamName)||'Orexis Innovations',placeholder:'e.g. Orexis Innovations',onchange:e=>write(()=>S.db.doc('settings/main').set({...S.settings,teamName:e.target.value.trim()}),'Name saved')})),
+      h('div',{class:'field'},h('label',{text:'Company logo'}),logoPicker('logoFile',S.logo&&S.logo.data,data=>write(()=>S.db.doc('settings/logo').set({data,updatedAt:new Date().toISOString()}),'Logo saved').then(ok=>{if(ok){S.logo={data};render()}}),()=>write(()=>S.db.doc('settings/logo').delete(),'Logo removed'),'Company logo'))));
+  if(S.isOwner){const cl=campaigns();const saveC=(list,def)=>{S.campaignsCfg={list,def:def||defCampaign()};render();write(()=>S.db.doc('settings/campaigns').set(S.campaignsCfg),'Campaigns saved')};
+    const cp=h('div',{class:'panel'});cp.append(h('div',{class:'field'},h('label',{text:'Campaigns'}),h('span',{class:'hint',text:'Every logged day is tagged with a campaign. The default is pre-selected when people log. Once there\u2019s more than one, a campaign filter appears at the top for everyone.'})));
+    const rl=h('div',{class:'rules'});cl.forEach((c,i)=>rl.append(h('div',{class:'rule'},
+      h('input',{type:'text',id:'cname-'+c.id,value:c.name,'aria-label':'Campaign name',onchange:e=>{const n=e.target.value.trim();if(n)saveC(cl.map((x,j)=>j===i?{...x,name:n}:x))}}),
+      h('label',{class:'hint'},h('input',{type:'radio',name:'defcamp',id:'cdef-'+c.id,checked:defCampaign()===c.id,onchange:()=>saveC(cl,c.id)}),' Default'),
+      h('label',{class:'hint'},h('input',{type:'checkbox',id:'cact-'+c.id,checked:c.active!==false,onchange:e=>saveC(cl.map((x,j)=>j===i?{...x,active:e.target.checked}:x))}),' Active'))));
+    cp.append(rl);const ni=h('input',{type:'text',id:'newCamp',placeholder:'New campaign name','aria-label':'New campaign name'});
+    cp.append(h('div',{class:'formfoot'},h('div',{class:'rule'},ni,h('button',{class:'primary',onclick:()=>{const n=(ni.value||'').trim();if(!n){toast('Name the campaign first');return}
+      const id=slug(n)||('c'+Date.now().toString(36));if(cl.some(x=>x.id===id)){toast('That campaign already exists');return}saveC(cl.concat([{id,name:n,active:true}]))}},'Add campaign'))));
+    v.append(cp)}
+}
 function loginsPanel(){const box=h('div',{class:'stack'});
   box.append(h('div',{class:'bar'},h('h3',{text:'Logins'}),h('span',{class:'hint',text:'Make someone a team leader so they can see their team, reset a forgotten PIN, or remove access.'})));
   if(!S.logins){if(!S.loginsLoading){S.loginsLoading=true;window.kaizenAdmin.list().then(l=>{S.logins=l;S.loginsLoading=false;render()}).catch(()=>{S.loginsLoading=false})}
@@ -1963,11 +2003,11 @@ function loginsPanel(){const box=h('div',{class:'stack'});
   const list=h('div',{class:'panel teamlist'});
   S.logins.filter(l=>!/\(removed /.test(l.name)).forEach(l=>{const pinIn=h('input',{type:'password',inputmode:'numeric',class:'num',id:'pin-'+l.uid,placeholder:'New PIN','aria-label':'New PIN for '+l.name});
     list.append(h('div',{class:'teamrow'},h('strong',{style:'flex:1;min-width:140px',text:l.name}),
-      l.role==='owner'?h('span',{class:'hint',text:'Owner'}):h('select',{id:'role-'+l.uid,'aria-label':l.name+' access',onchange:e=>act('role',l.uid,e.target.value,'Access updated')},[['rep','Rep'],['tl','Team leader']].map(([k,t])=>h('option',{value:k,selected:l.role===k},t))),
+      l.role==='owner'?h('span',{class:'hint',text:l.uid==='u_owner'?'Admin':'Owner'}):h('select',{id:'role-'+l.uid,'aria-label':l.name+' access',onchange:e=>act('role',l.uid,e.target.value,'Access updated')},[['rep','Rep'],['tl','Team leader']].map(([k,t])=>h('option',{value:k,selected:l.role===k},t))),
       l.role==='owner'?null:pinIn,l.role==='owner'?null:h('button',{onclick:()=>act('pin',l.uid,pinIn.value,'PIN reset for '+l.name)},'Reset PIN'),
       l.role==='owner'?null:h('button',{onclick:()=>{if(S.confirmDel!=='l'+l.uid){S.confirmDel='l'+l.uid;render();return}S.confirmDel=null;act('remove',l.uid,null,'Access removed')}},S.confirmDel==='l'+l.uid?'Tap again to remove':'Remove')))});
   box.append(list);
-  box.append(h('div',{class:'hint',text:'Your own PIN is changed from the spreadsheet: Orexis KPIs menu → Set or reset owner PIN.'}));return box}
+  box.append(h('div',{class:'hint',text:'Admin and owner PINs are changed from the spreadsheet: Orexis KPIs menu → Set or reset owner PIN.'}));return box}
 function renderMyTeam(v){const t=S.me&&S.me.team;{const tc=treeCard(S.uid);if(tc)v.append(tc)}
   v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My team'}),h('div',{class:'hint',text:'The team you’re part of within '+(('Orexis Innovations').trim()||'Orexis')+'.'}))));
   v.append(h('div',{class:'panel teamcard'},teamLogo(t,'tlogo big'),h('div',null,h('strong',{class:'ftitle',text:teamName(t)}),t&&S.teams[t]?h('div',{class:'hint',text:'Led by '+(S.teams[t].leader===S.uid?'you':'your team leader')}):h('div',{class:'hint',text:'Led by Ameliah'})),
@@ -2061,7 +2101,7 @@ async function writeSummary(){const wk=S.week;const ids=repList(false).filter(r=
   const ok=await write(()=>S.db.doc('summary/'+wk).set({week:wk,totals,goals:g,updatedAt:new Date().toISOString()}));if(ok)S.summarySent[wk]=sig}
 
 /* ---------- navigation & data ---------- */
-function go(t){S.tab=t;try{history.replaceState(null,'','#'+t)}catch(_){}render();if(['totals','pbs','coaching','bonus','promo'].includes(t))loadAllTeam()}
+function go(t){S.tab=t;S.admin=false;try{history.replaceState(null,'','#'+t)}catch(_){}render();if(['totals','pbs','coaching','bonus','promo'].includes(t))loadAllTeam()}
 function setDate(d){if(!d)return;S.date=d;const w=weekStart(d);if(w!==S.week){S.week=w;onWeekChange()}render()}
 function onWeekChange(){if(!S.db)return;
   if(leadRole())syncWeekSubs(true);
@@ -2086,7 +2126,7 @@ document.getElementById('nextDay').onclick=()=>setDate(addDays(wkTab()?(S.tab===
 document.getElementById('todayBtn').onclick=()=>setDate(todayStr());
 document.getElementById('datePick').onchange=e=>setDate(e.target.value);
 document.getElementById('campFilter').onchange=e=>{S.campFilter=e.target.value;render()};
-document.getElementById('viewMode').onchange=e=>{S.viewMe=e.target.value==='me';try{localStorage.setItem('kz_view',S.viewMe?'me':'team')}catch(x){}S.growthSel=null;S.coachSel=null;S.promoSel=null;if(S.viewMe&&!REP_TABS.some(t=>t[0]===S.tab))S.tab='log';onWeekChange();render()};
+document.getElementById('viewMode').onchange=e=>{if(e.target.value==='admin'){S.admin=true;S.msheet=false;render();scrollTo(0,0);return}S.admin=false;S.viewMe=e.target.value==='me';try{localStorage.setItem('kz_view',S.viewMe?'me':'team')}catch(x){}S.growthSel=null;S.coachSel=null;S.promoSel=null;if(S.viewMe&&!REP_TABS.some(t=>t[0]===S.tab))S.tab='log';onWeekChange();render()};
 document.getElementById('teamFilter').onchange=e=>{S.teamFilter=e.target.value;S.growthSel=null;S.coachSel=null;S.promoSel=null;render()};
 let hash=(location.hash||'').slice(1);if(hash==='month')hash='totals';if(LEADER_TABS.some(t=>t[0]===hash))S.tab=hash;
 S.week=weekStart(S.date);render();
@@ -2102,6 +2142,7 @@ S.week=weekStart(S.date);render();
   if(!leader()&&!REP_TABS.some(t=>t[0]===S.tab))S.tab='log';
   const parts={settings:false,reps:false,mine:!S.uid};
   const check=()=>{if(!S.ready&&parts.settings&&parts.reps&&parts.mine)S.ready=true;render()};
+  db.doc('settings/standards').onSnapshot(s=>{S.std=s.exists?s.data():{};render()},()=>{});db.doc('settings/scorecards').onSnapshot(s=>{S.scSet=s.exists?s.data():{};if(S.admin)render()},()=>{});
   db.doc('settings/main').onSnapshot(s=>{S.settings=s.exists?s.data():{};parts.settings=true;check()},onErr);
   db.collection('teams').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.teams=o;if(S.ready)render()},()=>{});
   db.collection('board').onSnapshot(snap=>{const o={};snap.docs.forEach(d=>o[d.id]=d.data());S.board=o;if(S.ready&&['board','week'].includes(S.tab))render()},()=>{});

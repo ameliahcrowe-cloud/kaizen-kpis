@@ -1,21 +1,30 @@
 name: Orexis weekly scorecards
 on:
   schedule:
-    - cron: '0 21 * * 6'   # Sun 8am Sydney (AEDT)
-    - cron: '0 22 * * 6'   # Sun 8am Sydney (AEST)
+    - cron: '0 21 * * 6'     # Sun 8am Sydney (AEDT)
+    - cron: '0 22 * * 6'     # Sun 8am Sydney (AEST)
+    - cron: '*/10 * * * *'   # "Send me a test" button in the Admin tab
   workflow_dispatch:
     inputs:
       test:
-        description: 'Send to Ameliah only'
+        description: 'Send to the test address only'
         default: 'true'
 jobs:
   send:
     runs-on: ubuntu-latest
+    env:
+      KEY: ${{ secrets.CARDS_KEY }}
+      EXEC: https://script.google.com/macros/s/AKfycbyriI5naP0q1cUQ3PR4q_YwNZLBZ2ybO7jzGIp7QTX1kN9wu5tTasokUHN07eGdRttvfw/exec
     steps:
-      - name: Only at 8am Sydney
+      - name: Decide
         id: t
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(TZ=Australia/Sydney date +%H)" != "08" ]; then echo "go=no" >> $GITHUB_OUTPUT; else echo "go=yes" >> $GITHUB_OUTPUT; fi
+          GO=no; TEST=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then GO=yes; TEST=${{ inputs.test }};
+          elif [ "${{ github.event.schedule }}" = "*/10 * * * *" ]; then
+            if curl -sSL "$EXEC?app=cards&key=$KEY&check=1" | grep -q '"test":true'; then GO=yes; TEST=true; fi
+          elif [ "$(TZ=Australia/Sydney date +%H)" = "08" ]; then GO=yes; fi
+          echo "go=$GO" >> $GITHUB_OUTPUT; echo "test=$TEST" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
         if: steps.t.outputs.go == 'yes'
       - uses: actions/setup-node@v4
@@ -24,13 +33,13 @@ jobs:
       - name: Render and send
         if: steps.t.outputs.go == 'yes'
         env:
-          KEY: ${{ secrets.CARDS_KEY }}
-          EXEC: https://script.google.com/macros/s/AKfycbyriI5naP0q1cUQ3PR4q_YwNZLBZ2ybO7jzGIp7QTX1kN9wu5tTasokUHN07eGdRttvfw/exec
-          TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.test == 'true' }}
+          TEST: ${{ steps.t.outputs.test }}
         run: |
+          T=""; [ "$TEST" = "true" ] && T="&test=1"
+          curl -sSL "$EXEC?app=cards&key=$KEY$T" -o cards.json
+          if ! grep -q '"html"' cards.json; then echo "No cards to send"; exit 0; fi
           sudo apt-get install -y -q fonts-noto-color-emoji >/dev/null
           npm i --no-save playwright@1.48.2 >/dev/null && npx playwright install --with-deps chromium >/dev/null
-          curl -sSL "$EXEC?app=cards&key=$KEY" -o cards.json
           node tools/render-cards.js cards.json out
           python3 -c "import json,os;p=json.load(open('out/payload.json'));p['key']=os.environ['KEY'];p['test']=os.environ['TEST']=='true';json.dump(p,open('post.json','w'))"
           curl -sSL -X POST -H 'Content-Type: application/json' --data @post.json "$EXEC"
