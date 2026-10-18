@@ -2033,11 +2033,11 @@ function newStartsPanel(ids){const td=todayStr();const bell=std('bell');
       flags.length?h('div',{class:'hint',style:'margin-top:8px;color:#8a4b08',text:'⚠️ '+flags.join(' · ')}):null))});
   return box}
 /* ---------- ADMIN (Ameliah only) ---------- */
-const ADMIN_SECS=[['people','People'],['standards','Standards'],['scorecards','Scorecards'],['brand','Branding & settings']];
+const ADMIN_SECS=[['people','People'],['standards','Standards'],['celebrations','Celebrations'],['scorecards','Scorecards'],['brand','Branding & settings']];
 function renderAdmin(v){S.adminSec=S.adminSec||'people';
   v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Admin'}),h('div',{class:'hint',text:'Only you can see this. Changes apply to everyone in Orexis.'}))));
   v.append(h('div',{class:'seg',style:'flex-wrap:wrap'},ADMIN_SECS.map(([k,l])=>h('button',{class:S.adminSec===k?'primary':null,'aria-pressed':String(S.adminSec===k),onclick:()=>{S.adminSec=k;render()}},l))));
-  ({people:adminPeople,standards:adminStandards,scorecards:adminScorecards,brand:adminBrand})[S.adminSec](v)}
+  ({people:adminPeople,standards:adminStandards,celebrations:adminCelebrations,scorecards:adminScorecards,brand:adminBrand})[S.adminSec](v)}
 function adminPeople(v){
   const nm=h('input',{type:'text',id:'apName',placeholder:'First and last name','aria-label':'Name'}),pin=h('input',{type:'password',inputmode:'numeric',id:'apPin',placeholder:'PIN (4–8 digits)','aria-label':'PIN'});
   const role=h('select',{id:'apRole','aria-label':'Role'},h('option',{value:'rep'},'Rep'),h('option',{value:'tl'},'Team leader'));
@@ -2054,6 +2054,17 @@ function adminStandards(v){const cur=S.std||{};const F=[['Bell & gong',[['bell',
   p.append(h('div',{class:'formfoot'},h('button',{onclick:()=>{Object.keys(vals).forEach(k=>vals[k].value=STD_DEFAULT[k])}},'Reset to defaults'),
     h('button',{class:'primary',onclick:()=>{const o={};for(const k in vals){const n=Number(vals[k].value);if(!(n>0)){toast('Check '+k);return}o[k]=n}o.updatedAt=new Date().toISOString();S.std=o;write(()=>S.db.doc('settings/standards').set(o),'Standards saved').then(()=>render())}},'Save standards')));
   v.append(p,h('div',{class:'hint',text:'Used by the zones in the app and by the weekly scorecards (bell/gong days, standards, team KPIs).'}))}
+function adminCelebrations(v){if(!S.celeLoaded){S.celeLoaded=true;S.db.doc('settings/celebrations').get().then(d=>{S.cele=d.exists?d.data():{};render()}).catch(()=>{})}
+  const cur=(S.celeDraft=S.celeDraft||JSON.parse(JSON.stringify(((S.cele||{}).list&&S.cele.list.length)?S.cele.list:[{emoji:'🔔',label:'Bell',amt:std('bell')},{emoji:'🥁',label:'Gong',amt:std('gong')}])));
+  const p=h('div',{class:'panel rform'},h('h4',{text:'Hourly celebrations'}),h('div',{class:'hint',text:'When someone’s day retail passes an amount, the Hourly app pops up the emoji and word, and shows the emoji next to their total. Add as many levels as you like.'}));
+  const g=h('div',{style:'display:grid;grid-template-columns:64px 1fr 110px 40px;gap:8px;align-items:center;margin-top:8px'},h('span',{class:'hint',text:'Emoji'}),h('span',{class:'hint',text:'Word'}),h('span',{class:'hint',text:'$ retail'}),h('span'));
+  cur.forEach((c,i)=>{const e=h('input',{type:'text',value:c.emoji,'aria-label':'Emoji',style:'font-size:1.4rem;text-align:center;padding:4px;border:1px solid var(--line);border-radius:8px;width:100%;box-sizing:border-box',oninput:ev=>c.emoji=ev.target.value.trim()});
+    const l=h('input',{type:'text',value:c.label,'aria-label':'Word',class:'wp-in',oninput:ev=>c.label=ev.target.value});const a=h('input',{type:'text',inputmode:'decimal',value:c.amt,'aria-label':'Amount',class:'wp-in',oninput:ev=>c.amt=ev.target.value});
+    g.append(e,l,a,h('button',{class:'icon','aria-label':'Remove',onclick:()=>{cur.splice(i,1);render()}},'✕'))});
+  p.append(g,h('div',{class:'formfoot'},h('button',{onclick:()=>{cur.push({emoji:'🚀',label:'Rocket',amt:''});render()}},'+ Add a level'),
+    h('button',{class:'primary',onclick:()=>{const list=cur.map(c=>({emoji:(c.emoji||'🎉').slice(0,8),label:String(c.label||'').trim()||'Nice',amt:Number(c.amt)})).filter(c=>c.amt>0).sort((a,b)=>a.amt-b.amt);
+      S.cele={list,updatedAt:new Date().toISOString()};S.celeDraft=null;write(()=>S.db.doc('settings/celebrations').set(S.cele),'Celebrations saved').then(()=>render())}},'Save')));
+  v.append(p,h('div',{class:'hint',text:'Tip: tap the emoji box and use your keyboard’s emoji button to pick one.'}))}
 function adminScorecards(v){const c=S.scSet||{};const to=h('input',{type:'text',id:'scTo',class:'wp-in','aria-label':'Send to'});to.value=c.to||'ameliah.crowe@gmail.com, ben@orexisinnovations.com';
   const tt=h('input',{type:'text',id:'scTest',class:'wp-in','aria-label':'Test address'});tt.value=c.testTo||'ameliah.crowe@gmail.com';
   const en=h('input',{type:'checkbox',id:'scOn',checked:c.enabled!==false});
