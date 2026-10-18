@@ -511,6 +511,7 @@ const METRICS=[
 ];
 const LOGFIELDS=METRICS.concat([{k:'hours',l:'Hours'},{k:'cash',l:'Cash',money:true},{k:'eftpos',l:'EFTPOS',money:true}]);
 const GMETRICS=METRICS.concat([{k:'hours',l:'Hours'},{k:'rph',l:'RPH',money:true}]);
+const HMETRICS=METRICS.concat([{k:'hours',l:'Hours'}]);
 const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const PB_DAY=[['retail','Retail',1],['stops','Stops'],['buyers','Buyers'],['upsells','Upsells'],['upsellRetail','Upsell retail',1],['medals','Medals'],['rph','RPH',1]];
 const PB_WEEK=[['retail','Retail',1],['stops','Stops'],['buyers','Buyers'],['upsells','Upsells'],['upsellRetail','Upsell retail',1],['medals','Medals']];
@@ -919,7 +920,7 @@ async function unconfirm(uid){const ok=await write(()=>S.db.doc(`conf/${uid}/day
 async function saveAll(){const ks=Object.keys(S.drafts).filter(k=>k.endsWith('|'+S.date));for(const k of ks)await saveRow(k.split('|')[0])}
 
 /* ---------- WEEK ---------- */
-function tilesFor(t,g){return h('div',{class:'tiles'},METRICS.map(m=>{const goal=g?g[m.k]:0;const a=t[m.k];
+function tilesFor(t,g){return h('div',{class:'tiles'},HMETRICS.map(m=>{const goal=g?g[m.k]:0;const a=t[m.k];
   return h('div',{class:'panel tile'},h('div',{class:'lbl',text:m.l}),h('div',{class:'big',text:fmt(m,a)}),
     goal>0?h('div',{class:'prog'+(a>=goal?' hit':'')},h('i',{style:`width:${Math.min(100,a/goal*100)}%`})):null,
     goal>0&&a>=goal?h('div',{class:'achieved',text:'✓ Goal achieved · '+pct(a,goal)}):(g===undefined||goal>0)?h('div',{class:'of',text:goal>0?`of ${fmt(m,goal)} goal · ${pct(a,goal)}`:'No goal set'}):null)}))}
@@ -976,12 +977,12 @@ function renderWeek0(v){
     const tb=h('tbody');
     rows.forEach((x,i)=>{const tt=x.t;const rr=tt.hours>0?tt.retail/tt.hours:null;
       tb.append(h('tr',null,h('td',{class:'name',text:(i+1)+'. '+x.r.name}),
-        METRICS.map(m=>{const gg=x.g?num(x.g[m.k]):0;return h('td',null,fmt(m,tt[m.k]),gg>0?h('div',{class:'hint',text:pct(tt[m.k],gg)+' of '+fmt(m,gg)}):null)}),
+        HMETRICS.map(m=>{const gg=x.g?num(x.g[m.k]):0;return h('td',null,fmt(m,tt[m.k]),gg>0?h('div',{class:'hint',text:pct(tt[m.k],gg)+' of '+fmt(m,gg)}):null)}),
         h('td',{text:pct(tt.buyers,tt.stops)}),h('td',{text:pct(tt.upsells,tt.buyers)}),h('td',{text:pct(tt.medals,tt.buyers)}),
         h('td',{text:rr!=null?money(rr):'—'}),h('td',null,zoneEl(rr)),h('td',null,hitEl(goalsHit(tt,x.g))),h('td',{text:money(feeFor(weekAll(x.r.id)).fee)})))});
     if(!rows.length)tb.append(h('tr',null,h('td',{colspan:16,class:'hint',text:'Nothing logged this week yet.'})));
     v.append(h('div',{class:'bar'},h('h3',{text:'Leaderboard'}),h('span',{class:'hint',text:'Ranked by retail. Only you can see this.'})));
-    v.append(h('div',{class:'panel scroll'},h('table',null,h('thead',null,h('tr',null,h('th',{text:'Name'}),METRICS.map(m=>h('th',{text:m.l})),['Conv %','Upsell %','Medal %','Week RPH','RPH zone','Goals hit','Perf. fee'].map(x=>h('th',{text:x})))),tb)));
+    v.append(h('div',{class:'panel scroll'},h('table',null,h('thead',null,h('tr',null,h('th',{text:'Name'}),HMETRICS.map(m=>h('th',{text:m.l})),['Conv %','Upsell %','Medal %','Week RPH','RPH zone','Goals hit','Perf. fee'].map(x=>h('th',{text:x})))),tb)));
   }else{
     const myT=S.me&&S.me.team;const tm=blank();let n=0;Object.values(S.board).forEach(b=>{if(!myT||b.team!==myT)return;const w=(b.weeks||{})[S.week];if(w){BOARD_FIELDS.forEach(f=>tm[f]+=num(w[f]));n++}});
     v.append(h('div',{class:'bar'},h('h3',{text:myT?teamName(myT)+' this week':'Team this week'}),h('span',{class:'hint',text:myT?`${n} ${n===1?'person has':'people have'} logged · see the Leaderboard tab for rankings`:'Pick your team on the My team tab to see team totals.'})));
@@ -1011,8 +1012,8 @@ async function loadAllTeam(force){if(!leader()||S.allTeamLoading||(S.allTeamRead
     const o=S.conf[r.id]=S.conf[r.id]||{};snap.docs.forEach(d=>o[d.id]=d.data())}catch(_){}}));
   S.allTeam=out;S.allTeamReady=true;S.allTeamLoading=false;render();scheduleTeamPB()}
 function needsTeam(){return leader()&&!S.allTeamReady}
-function periodHead(first){return h('tr',null,h('th',{text:first}),METRICS.map(mm=>h('th',{text:mm.l})),['Conv %','Upsell %','Medal %','RPH','RPH zone'].map(x=>h('th',{text:x})))}
-function periodRow(label,x,cls){return h('tr',cls?{class:cls}:null,h('td',{class:cls?null:'name',text:label}),METRICS.map(mm=>h('td',{text:fmt(mm,x[mm.k])})),
+function periodHead(first){return h('tr',null,h('th',{text:first}),HMETRICS.map(mm=>h('th',{text:mm.l})),['Conv %','Upsell %','Medal %','RPH','RPH zone'].map(x=>h('th',{text:x})))}
+function periodRow(label,x,cls){return h('tr',cls?{class:cls}:null,h('td',{class:cls?null:'name',text:label}),HMETRICS.map(mm=>h('td',{text:fmt(mm,x[mm.k])})),
   rateCells(x).map(c=>h('td',{text:c})),h('td',null,zoneEl(x.hours>0?x.retail/x.hours:null)))}
 const PERIODS=[['day','Day'],['week','Week'],['month','Month'],['quarter','Quarter'],['year','Year'],['all','All time'],['range','Date range']];
 function groupKey(g,e){return g==='day'?e.date:g==='week'?e.week:g==='year'?e.date.slice(0,4):monthKey(e.date)}
