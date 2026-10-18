@@ -444,6 +444,7 @@ textarea{font-family:inherit;font-size:inherit}
     can:async()=>{await ready;return session.role==='owner'},me:async()=>{await ready;return{id:session.uid,name:session.name,isOwner:session.role==='owner',canEdit:session.role!=='rep',email:null,avatarUrl:'',color:'#424965'}},
     profiles:async ids=>{const o={};(Array.isArray(ids)?ids:[ids]).forEach(i=>o[i]={id:i,name:'',avatarUrl:'',color:'#424965',email:null,isMe:i===(session&&session.uid),guest:false});return o},name:async()=>session.name};
   window.claude={use:async n=>{await ready;return n==='db'?db:n==='user'?user:null}};
+  window.orexisSupport=m=>call('supportMessage',session.token,m);
   window.kaizenAdmin={list:()=>call('adminAccess',session.token,'list'),act:(a,uid,v)=>call('adminAccess',session.token,a,uid,v)};
   const FD='https://ameliahcrowe-cloud.github.io';function fdPost(m){try{window.top.postMessage(m,FD)}catch(e){}}
   function logoutLocal(){ls.del(TOK);fdPost({kz:'clear'});location.reload()}
@@ -664,6 +665,7 @@ function renderHeader(){
   {const w=wkTab(),pd=document.getElementById('prevDay'),nd=document.getElementById('nextDay'),dp=document.getElementById('datePick'),tb=document.getElementById('todayBtn');pd.setAttribute('aria-label',w?'Previous week':'Previous day');nd.setAttribute('aria-label',w?'Next week':'Next day');dp.hidden=w;tb.textContent=w?'This week':'Today';
    let wl=document.getElementById('wcLabel');if(!wl){wl=h('b',{id:'wcLabel',style:'padding:0 8px;white-space:nowrap'});pd.after(wl)}wl.hidden=!w;const [,mm,dd]=(S.tab==='reflect'?rwk():S.week).split('-');wl.textContent='WC '+dd+'/'+mm}
   document.getElementById('weekLabel').textContent=S.tab==='totals'?periodRange().label:'Week commencing '+niceDate(S.week,{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  if(window.orexisSupport&&S.ready&&!document.getElementById('supportBtn')){const st=document.querySelector('.stepper');st.insertBefore(h('button',{id:'supportBtn',onclick:()=>openSupport()},'💬 Support'),document.getElementById('weekLabel'))}
   if(window.KAIZEN_GOOGLE&&S.ready&&!document.getElementById('logoutBtn')){const st=document.querySelector('.stepper');st.insertBefore(h('button',{id:'logoutBtn',onclick:()=>window.kaizenLogout()},'Log out'),document.getElementById('weekLabel'))}
   const cfl=document.getElementById('campFilter');
   if(S.ready&&campaigns().length>1){cfl.hidden=false;const opts=[['all','All campaigns']].concat(campaigns().map(c=>[c.id,c.name]));const sig=JSON.stringify(opts)+S.campFilter;
@@ -694,6 +696,7 @@ function renderMobileNav(){const mn=document.getElementById('mnav'),sh=document.
       const left=rest.filter(([k])=>!used[k]);if(left.length)out.push(h('div',{class:'hint',style:'margin:12px 0 6px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:.72rem',text:'Other'}),h('div',{class:'grid'},left.map(([k,l])=>h('button',{'aria-selected':String(S.tab===k),onclick:()=>{S.msheet=false;go(k)}},l))));return out})(),
     h('div',{style:'display:flex;flex-direction:column;gap:8px;margin-top:14px'},['viewMode','campFilter','teamFilter'].map(id=>{const o=document.getElementById(id);if(!o||o.hidden)return null;
       const c=h('select',{'aria-label':o.getAttribute('aria-label')||id,style:'min-height:44px;font:inherit',onchange:e=>{o.value=e.target.value;o.dispatchEvent(new Event('change'));S.msheet=false;renderMobileNav()}},[...o.options].map(x=>h('option',{value:x.value,selected:x.value===o.value},x.textContent)));return c}),
+      S.ready&&window.orexisSupport?h('button',{onclick:()=>{S.msheet=false;renderMobileNav();openSupport()}},'💬 Support'):null,
       window.kaizenLogout&&S.ready?h('button',{onclick:()=>window.kaizenLogout()},'Log out'):null)):'');
   sh.onclick=()=>{S.msheet=false;renderMobileNav()}}
 function preserveFocus(fn){const a=document.activeElement;const id=a&&a.id;let s=null,e=null;
@@ -1949,6 +1952,15 @@ function renderTeam(v){const OWN=S.isOwner&&(S.admin||!isAdminUser());
   if(OWN&&window.kaizenAdmin)v.append(loginsPanel());
   v.append(h('div',{class:'hint',text:'Marking someone inactive hides them from the daily log and goals. Their past numbers stay in the totals. 🧪 Test people (trials) are left out of all team numbers, the leaderboard, team PBs and the weekly wrap until you untick it.'}))}
 /* rep view of their team */
+function openSupport(){const old=document.getElementById('supportBox');if(old)old.remove();
+  const ta=h('textarea',{id:'supportMsg',rows:5,placeholder:'What do you need help with?','aria-label':'Message to Orexis admin',style:'width:100%;font:inherit;padding:10px;border:1px solid var(--line);border-radius:10px;box-sizing:border-box'});
+  const close=()=>box.remove();
+  const send=h('button',{class:'primary',onclick:async()=>{const m=ta.value.trim();if(!m){toast('Write a message first');return}send.disabled=true;send.textContent='Sending…';
+    try{await window.orexisSupport(m);toast('Sent to Orexis admin ✓');close()}catch(e){send.disabled=false;send.textContent='Send';toast('Couldn’t send — try again')}}},'Send');
+  const box=h('div',{id:'supportBox',style:'position:fixed;inset:0;background:rgba(20,26,45,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px',onclick:e=>{if(e.target===box)close()}},
+    h('div',{class:'panel',style:'max-width:440px;width:100%;background:var(--panel,#fff);padding:18px;box-sizing:border-box'},h('h3',{text:'💬 Message Orexis admin',style:'margin:0 0 6px'}),h('div',{class:'hint',text:'Questions, problems or requests. Admin gets it by email.',style:'margin-bottom:10px'}),ta,
+      h('div',{style:'display:flex;gap:8px;justify-content:flex-end;margin-top:10px'},h('button',{onclick:close},'Cancel'),send)));
+  document.body.append(box);ta.focus()}
 /* ---------- ADMIN (Ameliah only) ---------- */
 const ADMIN_SECS=[['people','People'],['standards','Standards'],['scorecards','Scorecards'],['brand','Branding & settings']];
 function renderAdmin(v){S.adminSec=S.adminSec||'people';

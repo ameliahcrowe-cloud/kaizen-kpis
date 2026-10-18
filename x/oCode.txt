@@ -651,3 +651,13 @@ function doPost(e) {
     htmlBody: '<div style="font-family:Helvetica,Arial,sans-serif;font-size:14px">Weekly scorecards for WC ' + tag + ', attached as printable PDFs: ' + (b.pdfs || []).map(f => f.name).join(', ') + '.</div>', attachments: at });
   return ContentService.createTextOutput('sent ' + at.length + ' to ' + to);
 }
+
+/* ---------- support messages to Orexis admin ---------- */
+function supportMessage(token, msg) {
+  const a = auth_(token); msg = String(msg || '').trim().slice(0, 3000);
+  if (!msg) throw new Error('Write a message first');
+  const esc = x => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  MailApp.sendEmail({ to: 'ameliah.crowe@gmail.com', subject: 'Orexis support · ' + a.name, name: 'Orexis Support',
+    htmlBody: '<div style="font-family:Helvetica,Arial,sans-serif;font-size:14px"><b>From:</b> ' + esc(a.name) + '<br><b>Sent:</b> ' + Utilities.formatDate(new Date(), 'Australia/Sydney', 'EEE d MMM, h:mm a') + '<br><br>' + esc(msg).replace(/\n/g, '<br>') + '</div>' });
+  return { ok: true };
+}
