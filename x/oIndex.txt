@@ -1184,7 +1184,7 @@ function planLW(k,t){if(['contacts','presentations','closes'].includes(k))return
 function planShow(k,v){if(v==null||v==='')return'—';if(k==='avgSale'||k==='rph'||k==='retail')return money(+v);return String(Math.round(+v*10)/10)}
 function planText(uid){const g=wgOf(uid,'plan'),r=S.reps[uid]||{};const {t}=planLastWeek(uid);const L=PLAN_KPIS.map(([k,l,m])=>{const lv=planLW(k,t);const v=g[k]||(lv!=null?Math.round(lv*(k==='hours'?10:1))/(k==='hours'?10:1):'');return '- '+l+': '+(v!==''?(m?'$':'')+v:'')});
   const fl=(PLAN_KPIS.find(x=>x[0]===g.focus)||[,''])[1];
-  return [(r.name||'My')+'’s Weekly Goals','','Key Motivator for the week:',g.motivator||'','','KPI Targets',...L,'','Which KPI Target is the biggest focus for yourself? ',fl,'','Retail Goal: '+(g.retail?'$'+g.retail:''),'','Personal Goal: '+(wgOf(uid,'personal').t||''),'Learning Goal: '+(wgOf(uid,'learning').t||''),'Buisness Goal: '.replace('Buis','Busi')+(wgOf(uid,'business').t||'')].join('\n')}
+  return [(r.name||'My')+'’s Weekly Goals','','Key Motivator for the week:',g.motivator||'','','KPI Targets',...L,'','Which KPI Target is the biggest focus for yourself? ',fl,'','Retail Goal: '+((goalOf(uid,S.week)||{}).retail?money((goalOf(uid,S.week)||{}).retail):''),'','Personal Goal: '+(wgOf(uid,'personal').t||''),'Learning Goal: '+(wgOf(uid,'learning').t||''),'Buisness Goal: '.replace('Buis','Busi')+(wgOf(uid,'business').t||'')].join('\n')}
 function weekPlanPanel(uid){const g=wgOf(uid,'plan');const {lw,t}=planLastWeek(uid);const p=h('div',{class:'panel rform'});
   const inp=(k,ph,money)=>{const e=h('input',{type:'text',inputmode:k==='motivator'?'text':'decimal',id:'wp-'+k,placeholder:ph,'aria-label':ph,onchange:ev=>setWG(uid,'plan',{[k]:ev.target.value.trim()})});e.value=g[k]||'';return e};
   p.append(h('h4',{text:'Key motivator for the week'}),h('div',{class:'hint',text:'What’s driving you this week? e.g. a new start, a promotion, a trip'}),(()=>{const e=inp('motivator','My motivation this week');e.className='wp-in';return e})());
@@ -1195,7 +1195,6 @@ function weekPlanPanel(uid){const g=wgOf(uid,'plan');const {lw,t}=planLastWeek(u
   p.append(grid);
   p.append(h('h4',{text:'Which KPI target is your biggest focus?'}),h('div',{class:'rule'},h('select',{id:'wp-focus','aria-label':'Biggest focus KPI',onchange:e=>setWG(uid,'plan',{focus:e.target.value})},h('option',{value:''},'Choose a KPI to beat'),PLAN_KPIS.map(([k,l])=>h('option',{value:k,selected:g.focus===k},l))),
     g.focus?h('span',{class:'hint',text:'Last week: '+planShow(g.focus,planLW(g.focus,t))+(g[g.focus]?' → target '+planShow(g.focus,g[g.focus]):'')}):null));
-  p.append(h('h4',{text:'Retail goal'}),(()=>{const e=inp('retail','$ retail for the week',1);e.className='wp-in';return e})(),h('div',{class:'hint',text:'Last week: '+money(t.retail||0)}));
   p.append(h('div',{class:'formfoot'},h('span',{class:'hint',text:'Saves as you type.'}),h('button',{class:'primary',onclick:async()=>{let ok=false;try{await navigator.clipboard.writeText(planText(uid));ok=true}catch(_){}toast(ok?'Copied — paste into Telegram':'Couldn’t copy on this device')}},'📋 Copy to Telegram')));
   return p}
 function weekGoalsSection(ros){const box=h('div',{class:'stack'});
