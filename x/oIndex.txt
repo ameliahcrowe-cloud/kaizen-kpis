@@ -1911,11 +1911,11 @@ function createTeamPanel(){const myTeam=S.teams[S.uid];
       h('button',{class:'primary',onclick:async()=>{const n=(document.getElementById('newTeamName').value||'').trim();if(!n){toast('Name your team first');return}
         const ok=await saveTeam(S.uid,{name:n});if(ok){toast('Team created');if(S.reps[S.uid]&&S.reps[S.uid].team!==S.uid)setRepTeam(S.uid,S.uid)}}},'Create team'))))}
 /* leader view: owner sees everything; team leaders manage their own team */
-function renderTeam(v){
-  if(S.isOwner){v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Orexis'}),h('div',{class:'hint',text:'The teams within Orexis and who is on each.'}))));
+function renderTeam(v){const OWN=S.isOwner&&(S.admin||!isAdminUser());
+  if(OWN){v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Orexis'}),h('div',{class:'hint',text:'The teams within Orexis and who is on each.'}))));
   }else v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My team'}),h('div',{class:'hint',text:'Your team’s name, logo and members.'}))));
   const cp=createTeamPanel();if(cp)v.append(cp);{const tc=treeCard(S.uid);if(tc)v.append(tc)}
-  if(S.isOwner){const ts=teamList();
+  if(OWN){const ts=teamList();
     v.append(h('div',{class:'bar'},h('h3',{text:'Teams within Orexis'}),h('span',{class:'hint',text:ts.length+' team'+(ts.length===1?'':'s')})));
     const free=repListAll(false,true).filter(r=>r.id!==S.uid&&!S.teams[r.id]);
     if(free.length){const who=h('select',{id:'newTeamLeader','aria-label':'Team leader'},h('option',{value:''},'Choose who leads it'),free.map(r=>h('option',{value:r.id},(r.name||'Rep')+(r.test?' (test)':''))));
@@ -1932,21 +1932,21 @@ function renderTeam(v){
         h('button',{onclick:()=>{if(S.confirmDel!=='t'+t.id){S.confirmDel='t'+t.id;render();return}S.confirmDel=null;write(()=>S.db.doc('teams/'+t.id).delete(),'Team removed').then(ok=>{if(ok){delete S.teams[t.id];render()}})}},S.confirmDel==='t'+t.id?'Tap again to remove':'Remove')))});
     v.append(tl)}
   v.append(h('div',{class:'panel notice'},h('strong',{text:'Adding people: '}),
-    window.KAIZEN_GOOGLE?(S.isOwner?'send everyone the Orexis KPIs link. They tap Create my login, enter their name, choose a PIN and pick their team. Then set team leaders under Logins below so they can see their team.':'Send your team the Orexis KPIs link. When they create their login they pick your team.'):
-    (S.isOwner?'invite each person from the Share menu. Give reps Contributor access, so they only see their own detail. Give team leaders Editor access, so they can see their team’s detail. When people open the link they enter their name and pick their team.':'Share the tracker link with your team. When they join they pick your team from the list.')));
-  const ros=S.isOwner?repListAll(false,true):repListAll(false,true).filter(r=>r.team===S.uid||r.id===S.uid);
+    window.KAIZEN_GOOGLE?(OWN?'send everyone the Orexis KPIs link. They tap Create my login, enter their name, choose a PIN and pick their team. Then set team leaders under Logins below so they can see their team.':'Send your team the Orexis KPIs link. When they create their login they pick your team.'):
+    (OWN?'invite each person from the Share menu. Give reps Contributor access, so they only see their own detail. Give team leaders Editor access, so they can see their team’s detail. When people open the link they enter their name and pick their team.':'Share the tracker link with your team. When they join they pick your team from the list.')));
+  const ros=OWN?repListAll(false,true):repListAll(false,true).filter(r=>r.team===S.uid||r.id===S.uid);
   const list=h('div',{class:'panel teamlist'});
   if(!S.reps[S.uid])list.append(h('div',{class:'teamrow'},h('span',{style:'flex:1',text:'Log your own numbers too?'}),h('button',{onclick:joinSelf},'Add me as a rep')));
   if(!ros.length)list.append(h('div',{class:'empty'},h('span',{text:'No one has joined yet.'})));
   ros.forEach((m,i)=>list.append(h('div',{class:'teamrow'+(m.active===false?' off':'')},
     h('input',{type:'text',id:'name-'+m.id,value:m.name||'','aria-label':'Name',onchange:e=>{const n=e.target.value.trim();if(n){write(()=>S.db.doc('reps/'+m.id).update({name:n}),'Name updated');if(S.board[m.id])write(()=>S.db.doc('board/'+m.id).update({name:n}))}}}),
-    S.isOwner?h('label',{class:'hint'},'Direct to ',(()=>{const top=m.team===m.id||(m.id==='u_owner'&&!m.team);const o=[[m.id,'No one (top)']].concat(m.id!=='u_owner'?[['',repName('u_owner')]]:[],repListAll(false,true).filter(r=>r.id!==m.id&&r.id!=='u_owner').map(r=>[r.id,r.name||'Rep']));return h('select',{id:'team-'+m.id,'aria-label':m.name+' is direct to',onchange:e=>setRepTeam(m.id,e.target.value)},o.map(([v,l])=>h('option',{value:v,selected:v===m.id?top:(!top&&(m.team||'')===v)},l)))})()):h('span',{class:'hint',text:m.team&&m.team!==m.id?'Direct to '+repName(m.team):m.team===m.id?'Top':'Direct to '+repName('u_owner')}),
+    OWN?h('label',{class:'hint'},'Direct to ',(()=>{const top=m.team===m.id||(m.id==='u_owner'&&!m.team);const o=[[m.id,'No one (top)']].concat(m.id!=='u_owner'?[['',repName('u_owner')]]:[],repListAll(false,true).filter(r=>r.id!==m.id&&r.id!=='u_owner').map(r=>[r.id,r.name||'Rep']));return h('select',{id:'team-'+m.id,'aria-label':m.name+' is direct to',onchange:e=>setRepTeam(m.id,e.target.value)},o.map(([v,l])=>h('option',{value:v,selected:v===m.id?top:(!top&&(m.team||'')===v)},l)))})()):h('span',{class:'hint',text:m.team&&m.team!==m.id?'Direct to '+repName(m.team):m.team===m.id?'Top':'Direct to '+repName('u_owner')}),
     h('label',null,h('input',{type:'checkbox',id:'active-'+m.id,checked:m.active!==false,onchange:e=>write(()=>S.db.doc('reps/'+m.id).update({active:e.target.checked}),e.target.checked?'Marked active':'Marked inactive')}),'Active'),
-    S.isOwner?h('label',{title:'Test person: their numbers don’t count towards team totals, leaderboard, team PBs or the weekly wrap'},h('input',{type:'checkbox',id:'test-'+m.id,checked:!!m.test,onchange:e=>{const t=e.target.checked;S.reps[m.id]={...S.reps[m.id],test:t};write(()=>S.db.doc('reps/'+m.id).update({test:t}),t?'Marked as test person — not counted':'Now counted');if(t&&S.board[m.id]){delete S.board[m.id];write(()=>S.db.doc('board/'+m.id).delete())}else if(!t)setTimeout(()=>pushBoard(m.id,S.week),500);render()}}),'🧪 Test'):null,
-    S.isOwner?h('button',{class:'icon','aria-label':'Move up',disabled:i===0,onclick:()=>move(i,-1)},'↑'):null,
-    S.isOwner?h('button',{class:'icon','aria-label':'Move down',disabled:i===ros.length-1,onclick:()=>move(i,1)},'↓'):null)));
-  v.append(h('div',{class:'bar'},h('h3',{text:S.isOwner?'Everyone':'Members'})));v.append(list);
-  if(S.isOwner&&window.kaizenAdmin)v.append(loginsPanel());
+    OWN?h('label',{title:'Test person: their numbers don’t count towards team totals, leaderboard, team PBs or the weekly wrap'},h('input',{type:'checkbox',id:'test-'+m.id,checked:!!m.test,onchange:e=>{const t=e.target.checked;S.reps[m.id]={...S.reps[m.id],test:t};write(()=>S.db.doc('reps/'+m.id).update({test:t}),t?'Marked as test person — not counted':'Now counted');if(t&&S.board[m.id]){delete S.board[m.id];write(()=>S.db.doc('board/'+m.id).delete())}else if(!t)setTimeout(()=>pushBoard(m.id,S.week),500);render()}}),'🧪 Test'):null,
+    OWN?h('button',{class:'icon','aria-label':'Move up',disabled:i===0,onclick:()=>move(i,-1)},'↑'):null,
+    OWN?h('button',{class:'icon','aria-label':'Move down',disabled:i===ros.length-1,onclick:()=>move(i,1)},'↓'):null)));
+  v.append(h('div',{class:'bar'},h('h3',{text:OWN?'Everyone':'Members'})));v.append(list);
+  if(OWN&&window.kaizenAdmin)v.append(loginsPanel());
   v.append(h('div',{class:'hint',text:'Marking someone inactive hides them from the daily log and goals. Their past numbers stay in the totals. 🧪 Test people (trials) are left out of all team numbers, the leaderboard, team PBs and the weekly wrap until you untick it.'}))}
 /* rep view of their team */
 /* ---------- ADMIN (Ameliah only) ---------- */
