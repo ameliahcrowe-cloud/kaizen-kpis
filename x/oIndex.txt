@@ -2134,17 +2134,15 @@ function renderBoard(v){if(S.isOwner&&!S.viewMe){S.boardSync=S.boardSync||{};if(
       h('button',{onclick:()=>setDate(m?addDays(monthKey(S.date)+'-01',-1):addDays(S.week,-7))},'‹'),h('button',{onclick:()=>setDate(m?addDays(monthKey(S.date)+'-01',32):addDays(S.week,7))},'›'))));
   // teams
   const byTeam={};rows.forEach(r=>{const x=byTeam[r.team]=byTeam[r.team]||{team:r.team,t:blank(),n:0};BOARD_FIELDS.forEach(f=>x.t[f]+=r.t[f]);x.n++});
-  const teams=Object.values(byTeam).sort((a,b)=>b.t.retail-a.t.retail);
+  const rp=t=>t.hours>0?t.retail/t.hours:0;const teams=Object.values(byTeam).sort((a,b)=>(b.t.retail-a.t.retail)||(rp(b.t)-rp(a.t)));
   v.append(h('div',{class:'bar'},h('h3',{text:'Teams'}),h('span',{class:'hint',text:'Ranked by retail. Everything counts towards Orexis.'})));
   const ttb=h('tbody');teams.forEach((x,i)=>{const t=x.t;const rph=t.hours>0?t.retail/t.hours:null;
     ttb.append(h('tr',{class:S.me&&S.me.team===x.team?'sel':null},h('td',{class:'name'},h('span',{class:'tcell'},h('b',{class:'rank',text:String(i+1)}),teamLogo(x.team),teamName(x.team))),
-      h('td',{text:money(t.retail)}),h('td',{text:String(Math.round(t.stops))}),h('td',{text:String(Math.round(t.buyers))}),h('td',{text:String(Math.round(t.upsells))}),h('td',{text:String(Math.round(t.medals))}),
-      h('td',{text:t.buyers>0?money(t.retail/t.buyers):'—'}),h('td',{text:rph!=null?money(rph):'—'}),h('td',null,zoneEl(rph)),h('td',{text:String(x.n)})))});
+      h('td',{text:money(t.retail)}),h('td',{text:t.buyers>0?money(t.retail/t.buyers):'—'}),h('td',{text:String(x.n)})))});
   if(teams.length){const k=blank();rows.forEach(r=>BOARD_FIELDS.forEach(f=>k[f]+=r.t[f]));const rph=k.hours>0?k.retail/k.hours:null;
-    ttb.append(h('tr',{class:'total'},h('td',{text:'All of '+coName()}),h('td',{text:money(k.retail)}),h('td',{text:String(Math.round(k.stops))}),h('td',{text:String(Math.round(k.buyers))}),h('td',{text:String(Math.round(k.upsells))}),h('td',{text:String(Math.round(k.medals))}),
-      h('td',{text:k.buyers>0?money(k.retail/k.buyers):'—'}),h('td',{text:rph!=null?money(rph):'—'}),h('td',null,zoneEl(rph)),h('td',{text:String(rows.length)})))}
-  else ttb.append(h('tr',null,h('td',{colspan:10,class:'hint',text:'Nothing logged for this period yet.'})));
-  v.append(h('div',{class:'panel scroll'},h('table',null,h('thead',null,h('tr',null,['Team','Retail','Stops','Buyers','Upsells','Medals','Sale avg','RPH','RPH zone','People'].map(x=>h('th',{text:x})))),ttb)));
+    ttb.append(h('tr',{class:'total'},h('td',{text:'All of '+coName()}),h('td',{text:money(k.retail)}),h('td',{text:k.buyers>0?money(k.retail/k.buyers):'—'}),h('td',{text:String(rows.length)})))}
+  else ttb.append(h('tr',null,h('td',{colspan:4,class:'hint',text:'Nothing logged for this period yet.'})));
+  v.append(h('div',{class:'panel scroll'},h('table',null,h('thead',null,h('tr',null,['Team','Retail','Sale avg','People'].map(x=>h('th',{text:x})))),ttb)));
   // individuals
   const filt=S.boardTeam||'all';const myT=(S.me&&S.me.team)||(S.teams[S.uid]?S.uid:'');
   const ind=rows.filter(r=>filt==='all'||r.team===filt).sort((a,b)=>b.t.retail-a.t.retail);
@@ -2152,20 +2150,20 @@ function renderBoard(v){if(S.isOwner&&!S.viewMe){S.boardSync=S.boardSync||{};if(
     h('option',{value:'all'},'All of Orexis'),myT?h('option',{value:myT,selected:filt===myT},'My team'):null,
     teamList().filter(t=>t.id!==myT).map(t=>h('option',{value:t.id,selected:filt===t.id},teamName(t.id))))));
   indTables(v,ind,false);
-  v.append(legend())}
+  v.append(h('div',{class:'hint',text:'Ranked by retail. If two people are tied, the one with the higher RPH goes first.'}))}
 
 function indTables(v,ind,lined){
-  const HEAD=['Name','Team','Retail','Stops','Buyers','Upsells','Medals','Sale avg','RPH'];const hi=std('gold'),lo=std('silver');
+  const HEAD=lined?['Name','Team','Retail','Stops','Buyers','Upsells','Medals','Sale avg','RPH']:['Name','Team','Retail','Sale avg'];const hi=std('gold'),lo=std('silver');
   const rphOf=r=>r.t.hours>0?r.t.retail/r.t.hours:null;
   const groups=!lined?[['','',()=>true,'#2E3A59']]:[['⬆️ Above the line',`${money(hi)}+ RPH`,r=>rphOf(r)!=null&&rphOf(r)>=hi,'#1f7a4d'],['➖ The middle',`${money(lo)}–${money(hi-1)} RPH`,r=>rphOf(r)!=null&&rphOf(r)>=lo&&rphOf(r)<hi,'#b7791f'],['⬇️ Below the line',`under ${money(lo)} RPH`,r=>rphOf(r)==null||rphOf(r)<lo,'#c2410c']];
   if(!ind.length)v.append(h('div',{class:'panel empty'},h('span',{text:'Nothing logged for this period yet.'})));
-  let rank=0;groups.forEach(([title,sub,test,col])=>{const g=ind.filter(test).sort(lined?(a,b)=>(rphOf(b)||0)-(rphOf(a)||0):(a,b)=>b.t.retail-a.t.retail);if(!ind.length)return;
+  let rank=0;groups.forEach(([title,sub,test,col])=>{const g=ind.filter(test).sort(lined?(a,b)=>(rphOf(b)||0)-(rphOf(a)||0):(a,b)=>(b.t.retail-a.t.retail)||((rphOf(b)||0)-(rphOf(a)||0)));if(!ind.length)return;
     if(lined)v.append(h('div',{class:'bar',style:'margin-top:10px'},h('h3',{text:title,style:'color:'+col}),h('span',{class:'hint',text:sub+' · '+g.length+(g.length===1?' person':' people')})));
     const itb=h('tbody');g.forEach(r=>{rank++;const t=r.t;const rph=rphOf(r);
       itb.append(h('tr',{class:r.id===S.uid?'sel':null},h('td',{class:'name'},h('span',{class:'tcell'},h('b',{class:'rank',text:String(rank)}),avatar(r.id,22),r.name+(r.id===S.uid?' (you)':''),stageTag(r.id))),h('td',null,h('span',{class:'tcell'},teamLogo(r.team,'tlogo sm'),teamName(r.team))),
-        h('td',{text:money(t.retail)}),h('td',{text:String(Math.round(t.stops))}),h('td',{text:String(Math.round(t.buyers))}),h('td',{text:String(Math.round(t.upsells))}),h('td',{text:String(Math.round(t.medals))}),
-        h('td',{text:t.buyers>0?money(t.retail/t.buyers):'—'}),h('td',null,rph!=null?h('span',null,h('b',{text:money(rph)+' '}),zoneEl(rph)):'—')))});
-    if(!g.length)itb.append(h('tr',null,h('td',{colspan:9,class:'hint',text:'No one here yet.'})));
+        h('td',{text:money(t.retail)}),lined?[h('td',{text:String(Math.round(t.stops))}),h('td',{text:String(Math.round(t.buyers))}),h('td',{text:String(Math.round(t.upsells))}),h('td',{text:String(Math.round(t.medals))})]:null,
+        h('td',{text:t.buyers>0?money(t.retail/t.buyers):'—'}),lined?h('td',null,rph!=null?h('span',null,h('b',{text:money(rph)+' '}),zoneEl(rph)):'—'):null))});
+    if(!g.length)itb.append(h('tr',null,h('td',{colspan:HEAD.length,class:'hint',text:'No one here yet.'})));
     v.append(h('div',{class:'panel scroll',style:lined?'border-left:4px solid '+col:null},h('table',null,h('thead',null,h('tr',null,HEAD.map(x=>h('th',{text:x})))),itb)))});
 }
 function renderLine(v){if(!S.isOwner){go('log');return}if(S.isOwner&&!S.viewMe){S.boardSync=S.boardSync||{};if(!S.boardSync[S.week]){S.boardSync[S.week]=1;setTimeout(()=>repListAll(false).filter(r=>!r.test).forEach(r=>pushBoard(r.id,S.week)),300)}}
