@@ -655,7 +655,7 @@ async function refreshPB(uid,quiet){
   if(ok){if(S.reps[uid])S.reps[uid]={...S.reps[uid],pb};if(uid===S.uid&&S.me)S.me={...S.me,pb};if(recs.length&&!quiet)toast('New PB! '+recs.join(' · '),4000)}}
 
 /* ---------- header & tabs ---------- */
-function tabs(){if(S.admin&&isAdminUser())return [['admin','⚙️ Admin']].concat(LEADER_TABS);return leader()?LEADER_TABS.filter(([k])=>(k!=='pbboard'&&k!=='line')||S.isOwner):(leadRole()?REP_TABS.slice(0,2).concat([['board','Leaderboard']],REP_TABS.slice(2)):REP_TABS)}
+function tabs(){if(S.admin&&isAdminUser())return [['admin','⚙️ Admin']].concat(LEADER_TABS);return leader()?LEADER_TABS.filter(([k])=>k!=='pbboard'||S.isOwner):(leadRole()?REP_TABS.slice(0,2).concat([['board','Leaderboard']],REP_TABS.slice(2)):REP_TABS)}
 function renderHeader(){
   const lg=document.getElementById('teamLogo');const src=window.OREXIS_LOGO||(S.logo&&S.logo.data);if(src&&String(src).startsWith('data:image/')){if(lg.getAttribute('src')!==src)lg.src=src;lg.hidden=false}else lg.hidden=true;
   const name=('Orexis Innovations').trim();
@@ -1983,7 +1983,7 @@ function dailyWrapText(){const d=S.date,ids=(S.isOwner?repListAll(false):repList
     '**🔔 Bells:** '+(bells.length?bells.map(x=>x.n+' ('+money(x.r)+')').join(', '):'—'),'',
     '**🏆 Top 3**',...top.map((x,i)=>['🥇','🥈','🥉'][i]+' '+x.n+' · '+money(x.r)+' · '+x.s+' stops · '+x.b+' buyers')];
   return L.join('\n')}
-function renderSAs(v){const ids=(S.isOwner?repListAll(false):downOf(S.uid)).map(r=>r.id);
+function renderSAs(v){const ids=(S.admin&&isAdminUser()?repListAll(false):downOf(S.uid)).map(r=>r.id);
   v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Sales Associates'}),h('div',{class:'hint',text:'Everyone not yet promoted to Sales Consultant: their first 2 weeks, stops ramp and SC promotion progress.'}))));
   const p=newStartsPanel(ids);v.append(p||h('div',{class:'panel empty'},h('span',{text:'No Sales Associates right now. New starts appear here as soon as they join.'})))}
 /* ---------- PB BOARD (Ben + admin) ---------- */
@@ -2166,9 +2166,10 @@ function indTables(v,ind,lined){
     if(!g.length)itb.append(h('tr',null,h('td',{colspan:HEAD.length,class:'hint',text:'No one here yet.'})));
     v.append(h('div',{class:'panel scroll',style:lined?'border-left:4px solid '+col:null},h('table',null,h('thead',null,h('tr',null,HEAD.map(x=>h('th',{text:x})))),itb)))});
 }
-function renderLine(v){if(!S.isOwner){go('log');return}if(S.isOwner&&!S.viewMe){S.boardSync=S.boardSync||{};if(!S.boardSync[S.week]){S.boardSync[S.week]=1;setTimeout(()=>repListAll(false).filter(r=>!r.test).forEach(r=>pushBoard(r.id,S.week)),300)}}
-  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'📏 The Line'}),h('div',{class:'hint',text:'Who’s above, in the middle and below the line on RPH this week. Only you and Ben see this.'}))));
-  indTables(v,boardRows().sort((a,b)=>b.t.retail-a.t.retail),true);v.append(legend())}
+function renderLine(v){if(!leadRole()){go('log');return}if(S.isOwner&&!S.viewMe){S.boardSync=S.boardSync||{};if(!S.boardSync[S.week]){S.boardSync[S.week]=1;setTimeout(()=>repListAll(false).filter(r=>!r.test).forEach(r=>pushBoard(r.id,S.week)),300)}}
+  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'📏 The Line'}),h('div',{class:'hint',text:'Who’s above, in the middle and below the line on RPH this week. Only your team shows here.'}))));
+  {const mine=new Set(downOf(S.uid).map(r=>r.id).concat([S.uid]));const all=S.admin&&isAdminUser();var lineRows=boardRows().filter(r=>all||mine.has(r.id))}
+  indTables(v,lineRows.sort((a,b)=>b.t.retail-a.t.retail),true);v.append(legend())}
 async function joinSelf(){if(!S.uid){toast('Your account has no id here, so you can’t log as a rep');return}
   await write(()=>S.db.doc('reps/'+S.uid).set({name:'Team leader',active:true,order:0,joinedAt:new Date().toISOString()}),'Added. Rename yourself in the list below.')}
 async function move(i,dir){const ros=repList(false);const a=ros[i],b=ros[i+dir];if(!a||!b)return;
