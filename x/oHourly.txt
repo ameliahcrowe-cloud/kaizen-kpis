@@ -346,7 +346,7 @@ function threeList(label,D,key,old){if(!Array.isArray(D[key])){D[key]=['','','']
   return h('div',{style:'margin-top:12px'},h('span',{class:'lbl',text:label}),h('div',{style:'display:flex;flex-direction:column;gap:6px'},[0,1,2].map(i=>{const el=h('input',{type:'text',placeholder:(i+1)+'.','aria-label':label+' '+(i+1),oninput:e=>{D[key][i]=e.target.value;markDirty()}});el.value=D[key][i]||'';return el})))}
 function streaks(){let cur=0,best=0,run=0;const last=Math.max(0,...Object.keys(S.doc.slots).map(Number).filter(i=>F.some(f=>num(S.doc.slots[i][f.k]))));
   for(let i=1;i<=last;i++){if(hit(i)===true){run++;best=Math.max(best,run)}else run=0}cur=run;return{cur,best}}
-function inStreak(n){if(hit(n)!==true)return false;let a=n,b=n;while(a>1&&hit(a-1)===true)a--;while(hit(b+1)===true)b++;return b-a+1>=3}
+function inStreak(n){if(hit(n)!==true)return false;let a=n,b=n;while(a>1&&hit(a-1)===true)a--;while(hit(b+1)===true)b++;return b-a+1>=2}
 async function pushStreak(){try{const st=streaks();const ref=db.doc('board/'+S.me.id);const d=await ref.get();const o=(d.exists&&d.data().streak)||{};
   if(o.date===S.date&&o.best===st.best&&o.cur===st.cur)return;const sv={date:S.date,best:st.best,cur:st.cur,name:S.me.name};d.exists?await ref.update({streak:sv}):await ref.set({name:S.me.name,streak:sv})}catch(_){}}
 function streakComp(){if(!S.board)return null;const rows=Object.entries(S.board).map(([id,b])=>({id,n:(b&&b.name)||(b&&b.streak&&b.streak.name)||'Rep',st:b&&b.streak})).filter(x=>x.st&&x.st.date===S.date&&x.st.best>=1).sort((p,q)=>q.st.best-p.st.best||q.st.cur-p.st.cur);
