@@ -516,7 +516,7 @@ const HMETRICS=METRICS.concat([{k:'hours',l:'Hours'}]);
 const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const PB_DAY=[['retail','Retail',1],['stops','Stops'],['buyers','Buyers'],['upsells','Upsells'],['upsellRetail','Upsell retail',1],['medals','Medals'],['rph','RPH',1]];
 const PB_WEEK=[['retail','Retail',1],['stops','Stops'],['buyers','Buyers'],['upsells','Upsells'],['upsellRetail','Upsell retail',1],['medals','Medals']];
-const LEADER_TABS=[['log','Log day'],['goals','Goals'],['reflect','Reflect'],['pbs','PBs'],['promo','Promotion'],['bonus','Bonus'],['team','Team'],['week','Week'],['totals','Totals'],['board','Leaderboard'],['line','The Line'],['coaching','Coaching'],['sas','Sales Associates'],['pbboard','PB Board']];
+const LEADER_TABS=[['log','Log day'],['goals','Goals'],['reflect','Reflect'],['pbs','PBs'],['promo','Promotion'],['bonus','Bonus'],['team','Team'],['week','Week'],['totals','Totals'],['board','Leaderboard'],['line','The Line'],['coaching','Coaching'],['topics','Topics'],['sas','Sales Associates'],['pbboard','PB Board']];
 const REP_TABS=[['log','My day'],['week','My week'],['totals','My totals'],['goals','My goals'],['coaching','Coaching'],['reflect','Reflect'],['bonus','My bonus'],['promo','Promotion'],['pbs','PBs'],['myteam','My team']];
 const EXEC_URL='https://script.google.com/macros/s/AKfycbysdcYkFm9h77HCdBzClsJZKArAVZJHSd4n6GU-clFZ7F912IRouvqPp3wtQNBylwvopA/exec';
 if(window.KOVA){for(const T of [REP_TABS,LEADER_TABS]){T.unshift(['live','Live']);T.push(['mypb','My PBs'])}}
@@ -721,7 +721,7 @@ function render(){renderHeader();const v=document.getElementById('view');
     if(leader()&&S.legacy&&S.legacy.entries.length)v.append(legacyPanel());if(S.tab==='log'||S.tab==='reflect'||S.tab==='team'){const mc=missingCard();if(mc)v.append(mc);}
     const db_=!(S.admin&&S.tab==='admin')&&(S.tab==='log'||S.tab==='reflect'||S.tab==='hourly'||!S.tab);document.body.classList.toggle('hasDaybar',db_);if(db_)v.append(dayBar());
     if(S.tab==='log'||!S.tab)v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;gap:8px;margin-bottom:-6px'},h('button',{onclick:async()=>{const ok=await copyRich(dailyWrapText());toast(ok?'Day copied — paste into Telegram':'Couldn’t copy on this device')}},'📋 Copy day to Telegram'),h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;align-items:center'},hourlyBtn(),h('button',{id:'syncHourly',class:'icon',title:'Pull my numbers from Hourly now','aria-label':'Pull my numbers from Hourly now',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;min-width:44px'},S.hSyncBusy?'…':'⟳')));
-    (S.admin&&isAdminUser()&&S.tab==='admin'?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{line:renderLine,sas:renderSAs,pbboard:renderPBBoard,log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
+    (S.admin&&isAdminUser()&&S.tab==='admin'?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{topics:renderTopics,line:renderLine,sas:renderSAs,pbboard:renderPBBoard,log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
     markTest(v);cardify(v)});kovaEmbeds()}
 /* phone helpers: day switcher, swipe, tables as cards */
 
@@ -1333,19 +1333,6 @@ const FOCUS=[
   {k:'medalRate',l:'Medal ratio',low:5,strong:8,levers:['Pitch medals low, slow and passionately','Anchor to a medal in the upsell','Make it about what they care about'],page:'p.21 Upselling',show:v=>Math.round(v)+'%',unit:'%',guide:'medals',topics:['Upselling','Landing impulses','TTP'],
     why:'Not enough buyers are choosing a medal.'}];
 const GUIDES={
-  tjar:{title:'Quick ref · FAQ handling (T.J.A.R.)',intro:'FAQs aren’t objections. They’re the customer telling you what they need to hear to say yes.',blocks:[
-    {h:'T.J.A.R.',items:['Thank: appreciate them for asking. Questions are buying signs.','Joke: settle them and lighten the mood. (DISC Dominant? Use a smile instead.)','Answer: honestly and directly, without showing all your cards.','Re-direct: go straight back to exactly where you left off.']},
-    {h:'Know these word-perfect',items:['"How much is it?"','"What’s the minimum?"','"Here’s $10."']}]},
-  nvc:{title:'Quick ref · NVC Rollercoaster',intro:'Above the line is energy. Below the line is meaning.',blocks:[
-    {h:'Above the line: Intro, Prize',items:['Big smiles','No pauses','Enthusiastic, positive tone']},
-    {h:'Below the line: Engagement, Close',items:['Less smile: candid, serious face','Land the impulse with a pause (after "seriously underfunded")','Passionate tone: show you care']},
-    {h:'Non-negotiables',items:['Open body language, deliberate hand gestures','Genuine tone, never salesy','Active face (don’t forget your eyebrows!)']}]},
-  disc:{title:'Quick ref · DISC',intro:'Read the person in the first few seconds, then adapt. Same pitch, different delivery.',blocks:[
-    {h:'D · Dominant',items:['Asks questions, tries to rush you, won’t laugh at jokes.','Answer, then ask one back. Assertive tone. Elevator pitch.']},
-    {h:'I · Influential',items:['Open and happy to chat.','Take control early or the chat swallows the pitch.']},
-    {h:'S · Stable',items:['Quiet, hard to read, but listening.','Match their tone. Assume knowledge. A small natural slip humanises you.']},
-    {h:'C · Cautious',items:['Lots of questions framed as concerns. They need certainty.','Know your stuff, don’t rush answers, don’t close assumptively.']},
-    {h:'1%ers',items:['Settle everyone at the start.','Nail eye contact.','Face matches your words.','Listen to understand, not to respond.']}]},
   medals:{title:'How to improve medal ratio',intro:'Medal ratio is medals ÷ buyers. It comes down to how well the medals are pitched before the price is picked, and anchoring to them in the upsell.',blocks:[
     {h:'1. Settle them first',items:['Crack a couple of jokes before showing the prices. It buys you time to build value on the medals while the customer is relaxed.']},
     {h:'2. Pitch the medals low, slow and passionately',items:['Don\u2019t rush the medals. Explain them clearly and concisely in a passionate tone.','Don\u2019t worry about being cut off. Customers considering a medal will hear you out.']},
@@ -1754,6 +1741,168 @@ function renderSmart(v){const uid=S.uid;const r=S.reps[uid]||{};S.smartD=S.smart
   v.append(h('div',{class:'bar'},h('h3',{text:'Quadrant goals · 3 / 6 / 12 months'})));const g=h('div',{style:'display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px'});
   [['business','Business'],['finances','Finances'],['relationships','Relationships'],['health','Health']].forEach(([k,l])=>{const q=d.quad[k]=d.quad[k]||{};g.append(h('div',{class:'panel rform'},h('h4',{text:l}),...['3','6','12'].map(m=>h('label',null,h('span',{class:'lbl',text:m+' months'}),txt('sm-'+k+m,q,m,'')))))});v.append(g);
   v.append(h('button',{class:'primary',style:'margin-top:10px',onclick:async()=>{const body={...d,updatedAt:new Date().toISOString()};const ok=await write(()=>S.db.doc('reps/'+uid).update({smart:body}),'Goals saved');if(ok)S.reps[uid]={...r,smart:body}}},'Save goals'))}
+const TOPIC_LIB=[
+{id:'rapport',t:'Creating Rapport',p:10,dia:'rapport',one:'Rapport is the trust that makes the pitch land. Build it in the first 30 seconds, and make it a two-way conversation, not an interview.',
+ rep:[['6 keys to unconscious rapport',['Eyes: genuine eye contact','Gestures: match their energy','Stance: open, mirrored posture','Facial expressions: reflect their mood','Attire: look the part','Hand movement: purposeful, not fidgety']],
+  ['3 types of rapport',['Teacher: teach them something about the cause ("Did you know it started with just 4 sports in 1960?")','Student: ask genuine questions ("What’s a sport you’ve always wanted to see live?")','Relate: share something real of your own ("I watched the wheelchair basketball final last year.")']],
+  ['Rapport framework',['Q1: I assume you’ve seen the Paralympics before?','Q2: Oh cool, what sports have you seen?','Next: Seen it in person or just on TV? · How do you think you’d go? · Pretty impressive, right? (agreement)']]],
+ keys:['Unconscious rapport comes first. Model the 6 keys, don’t just list them.','Strong reps blend Teacher, Student and Relate. Only Student feels like an interrogation.','Q1 is assumptive and gets an easy yes. Q2 is open and gets them talking.','Every rep needs a favourite sport and a genuine relate statement.','Rapport earns the right to pitch. It’s the bridge, not a replacement.'],
+ ana:[['Tennis rally','A rep who only asks questions is serving every point.'],['The BBQ test','You don’t interview a mate’s mate. You find common ground and swap stories.'],['Café mirror','Friends sit the same way without noticing. We’re just doing it on purpose.']],
+ lines:['People don’t buy the cause until they’ve bought you.','Rapport is a two-way street.'],
+ run:['Demo bad rapport, then good rapport. Ask what changed.','Walk the 6 keys. Pairs mirror each other for 30 seconds, then swap.','Each rep writes 3 questions and their favourite sport. Sharpen as a group.','Pairs practise Q1 → Q2 → next question → relate statement.'],
+ watch:['Question after question with no sharing.','Closed questions that kill the conversation.','Staying in rapport too long and never moving to the pitch.'],
+ check:['Which type of rapport do you default to?','What’s your relate statement?']},
+{id:'nvc',t:'The NVC Rollercoaster',p:11,dia:'nvc',one:'Your face, pace and tone must match where you are in the pitch. Above the line is energy, and below the line is meaning.',
+ rep:[['Above the line: Intro, Prize',['Big smiles','No pauses','Enthusiastic, positive tone']],['Below the line: Engagement, Close',['Less smile: candid, serious face','Land an impulse with a pause (after "seriously underfunded")','Passionate tone: show you care']],['Non-negotiables for both',['Open body language, deliberate hand gestures','Genuine tone, never salesy','Active face (don’t forget your eyebrows!)']]],
+ keys:['The contrast is the point. One level all the way through is flat, high or low.','The pause after "seriously underfunded" is where the customer feels it. Don’t rush it.'],
+ ana:[['Movie soundtrack','The music changes with every scene. One track the whole film and you’d feel nothing.'],['Telling a mate a story','Excited at the funny part, quiet at the sad part, without thinking.'],['The rollercoaster','The drops make the climbs exciting. No drops, it’s just a train.']],
+ lines:['If everything is high energy, nothing is.','The pause is where the customer feels it.'],
+ run:['Draw the rollercoaster and map each pitch section onto it.','Deliver the impulse line with and without the pause. Which landed?','Pairs deliver an intro line then an engagement line. Partner calls "above" or "below".','Eyebrow drill: one line with a dead face, then an active face.'],
+ watch:['Smiling through the serious line (reads as fake).','Rushing the pause because silence feels awkward.','A salesy tone on the prize.'],
+ check:['Where is the pause in your engagement section?','What changes in your face going into the close?']},
+{id:'attitude',t:'Bulletproof Attitude',p:13,dia:null,one:'Attitude is a choice you make many times a day. The 10 pillars are how you keep making the right one.',
+ rep:[['The 10 pillars',['1. Circle of influence: focus on what you can control','2. Constructive language: your words shape your state','3. Be solution oriented: don’t complain, find a fix','4. Run your own race: compare yourself to yesterday','5. Set clear goals: always bigger than your challenges','6. Review and reset: track daily actions, reset, go again','7. Be your own cheerleader: speak to yourself kindly','8. Buoyant network: you’re the average of your 5','9. Rapid bounce-back: the gap between best and worst should be small','10. Practice gratitude: 3 things every morning']]],
+ keys:['Weather, foot traffic and the site are outside your control. Stops, energy and effort are inside it.','Run your own race, critical for new reps next to Platinum performers.','Losing your attitude is normal. The skill is catching it fast.','Review and reset ties directly to hourly KPI reviews.'],
+ ana:[['Peak-hour traffic','You can’t control the traffic, only your driving, music and mood.'],['Dropped mark','The best players are back in the next contest within seconds.'],['The car on road trip','The five people around you are literally in the car.']],
+ lines:['Control builds confidence. Worry builds fear.','Someone out there would trade their best day for your worst.','Attitude is a circumstance of choice, not chance.'],
+ run:['Ask: "What’s ruined your attitude on a shift?" Sort answers inside/outside the circle.','Split the pillars across pairs, each explains theirs with a real example.','Share your own bounce-back story.','Each rep picks one pillar to focus on this week.'],
+ watch:['Pillars turning into slogans. Push for real examples.','Toxic positivity. The goal is recovery, not never dipping.'],
+ check:['Name one thing on shift that’s outside your circle.','What’s your reset routine after a losing hour?']},
+{id:'stopping',t:'Coaching Stopping',p:14,dia:'distance',one:'The stop IS the sale. Every person you don’t approach is a guaranteed no.',
+ rep:[['SEEC',['Smile: your expression lands before your words','Eye contact: hold it from 6m','Enthusiasm: if you’re flat, they’ll be flat','Conviction: own the space, you’re not interrupting']],['Distance Theory',['6m: "Hey!" "G’day" "Hello" — slows their pace','4m: "Just a once off!" — pre-handles the biggest silent objection','2m: "For the Paralympics!" — let the cause land']],['Mindset',['Law of Averages: at 1 in 4, every 3 no’s means a yes is coming','A.C.E.: Attitude, Consistency, Exposure']]],
+ keys:['Timing matters as much as the words.','Reps who feel they’re interrupting stop fewer people.','LOA and ACE keep stopping consistent through quiet hours.'],
+ ana:[['Fishing','Cast wide and cast early.'],['The busker','A confident busker draws a crowd with the same song.'],['The maths','40 stops at 1 in 4 is 10 sales. 20 stops is 5.']],
+ lines:['Every no gets you closer to the next yes.','You’re not interrupting them. You’re giving them a chance.'],
+ run:['Mark 6m, 4m and 2m on the floor.','Walk past as a customer while reps deliver each line at the right distance.','Eye-contact drill from 6m, partner calls when it breaks.','Do the Law of Averages maths live with the group’s numbers.'],
+ watch:['Starting at 1m when they’re already past.','Easing off when it’s quiet.','Volume is not pressure. Never block or chase, respect a clear no.'],
+ check:['What do you say at 4m, and why?','If you convert 1 in 4, how many no’s come before a yes?']},
+{id:'kpis',t:'Key Performance Indicators',p:15,dia:'kpi',one:'Four numbers tell you exactly what to work on. Know your band, and know the lever that moves it.',
+ rep:[['Levers behind each number',['Stops: SEEC, Distance Theory, confidence, ACE, work ethic','Stop to buyer %: tone/tempo/pausing, rapport, FAQs, clear-concise-confident, belief, landing impulses','Upsell %: clear-concise-confident, mentality, assumptiveness, systems (anchoring, two up one down)','Sale avg: pitching big, value on self, landing impulses, belief, strong goals, assumptiveness']]],
+ keys:['Make sure reps can tell stops per hour and stop to buyer % apart.','KPIs are diagnostic: each number points to a lever.','RPH is the result. The levers are what reps work on.','Red Zone is the starting line, not a verdict.'],
+ ana:[['Car dashboard','One warning light tells the mechanic where to look.'],['The doctor','The KPI is the symptom, the lever is the treatment.'],['Worked example','3.6 stops/hr at 65% stop to buyer: no stopping problem. Fix tone, rapport and FAQs.']],
+ lines:['Don’t fix everything. Find the one number holding you back.','Red Zone is a starting point, not a verdict.'],
+ run:['Walk through each KPI on the KPI sheet.','Give two made-up rep profiles; group diagnoses the weakest KPI and lever.','Link each lever to its page.','Each rep writes the first KPI they’ll target this week.'],
+ watch:['Fixating on RPH instead of levers.','New reps feeling judged by the Rookie tier. Frame it as a pathway.'],
+ check:['Your upsell is at 12%. Which levers do you work on?','Difference between stops per hour and stop to buyer %?']},
+{id:'rules13',t:'13 Rules for a Sales Superstar Mindset',p:18,dia:null,one:'Top performers aren’t born. They follow the same habits every day, and these 13 are the blueprint.',
+ rep:[['The 13 rules',['1. Stay hungry','2. Never compromise your integrity','3. Stay positive','4. Be authoritative','5. Get prepared','6. Mind your reputation','7. Be genuine','8. Put your best foot forward','9. Set goals','10. Become a service fanatic','11. Remember to listen','12. Keep perspective','13. Develop a thirst for self-improvement']]],
+ keys:['Integrity (#2) is non-negotiable. In fundraising, trust is the product. Spend the most time here.','Attitude, not aptitude, determines altitude (#3).','Show up early and know your goal (#5).','The sale begins at yes (#10).','This induction is the start, not the finish (#13).'],
+ ana:[['Elite athletes','Talent gets you picked. Habits keep you on the team.'],['Reputation bank','Every interaction is a deposit or a withdrawal.'],['Tell, explain, demonstrate','Recipe card vs cooking class vs watching a chef.']],
+ lines:['A salesperson tells, a good salesperson explains, and a sales superstar demonstrates.','You can’t buy a good reputation. You earn it.'],
+ run:['Ask: "Best salesperson you’ve bought from? What did they do?" Map to the rules.','Pick 4–5 to go deep on, always including #2.','Discuss what compromising integrity looks like on site.','Each rep picks 3 rules and shares one.'],
+ watch:['Rushing through all 13.','"Be authoritative" read as arrogance.'],
+ check:['What does compromising integrity look like on site?','Which rule is already your strength?']},
+{id:'about',t:'Sales Influences — ABOUT',p:19,dia:'about',one:'Influences move a customer from maybe to yes, but only when they sound natural and are completely true.',
+ rep:[['The five levers',['A — Assuredness: certainty of a specialist, most at the open and close','B — Benefits: make the upside big and the cost small','O — Opportunity: give today a real reason','U — Urgency: through action, pace, reaching for the tablet','T — Trends: real numbers and real stories']],['Weaving them in',['Don’t stack them. One where it fits.','Make it invisible. If they can name the technique, it’s lost its power.']]],
+ keys:['Features inform, influences move.','Everything must be true. Never invent a deadline, a statistic or a trend.'],
+ ana:[['Seasoning','A pinch of each at the right time. Tip in the whole rack and it’s ruined.'],['The busy restaurant','People pick the full one. That’s Trends.'],['Gym ads','They sell how you’ll feel. That’s Benefits.']],
+ lines:['The moment it feels like a tactic, the customer feels sold, not helped.','Every trend and every deadline you mention has to be true.'],
+ run:['Read a pitch with all five stacked. How did it feel?','Place each letter where it fits: open, pitch or close.','Each rep writes one line per letter in their own words.','Partner test: if they can name the technique, rewrite it.'],
+ watch:['Fake urgency or made-up figures (integrity and compliance risk).','Lines that sound memorised.'],
+ check:['Which influence fits your close?','What real trend can you use on your site?']},
+{id:'tjar',t:'FAQ Handling — T.J.A.R.',p:20,dia:'tjar',one:'An FAQ is a buying sign. The customer is telling you exactly what they need to hear to say yes.',
+ rep:[['T.J.A.R.',['Thank: questions are buying signs','Joke: settle them, show confidence','Answer: honestly, without showing all your cards','Re-direct: straight back to where you left off']],['Know word-perfect',['"How much is it?"','"What’s the minimum?"','"Here’s $10."']]],
+ keys:['FAQs aren’t objections. Reps who treat them as walls get defensive.','Never dodge price.','If a joke won’t land (a DISC Dominant), smile instead.'],
+ ana:[['Shopping','"Does it come in blue?" is closer to buying than walking past.'],['GPS','Take the detour, then recalculate straight back onto the route.'],['Tour guide','A question means they’re interested. Answer and keep walking.']],
+ lines:['Every question is a buying signal, not a wall.','Answer it, then get back on track.'],
+ run:['Demo T.J.A.R. live on "How much is it?"','Each rep writes responses to the 3 FAQs.','Rapid fire FAQs mid-pitch.','Brainstorm other FAQs from site.'],
+ watch:['Getting rattled or defensive.','Over-answering and losing the pitch.','Forgetting the re-direct.'],
+ check:['What are the four steps?','Where exactly do you re-direct to?']},
+{id:'upsell',t:'Upselling Fundamentals — A.A.A.R.R.',p:21,dia:'aaarr',one:'The upsell isn’t a bigger ask. Anchoring high makes the jump you actually want feel small.',
+ rep:[['Worked example: $50 → $150 Silver',['Appreciate: "It might sound corny, but a huge thank you for helping today. Most people just walk past."','Ask: "Is there any chance I can be a little cheeky with you?"','Anchor: "We have a big daily goal of 5 Silver Medals today…"','Re-impulse: "I’m not going to ask you to do a Silver, but I was sitting one Aussie pack off my next Silver…"','Re-close: "Can you make the jump to the Aussie so I can get the next one?"']]],
+ keys:['The anchor is not the ask. "I’m not going to ask you to do a Silver" is the key line.','Skipping Appreciate or Ask turns the upsell into a grab.','Re-close, then silence.','A no is fine. Thank them warmly.'],
+ ana:[['The jacket rack','A $900 jacket makes $300 feel reasonable.'],['The wine list','Most people pick the second bottle.'],['Asking a mate a favour','Thank them first, check it’s okay to ask.']],
+ lines:['Is there any chance I can be a little cheeky with you?','Can you make the jump to the Aussie so I can get the next one?'],
+ run:['Demo the full $50 → $150 example as written.','Break down each step and why it sits in that order.','Pairs practise; customer varies yes, no and maybe.','Practise the graceful exit on a no.'],
+ watch:['The anchor delivered as a real ask.','Pushing after a clear no. Extra care with anyone who seems vulnerable.'],
+ check:['Why mention the Silver if you’re not asking for it?','What do you do when they say no?']},
+{id:'compliance',t:'Fundamental Compliance Questions',p:22,dia:null,one:'A mystery shopper asks the same nine questions every time. How you answer is what gets scored.',
+ rep:[['The 9 questions',['Government funding? Yes, Paralympics Australia receives some.','All money to PA? No, be upfront that not all goes directly.','Volunteer or paid? Paid collector.','Funds used for? Things like the Winter and Summer Paralympics and kids with disabilities into sport.','Minimum? $25.','Tax-deductible receipt? Proof of purchase, but not tax deductible.','Donate instead? On the website, but we’d love support with this trade promotion.','Friendly, respectful, truthful? Always. Funds "could" or "can", never "will".','Clear overall? Stick to the facts in the script.']],['The golden rule',['"WILL" never funds anything, only "COULD" or "CAN". Always a trade promotion, never a donation.']]],
+ keys:['Know these cold.'],ana:[],lines:['"Could" or "can", never "will".'],run:['Run the compliance check in the app with each new starter in week one.'],watch:['"Will" creeping into the pitch.','Calling it a donation.'],check:['What’s the minimum?','Is it tax deductible?']},
+{id:'ways8',t:'8 Ways to Improve Your Attitude',p:26,dia:null,one:'Attitude is built by daily habits, not moods. These eight are the habits.',
+ rep:[['The 8 ways',['1. Always act with a purpose','2. Take action without expecting results','3. Stretch past your limits every day','4. Say "thank you" more often','5. Turn setbacks into skill','6. Forgive the limits of others','7. Choose your circle carefully','8. Don’t take yourself too seriously']]],
+ keys:['Pair with Bulletproof Attitude: those are the mindset, these are the daily actions.','Process over outcome (#2).','A rejection is a signpost to the fix, not a verdict (#5).'],
+ ana:[['The archer','Focus on technique and release, not staring at the bullseye.'],['Muscle','Skip the daily stretch and it weakens.'],['Missed turn','A GPS doesn’t get upset. It recalculates.']],
+ lines:['Results are signposts, not verdicts.','People relax around someone who can laugh at themselves.'],
+ run:['Quick poll: easiest and hardest of the 8.','Share your own setback that became a skill.','Pairs discuss #6.','Finish with the reflection question.'],
+ watch:['#7 used to justify cliques. Frame it as protecting your energy.'],
+ check:['One setback from this week, and the skill in it?']},
+{id:'grasp',t:'Introduction to Sales — GRASP',p:28,dia:'grasp',one:'GRASP is what we look for in every rep. None of it needs experience, so every rep can nail all five from day one.',
+ rep:[['GRASP',['G — Goals: daily, weekly and long-term, written on the KPI sheet','R — Reliability: on time, every shift, admin done (timesheet, settlement, SA-SL doc)','A — Attitude: choose it daily, it’s contagious both ways','S — Systems: trust SEEC, Distance Theory, Rapport Framework, T.J.A.R., A.A.A.R.R.','P — Productivity: make every hour count']]],
+ keys:['Goals should always be bigger than your challenges.','Trust the proven process before reinventing it.'],
+ ana:[['Building a house','Goals the plan, Reliability the foundation, Attitude the builder, Systems the tools, Productivity the build.'],['The new recruit','Zero experience + all five GRASP traits beats talent without them within weeks.']],
+ lines:['Experience is optional. GRASP isn’t.','Reliability is how your team learns to trust you.'],
+ run:['Write G-R-A-S-P down the whiteboard; group guesses each word.','Fill in each letter together.','Each rep rates themselves 1–10 on each letter.','Preview where each letter shows up later.'],
+ watch:['Reliability coming across as a lecture on rules.'],
+ check:['Which letter is your strength, and which needs the most work?']},
+{id:'mentality',t:'Mentality of a High Performer',p:33,dia:null,one:'Your results won’t outgrow your beliefs. Think bigger, back your effort and expect the yes.',
+ rep:[['The 12 beliefs',['1. Think bigger','2. Believe in your ability','3. Think it twice','4. Expect the yes','5. Never pre-judge','6. Mean every word','7. Have intention for your day','8. Be the main character (Gong from 5pm–7pm!)','9. Have a one-more mentality','10. Stay process focused','11. Break the seal','12. Have fun']]],
+ keys:['Customers feel your expectation before you speak (#4).','Never pre-judge a person, territory or site (#5).','Intention (#7) links straight to the morning KPI sheet.','"Blissful is satisfaction": being satisfied is when growth stops (#9).'],
+ ana:[['The four-minute mile','Impossible until Bannister ran it, then others did within weeks.'],['The customer you misjudged','Share the person you nearly didn’t stop.'],['Main character','The best scene is never the easy part.']],
+ lines:['Those who say they can and those who say they can’t are both right.','The fewer words you say, the more impact they have.'],
+ run:['Open with your own "impossible" you broke.','Ask: "Who has pre-judged a customer and been wrong?"','Each rep sets an intention for their next shift.','Finish with the reflection box.'],
+ watch:['"Manifest" heard as wishful thinking. Tie it to effort and process.'],
+ check:['What’s your intention for tomorrow?','One impossible you want to break this month?']},
+{id:'disc',t:'DISC Theory',p:34,dia:'disc',one:'Read the person in the first few seconds, then adapt. Same pitch, different delivery.',
+ rep:[['The 4 customer types',['D — Dominant: asks questions, rushes you. Answer, ask one back, assertive, elevator pitch.','I — Influential: open and chatty. Just take control.','S — Stable: quiet, hard to read, listening. Match their tone, assume knowledge.','C — Cautious: concerns as questions, needs certainty. Know your stuff, don’t rush, don’t close assumptively.']],['1%ers',['Settle everyone at the start','Nail eye contact','Face matches your words','Listen to understand, not to respond']]],
+ keys:['People are blends. Read their style in that moment, don’t label them for life.'],
+ ana:[['Explaining your job','Differently to your nan, your best mate and your boss.'],['Buying a car','Some want the test drive now (D). Others want every spec sheet (C).']],
+ lines:['Adapt your style, never your integrity.','Listen to understand, not to respond.'],
+ run:['Show of hands: which type are you?','Role-play each type while the group identifies it.','Pairs: customer secretly picks a type, rep adapts.','Cover the 1%ers.'],
+ watch:['Rigid labelling.','"Stuff up the pitch" taken literally.','Assumptive closes on C types.'],
+ check:['What tells you someone is a C?','How do you take control with a D?']},
+{id:'roadtrip',t:'10 Points for a Successful Road Trip',p:35,dia:null,one:'Road trips are the fastest growth on offer. The standards you set on day one decide how the whole trip goes.',
+ rep:[['The 10 points',['1. Think what’s possible, not probable','2. Operate with purpose','3. Own the mornings','4. Lift your KPIs','5. Be an inflator, not a hater','6. Be considerate','7. Share stories','8. Protect your energy','9. Run your own race','10. Have fun!']]],
+ keys:['Road trip targets are higher: successful site $2,250 vs $1,300 in the city.','In a shared house and car, one negative voice changes everyone’s trip.','Sleep, food and hydration are part of the job.'],
+ ana:[['Pre-season camp','Teams go away together to get better fast.'],['Phone battery','Don’t run to 0% by Wednesday.']],
+ lines:['Think what’s possible, not what’s probable.','Run your own race.'],
+ run:['Returning roadies share their best story.','Agree house expectations before you leave.','Each rep writes their #1 goal.','Check in on these midway.'],
+ watch:['Burnout in the back half.','Cliques forming in the house.'],
+ check:['What’s your #1 goal for this trip?','What’s your plan to protect your energy?']},
+{id:'site',t:'How to Lead a Site to Success',p:36,dia:'site',one:'Your job isn’t to have a good day. It’s to make sure they have one and want to come back tomorrow.',
+ rep:[['Site key',['City: $1,300 successful · $1,700 offsetting','Road trip: $2,250 successful · $2,750 offsetting']],['The night before',['Message them so they’re excited','Confirm time, location and details','Have a clear game plan; reach out to their mentors']],['Morning of',['Build rapport: why are they here, what drives them (rookie challenge, self-development, competition)','Fill out the KPI sheet in detail; let them choose what you hold them to','1–2 pitch practices each, including stopping']],['During field',['Review KPIs every hour: hype the wins, hold them to bouncing back','Set the temperature','Half-time: they praise their wins, set their own focus, you ask "Would you like any feedback?", then praise + ONE needle-mover']],['After field',['They self-review: 3 wins, 3 focus areas','Praise a lot; give 1–2 focus points only','Admin: review photo in journey chat, Daily Settlement Balance, SA-SL doc, timesheet']]],
+ keys:['Certainty removes no-shows.','Make clear whether targets are site or individual; frame below-target days around their own wins.'],
+ ana:[['Driving instructor','You coach from the passenger seat. You don’t grab the wheel.'],['Golf lesson','Fix one thing at a time.'],['Thermostat, not thermometer','A leader sets the temperature.']],
+ lines:['Would you like any feedback?','One needle-mover beats five corrections.'],
+ run:['Role-play the half-time review.','Practise asking permission, then giving one point.','Discuss a below-target site so the rep still leaves excited.','Share night-before message templates.'],
+ watch:['Leaders chasing their own numbers.','Too much feedback.','Admin skipped at the end of a long day.'],
+ check:['What three things does the night-before message need?','How many feedback points at half-time?']}];
+function topicDia(k){const NS='http://www.w3.org/2000/svg';const svg=document.createElementNS(NS,'svg');svg.setAttribute('style','width:100%;height:auto;display:block;max-width:560px;margin:6px auto');
+  const el=(t,a,tx)=>{const e=document.createElementNS(NS,t);for(const x in a)e.setAttribute(x,a[x]);if(tx!=null)e.textContent=tx;svg.appendChild(e);return e};
+  const C={navy:'#2E3A59',gold:'#F5B56E',green:'#1f7a4d',red:'#b42318',amber:'#c98a1b',ink:'currentColor',muted:'#8a8f98'};
+  const flow=(items,col)=>{const n=items.length,w=560,bw=(w-10*(n-1))/n;svg.setAttribute('viewBox','0 0 560 92');items.forEach(([a,b],i)=>{const x=i*(bw+10);el('rect',{x,y:6,width:bw,height:80,rx:12,fill:col});el('text',{x:x+bw/2,y:46,'text-anchor':'middle','font-size':30,'font-weight':800,fill:'#fff'},a);el('text',{x:x+bw/2,y:72,'text-anchor':'middle','font-size':n>4?10:12,fill:'#fff'},b);if(i<n-1)el('text',{x:x+bw+5,y:50,'text-anchor':'middle','font-size':14,fill:C.muted},'›')})};
+  if(k==='nvc'){svg.setAttribute('viewBox','0 0 560 190');el('line',{x1:10,x2:550,y1:95,y2:95,stroke:C.muted,'stroke-dasharray':'6 4'});el('text',{x:14,y:88,'font-size':11,fill:C.muted},'THE LINE');
+    el('path',{d:'M20 150 C 70 20, 120 20, 160 60 S 220 180, 270 150 S 340 10, 390 40 S 470 190, 540 160',fill:'none',stroke:C.navy,'stroke-width':5,'stroke-linecap':'round'});
+    [['INTRO',110,24,C.green],['ENGAGEMENT',225,180,C.red],['PRIZE',375,24,C.green],['CLOSE',490,184,C.red]].forEach(([t,x,y,c])=>el('text',{x,y,'text-anchor':'middle','font-size':13,'font-weight':800,fill:c},t));
+    el('text',{x:14,y:110,'font-size':10,fill:C.muted},'above: energy · below: meaning')}
+  else if(k==='distance'){svg.setAttribute('viewBox','0 0 560 150');el('line',{x1:30,x2:530,y1:70,y2:70,stroke:C.muted,'stroke-width':2});
+    [[60,'6m','"Hey!"','slows their pace'],[230,'4m','"Just a once off!"','kills the silent objection'],[400,'2m','"For the Paralympics!"','let the cause land']].forEach(([x,d,s,w])=>{el('circle',{cx:x,cy:70,r:16,fill:C.navy});el('text',{x,y:75,'text-anchor':'middle','font-size':12,'font-weight':800,fill:C.gold},d);el('text',{x,y:40,'text-anchor':'middle','font-size':13,'font-weight':700,fill:C.ink},s);el('text',{x,y:108,'text-anchor':'middle','font-size':11,fill:C.muted},w)});
+    el('text',{x:520,y:75,'text-anchor':'end','font-size':22},'🙋');el('text',{x:280,y:140,'text-anchor':'middle','font-size':11,fill:C.muted},'SEEC from 6m: Smile · Eye contact · Enthusiasm · Conviction')}
+  else if(k==='kpi'){svg.setAttribute('viewBox','0 0 560 200');const cols=[['Rookie','Red Zone <100 RPH',C.red],['Leader','Silver+Gold 100–160',C.amber],['Core','Plat+Diamond 160+',C.green]];const rows=[['Stops / hr','<2.5','2.5–3.5','3.5+'],['Stop to buyer','<70%','70–80%','80%'],['Upsell %','<15%','15–25%','25%+'],['Sale avg','<$60','$60–70','$70+']];
+    cols.forEach(([a,b,c],i)=>{const x=140+i*140;el('rect',{x,y:4,width:134,height:42,rx:8,fill:c});el('text',{x:x+67,y:23,'text-anchor':'middle','font-size':14,'font-weight':800,fill:'#fff'},a);el('text',{x:x+67,y:39,'text-anchor':'middle','font-size':10,fill:'#fff'},b)});
+    rows.forEach((r,j)=>{const y=74+j*34;el('text',{x:4,y,'font-size':13,'font-weight':700,fill:C.ink},r[0]);r.slice(1).forEach((v,i)=>el('text',{x:207+i*140,y,'text-anchor':'middle','font-size':14,fill:C.ink},v))})}
+  else if(k==='disc'){svg.setAttribute('viewBox','0 0 560 260');[['D','Dominant','Answer + ask back · elevator pitch',0,0,C.red],['I','Influential','Take control early',1,0,C.amber],['S','Stable','Match tone · assume knowledge',0,1,C.green],['C','Cautious','Know your stuff · don’t rush',1,1,C.navy]].forEach(([l,n,t,cx,cy,c])=>{const x=cx*282,y=cy*132;el('rect',{x,y,width:278,height:128,rx:14,fill:c});el('text',{x:x+20,y:y+56,'font-size':44,'font-weight':800,fill:'#fff'},l);el('text',{x:x+76,y:y+46,'font-size':17,'font-weight':700,fill:'#fff'},n);el('text',{x:x+76,y:y+70,'font-size':11,fill:'#fff'},t)})}
+  else if(k==='tjar')flow([['T','Thank'],['J','Joke'],['A','Answer'],['R','Re-direct']],C.navy);
+  else if(k==='aaarr')flow([['A','Appreciate'],['A','Ask'],['A','Anchor'],['R','Re-impulse'],['R','Re-close']],C.green);
+  else if(k==='about')flow([['A','Assuredness'],['B','Benefits'],['O','Opportunity'],['U','Urgency'],['T','Trends']],C.navy);
+  else if(k==='grasp')flow([['G','Goals'],['R','Reliability'],['A','Attitude'],['S','Systems'],['P','Productivity']],C.amber);
+  else if(k==='rapport')flow([['T','Teacher'],['S','Student'],['R','Relate']],C.navy);
+  else if(k==='site'){svg.setAttribute('viewBox','0 0 560 110');[['🌙','Night before','Excite · confirm'],['☀️','Morning','Rapport · KPI sheet · practice'],['⏱️','During','Hourly reviews · half-time'],['🏁','After','3 wins · 1–2 focuses · admin']].forEach(([e,a,b],i)=>{const x=i*142;el('rect',{x,y:6,width:132,height:98,rx:12,fill:C.navy});el('text',{x:x+66,y:36,'text-anchor':'middle','font-size':22},e);el('text',{x:x+66,y:64,'text-anchor':'middle','font-size':13,'font-weight':800,fill:C.gold},a);el('text',{x:x+66,y:86,'text-anchor':'middle','font-size':9.5,fill:'#fff'},b);if(i<3)el('text',{x:x+137,y:58,'text-anchor':'middle','font-size':14,fill:C.muted},'›')})}
+  else return null;return svg}
+function renderTopics(v){if(!leader()&&!isAdminUser()){go('log');return}const T=TOPIC_LIB.find(x=>x.id===S.topicSel);
+  if(!T){v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Topics'}),h('div',{class:'hint',text:'Everything from the SA–SL training manual, with facilitator notes. Leaders only.'}))));
+    v.append(h('div',{style:'display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px'},TOPIC_LIB.map(x=>h('button',{class:'panel',style:'text-align:left;cursor:pointer;display:block',onclick:()=>{S.topicSel=x.id;render();scrollTo(0,0)}},h('div',{class:'hint',text:'Booklet p.'+x.p}),h('strong',{text:x.t}),h('div',{class:'hint',style:'margin-top:4px',text:x.one})))));return}
+  const sec=(title,body)=>body&&body.length?h('div',{class:'panel'},h('h3',{text:title,style:'margin-top:0'}),body):null;
+  const ul=a=>h('ul',{style:'margin:4px 0 0;padding-left:18px'},a.map(x=>h('li',{text:x,style:'margin:3px 0'})));
+  v.append(h('div',{class:'bar'},h('button',{onclick:()=>{S.topicSel=null;render()}},'‹ All topics'),h('span',{class:'hint',text:'Booklet p.'+T.p})));
+  v.append(h('div',{class:'panel',style:'border-left:4px solid var(--accent)'},h('h2',{text:T.t,style:'margin-top:0'}),h('div',{class:'lbl',text:'THE ONE THING'}),h('div',{style:'font-weight:600;font-size:1.05rem',text:T.one}),T.dia?topicDia(T.dia):null));
+  T.rep.forEach(([hh,items])=>v.append(sec(hh,[ul(items)])));
+  v.append(sec('Key things to nail',[ul(T.keys)]));
+  if(T.ana.length)v.append(sec('Analogies & examples',T.ana.map(([a,b])=>h('div',{style:'margin:6px 0'},h('b',{text:a}),h('div',{class:'hint',text:b})))));
+  if(T.lines.length)v.append(sec('Lines to land',T.lines.map(l=>h('div',{style:'font-size:1.05rem;font-weight:700;margin:6px 0;color:var(--accent)',text:'“'+l+'”'}))));
+  v.append(sec('How to run it',[h('ol',{style:'margin:4px 0 0;padding-left:20px'},T.run.map(x=>h('li',{text:x,style:'margin:3px 0'})))]));
+  v.append(h('div',{style:'display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px'},sec('Watch for',[ul(T.watch)]),sec('Check for understanding',[ul(T.check)])))}
+
 function renderReflect(v){
   v.append(h('div',{class:'seg'},[['daily','Daily reflection'],['weekly','Weekly review']].map(([k,l])=>h('button',{class:S.reflView===k?'primary':null,'aria-pressed':String(S.reflView===k),onclick:()=>{S.reflView=k;render()}},l))));
   const daily=S.reflView!=='weekly';
