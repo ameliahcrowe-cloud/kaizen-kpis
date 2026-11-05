@@ -52,3 +52,4 @@ jobs:
           git fetch origin deploy-log || true
           git checkout --orphan deploy-log-tmp; git rm -rqf . || true
           cp /tmp/d.log deploy.log; git add deploy.log; git commit -qm "log $GITHUB_RUN_ID"; git push -f origin HEAD:deploy-log
+# retry 1793874349
