@@ -22,11 +22,11 @@ function doGet(e) {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   if (e && e.parameter && e.parameter.app === 'hourly') return HtmlService.createHtmlOutputFromFile('Hourly')
-    .setTitle('Midas Hourly')
+    .setTitle('Midas Hourly').setFaviconUrl('https://ameliahcrowe-cloud.github.io/kaizen-kpis/icons/midas-512.png')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle(APP_TITLE)
+    .setTitle(APP_TITLE).setFaviconUrl('https://ameliahcrowe-cloud.github.io/kaizen-kpis/icons/midas-512.png')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
@@ -449,7 +449,7 @@ let STD = Object.assign({}, STD_DEFAULT);
 function setting_(t, name) { const d = t.map['settings/' + name]; return d && !d.del && d.data ? d.data : {}; }
 function loadStd_(t) { const x = setting_(t, 'standards'); STD = Object.assign({}, STD_DEFAULT); Object.keys(STD_DEFAULT).forEach(k => { const v = Number(x[k]); if (isFinite(v) && v > 0) STD[k] = v; });
   BANDS.stops.strong = STD.stops; BANDS.conv.strong = STD.conv; BANDS.avg.strong = STD.avg; BANDS.ups.strong = STD.ups; }
-const CARDS_KEY = 'xvC7hn5XUGLfrSexFmUjoDJLOUMYwpsZ';
+const CARDS_KEY = 'gAOCiR_jl5l3H9pdrmRApXknO3N4uzRW';
 const SCORE_INCLUDE_TEST = true; // trial: include test people in scorecards
 const BANDS = {
   stops: { low: 15, strong: 20 },   // per shift: <15 low, 15-20 avg, 20+ strong
