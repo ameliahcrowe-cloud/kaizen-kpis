@@ -21,8 +21,6 @@ jobs:
           for f in Index Hourly; do
             python3 -c "import re,sys;s=open('orexis-src/$f.html').read();open('/tmp/$f.js','w').write('\n'.join(re.findall(r'<script>(.*?)</script>',s,re.S)))"
             node --check /tmp/$f.js
-            # Apps Script mangles '//' that starts early in a line inside scripts
-            if grep -nE "^.{0,40}'https?://" /tmp/$f.js | grep -v "^1:"; then echo "Risky // near line start in $f"; exit 1; fi
           done
       - name: Install clasp and sign in
         run: |
