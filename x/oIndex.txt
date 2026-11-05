@@ -1996,7 +1996,7 @@ function dailyWrapText(){const d=S.date,ids=(S.isOwner?repListAll(false):repList
     '**🔔 Bells:** '+(bells.length?bells.map(x=>x.n+' ('+money(x.r)+')').join(', '):'—'),'',
     '**🏆 Top 3**',...top.map((x,i)=>['🥇','🥈','🥉'][i]+' '+x.n+' · '+money(x.r)+' · '+x.s+' stops · '+x.b+' buyers')];
   return L.join('\n')}
-function saChart(title,act,tgt,fmt,tl){const W=300,H=150,pl=36,pr=10,pt=14,pb=24;const n=Math.max(act.length,1);const top=Math.max(1,...act,...tgt)*1.1;
+function saChart(title,act,tgt,fmt,tl){const W=300,H=150,pl=36,pr=22,pt=14,pb=24;const n=Math.max(act.length,1);const top=Math.max(1,...act,...tgt)*1.1;
   const X=i=>pl+(n<2?(W-pl-pr)/2:i*(W-pl-pr)/(n-1)),Y=v=>pt+(H-pt-pb)*(1-v/top);const NS='http://www.w3.org/2000/svg';const svg=document.createElementNS(NS,'svg');svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('style','width:100%;height:auto;display:block');
   const el=(t,a,tx)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(tx!=null)e.textContent=tx;svg.appendChild(e);return e};
   [0,.5,1].forEach(f=>{const v=top/1.1*f,y=Y(v);el('line',{x1:pl,x2:W-pr,y1:y,y2:y,stroke:'var(--line)','stroke-width':1});el('text',{x:pl-4,y:y+3,'text-anchor':'end','font-size':9,fill:'var(--muted)'},fmt(v))});
