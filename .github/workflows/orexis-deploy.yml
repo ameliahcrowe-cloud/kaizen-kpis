@@ -5,6 +5,8 @@ on:
     paths: ['orexis-src/**', '.github/workflows/orexis-deploy.yml']
   workflow_dispatch:
 concurrency: orexis-deploy
+permissions:
+  contents: write
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -32,13 +34,21 @@ jobs:
         run: |
           mkdir work && cd work
           echo "{\"scriptId\":\"$SCRIPT_ID\",\"rootDir\":\".\"}" > .clasp.json
-          clasp pull
-          ls -la
+          clasp pull 2>&1 | tee -a ../deploy.log
+          ls -la | tee -a ../deploy.log
           cp ../orexis-src/Code.js Code.js
           cp ../orexis-src/Index.html Index.html
           cp ../orexis-src/Hourly.html Hourly.html
-          clasp push --force
+          clasp push --force 2>&1 | tee -a ../deploy.log; test ${PIPESTATUS[0]} -eq 0
       - name: Publish new version to the live link
         run: |
           cd work
-          clasp update-deployment "$DEPLOYMENT_ID" --description "auto $(date -u +%F' '%H:%M)" || clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "auto $(date -u +%F' '%H:%M)"
+          (clasp update-deployment "$DEPLOYMENT_ID" --description "auto $(date -u +%F' '%H:%M)" || clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "auto $(date -u +%F' '%H:%M)") 2>&1 | tee -a ../deploy.log; test ${PIPESTATUS[0]} -eq 0
+      - name: Save log
+        if: always()
+        run: |
+          touch deploy.log; cp deploy.log /tmp/d.log
+          git config user.name bot; git config user.email bot@users.noreply.github.com
+          git fetch origin deploy-log || true
+          git checkout --orphan deploy-log-tmp; git rm -rqf . || true
+          cp /tmp/d.log deploy.log; git add deploy.log; git commit -qm "log $GITHUB_RUN_ID"; git push -f origin HEAD:deploy-log
