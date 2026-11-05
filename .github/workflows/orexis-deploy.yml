@@ -1,0 +1,46 @@
+name: Orexis deploy
+on:
+  push:
+    branches: [main]
+    paths: ['orexis-src/**', '.github/workflows/orexis-deploy.yml']
+  workflow_dispatch:
+concurrency: orexis-deploy
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SCRIPT_ID: 1ISDvouR-mUuwPt4_KkQSEFRI5xJK_RJncXncPduV2W8KxRmGPPdF3omA
+      DEPLOYMENT_ID: AKfycbyriI5naP0q1cUQ3PR4q_YwNZLBZ2ybO7jzGIp7QTX1kN9wu5tTasokUHN07eGdRttvfw
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Check the code before publishing
+        run: |
+          node --check orexis-src/Code.js
+          for f in Index Hourly; do
+            python3 -c "import re,sys;s=open('orexis-src/$f.html').read();open('/tmp/$f.js','w').write('\n'.join(re.findall(r'<script>(.*?)</script>',s,re.S)))"
+            node --check /tmp/$f.js
+            # Apps Script mangles '//' that starts early in a line inside scripts
+            if grep -nE "^.{0,40}'https?://" /tmp/$f.js | grep -v "^1:"; then echo "Risky // near line start in $f"; exit 1; fi
+          done
+      - name: Install clasp and sign in
+        run: |
+          npm install -g @google/clasp
+          printf '%s' "$CLASPRC" > ~/.clasprc.json
+        env:
+          CLASPRC: ${{ secrets.CLASPRC }}
+      - name: Pull, replace files, push
+        run: |
+          mkdir work && cd work
+          echo "{\"scriptId\":\"$SCRIPT_ID\",\"rootDir\":\".\"}" > .clasp.json
+          clasp pull
+          ls -la
+          cp ../orexis-src/Code.js Code.js
+          cp ../orexis-src/Index.html Index.html
+          cp ../orexis-src/Hourly.html Hourly.html
+          clasp push --force
+      - name: Publish new version to the live link
+        run: |
+          cd work
+          clasp update-deployment "$DEPLOYMENT_ID" --description "auto $(date -u +%F' '%H:%M)" || clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "auto $(date -u +%F' '%H:%M)"
