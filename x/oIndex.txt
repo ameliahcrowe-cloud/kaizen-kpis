@@ -718,7 +718,7 @@ function render(){renderHeader();const v=document.getElementById('view');
     if(!S.ready){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading…'})));return}
     if(!S.db)return;
     if(!leader()&&!S.me){renderJoin(v);return}
-    if(leader()&&S.legacy&&S.legacy.entries.length)v.append(legacyPanel());if(S.tab==='log'||S.tab==='reflect'||S.tab==='team'){const mc=missingCard();if(mc)v.append(mc)}
+    if(leader()&&S.legacy&&S.legacy.entries.length)v.append(legacyPanel());if(S.tab==='log'||S.tab==='reflect'||S.tab==='team'){const mc=missingCard();if(mc)v.append(mc);const hb=htBanner();if(hb)v.append(hb)}
     const db_=!(S.admin&&S.tab==='admin')&&(S.tab==='log'||S.tab==='reflect'||S.tab==='hourly'||!S.tab);document.body.classList.toggle('hasDaybar',db_);if(db_)v.append(dayBar());
     if(S.tab==='log'||!S.tab)v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;gap:8px;margin-bottom:-6px'},h('button',{onclick:async()=>{const ok=await copyRich(dailyWrapText());toast(ok?'Day copied — paste into Telegram':'Couldn’t copy on this device')}},'📋 Copy day to Telegram'),h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;align-items:center'},hourlyBtn(),h('button',{id:'syncHourly',class:'icon',title:'Pull my numbers from Hourly now','aria-label':'Pull my numbers from Hourly now',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;min-width:44px'},S.hSyncBusy?'…':'⟳')));
     (S.admin&&isAdminUser()&&S.tab==='admin'?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{line:renderLine,sas:renderSAs,pbboard:renderPBBoard,log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
@@ -752,9 +752,9 @@ function cardify(root){if(!window.matchMedia||!matchMedia('(max-width:720px)').m
     if(Date.now()-t0<600&&Math.abs(dx)>70&&Math.abs(dy)<45&&(S.tab==='log'||S.tab==='reflect'))setDate(addDays(S.date,dx<0?1:-1))},{passive:true});
   let mq;try{mq=matchMedia('(max-width:720px)');mq.addEventListener('change',()=>render())}catch(_){}})();
 function renderGoalsTab(v){
-  v.append(h('div',{class:'seg'},[['weekly','Weekly targets'],['growth','Personal & development goals']].map(([k,l])=>
+  v.append(h('div',{class:'seg'},[['weekly','Weekly targets'],['smart','SMART · 1-3-5'],['growth','Personal & development goals']].map(([k,l])=>
     h('button',{class:S.goalsView===k?'primary':null,'aria-pressed':String(S.goalsView===k),onclick:()=>{S.goalsView=k;render()}},l))));
-  if(S.goalsView==='growth')renderGrowth(v);else renderGoals(v)}
+  if(S.goalsView==='growth')renderGrowth(v);else if(S.goalsView==='smart')renderSmart(v);else renderGoals(v)}
 
 /* ---------- join (reps) ---------- */
 function renderJoin(v){
@@ -1315,31 +1315,47 @@ const TOPICS_REP=['DISC','TTP','Rapport / engagement','Upselling','Handling conc
 const TOPICS_LEAD=['How to run a day 1','How to break down a day','How to set up a week','How to break down a week','How to set goals for a sprint','How to lead a roadtrip','Critical conversations','How to run a topic','How to run a morning meeting','Creating team identity','Qualities of effective leadership','The 5 M model of leadership','12 mindset shifts of a high performer','How to build a core player','LOA building teams','How to PR and the importance','Leadership expectations: good vs great','Employee vs business partner','Building blocks for building people','From team leader to owner','Characteristics of a core leader','Managing your people','How to take responsibility of someone'];
 /* rate calculators shared by coaching and bonuses */
 const RATES={
-  stopsDay:t=>t.days>0?t.stops/t.days:null, stopBuyer:t=>t.stops>0?t.buyers/t.stops*100:null,
+  stopsDay:t=>t.days>0?t.stops/t.days:null, stopsHr:t=>t.hours>0?t.stops/t.hours:null, stopBuyer:t=>t.stops>0?t.buyers/t.stops*100:null,
   closeRate:t=>t.stops>0?t.closes/t.stops*100:null, closeToBuy:t=>t.closes>0?t.buyers/t.closes*100:null,
   upsellRate:t=>t.buyers>0?t.upsells/t.buyers*100:null, medalRate:t=>t.buyers>0?t.medals/t.buyers*100:null,
   avgSale:t=>t.buyers>0?t.retail/t.buyers:null, rph:t=>t.hours>0?t.retail/t.hours:null};
 /* Knowing your numbers: priority order, Low / Avg / Strong bands */
 const FOCUS=[
-  {k:'stopsDay',l:'Stops per day',low:15,strong:20,show:v=>v.toFixed(1),unit:'',guide:'stopping',topics:['Stopping','Bulletproof attitude','Staying in the zone in the field'],
+  {k:'stopsHr',l:'Stops per hour',low:2.5,strong:3.5,show:v=>v.toFixed(1),unit:'',guide:'stopping',topics:['Stopping','Bulletproof attitude','Staying in the zone in the field'],
+    levers:['SEEC','Distance Theory','Confidence','ACE','Work ethic'],page:'p.14 Coaching Stopping',
     why:'Not enough people stopping. Everything else flows from stops.'},
-  {k:'stopBuyer',l:'Stop to buyer %',low:65,strong:75,show:v=>Math.round(v)+'%',unit:'%',guide:'stopBuyer',topics:['Handling concerns','Landing impulses','Rapport / engagement'],
+  {k:'stopBuyer',l:'Stop to buyer %',low:70,strong:80,levers:['Tone, tempo and pausing','Rapport / value on self','Handling FAQs (T.J.A.R.)','Clear, concise and confident','Confidence and belief','Landing impulses'],page:'p.10 Rapport · p.11 NVC · p.20 FAQs',show:v=>Math.round(v)+'%',unit:'%',guide:'stopBuyer',topics:['Handling concerns','Landing impulses','Rapport / engagement'],
     why:'Stops aren’t turning into buyers.'},
-  {k:'avgSale',l:'Sale average',low:50,strong:65,show:v=>money(v),unit:'$',guide:'saleAvg',topics:['Upselling','TTP','DISC'],
+  {k:'avgSale',l:'Sale average',low:60,strong:70,levers:['Pitching big','Value on self to earn time for medals','Landing impulses','Belief','Strong goals to get out of comfort','Assumptiveness'],page:'p.19 ABOUT · p.21 Upselling',show:v=>money(v),unit:'$',guide:'saleAvg',topics:['Upselling','TTP','DISC'],
     why:'Each buyer is picking a lower price than they could.'},
-  {k:'upsellRate',l:'Buyers to upsells %',low:20,strong:40,show:v=>Math.round(v)+'%',unit:'%',guide:'upsell',topics:['Upselling','Rapport / engagement'],
+  {k:'upsellRate',l:'Upsell %',low:15,strong:25,levers:['Clear, concise and confident','Mentality','Assumptiveness','Systems: anchoring, two up one down'],page:'p.21 Upselling · A.A.A.R.R.',show:v=>Math.round(v)+'%',unit:'%',guide:'upsell',topics:['Upselling','Rapport / engagement'],
     why:'Not enough buyers are being upsold. This drives sale average.'},
-  {k:'medalRate',l:'Medal ratio',low:5,strong:8,show:v=>Math.round(v)+'%',unit:'%',guide:'medals',topics:['Upselling','Landing impulses','TTP'],
+  {k:'medalRate',l:'Medal ratio',low:5,strong:8,levers:['Pitch medals low, slow and passionately','Anchor to a medal in the upsell','Make it about what they care about'],page:'p.21 Upselling',show:v=>Math.round(v)+'%',unit:'%',guide:'medals',topics:['Upselling','Landing impulses','TTP'],
     why:'Not enough buyers are choosing a medal.'}];
 const GUIDES={
+  tjar:{title:'Quick ref · FAQ handling (T.J.A.R.)',intro:'FAQs aren’t objections. They’re the customer telling you what they need to hear to say yes.',blocks:[
+    {h:'T.J.A.R.',items:['Thank: appreciate them for asking. Questions are buying signs.','Joke: settle them and lighten the mood. (DISC Dominant? Use a smile instead.)','Answer: honestly and directly, without showing all your cards.','Re-direct: go straight back to exactly where you left off.']},
+    {h:'Know these word-perfect',items:['"How much is it?"','"What’s the minimum?"','"Here’s $10."']}]},
+  nvc:{title:'Quick ref · NVC Rollercoaster',intro:'Above the line is energy. Below the line is meaning.',blocks:[
+    {h:'Above the line: Intro, Prize',items:['Big smiles','No pauses','Enthusiastic, positive tone']},
+    {h:'Below the line: Engagement, Close',items:['Less smile: candid, serious face','Land the impulse with a pause (after "seriously underfunded")','Passionate tone: show you care']},
+    {h:'Non-negotiables',items:['Open body language, deliberate hand gestures','Genuine tone, never salesy','Active face (don’t forget your eyebrows!)']}]},
+  disc:{title:'Quick ref · DISC',intro:'Read the person in the first few seconds, then adapt. Same pitch, different delivery.',blocks:[
+    {h:'D · Dominant',items:['Asks questions, tries to rush you, won’t laugh at jokes.','Answer, then ask one back. Assertive tone. Elevator pitch.']},
+    {h:'I · Influential',items:['Open and happy to chat.','Take control early or the chat swallows the pitch.']},
+    {h:'S · Stable',items:['Quiet, hard to read, but listening.','Match their tone. Assume knowledge. A small natural slip humanises you.']},
+    {h:'C · Cautious',items:['Lots of questions framed as concerns. They need certainty.','Know your stuff, don’t rush answers, don’t close assumptively.']},
+    {h:'1%ers',items:['Settle everyone at the start.','Nail eye contact.','Face matches your words.','Listen to understand, not to respond.']}]},
   medals:{title:'How to improve medal ratio',intro:'Medal ratio is medals ÷ buyers. It comes down to how well the medals are pitched before the price is picked, and anchoring to them in the upsell.',blocks:[
     {h:'1. Settle them first',items:['Crack a couple of jokes before showing the prices. It buys you time to build value on the medals while the customer is relaxed.']},
     {h:'2. Pitch the medals low, slow and passionately',items:['Don\u2019t rush the medals. Explain them clearly and concisely in a passionate tone.','Don\u2019t worry about being cut off. Customers considering a medal will hear you out.']},
     {h:'3. Make the medal about what they care about',items:['Disabled kids, wheelchair basketball or winning the money: explain the medal through what they care about, not what you care about.']},
-    {h:'4. Anchor to a medal in the upsell',items:['In AARR, anchor with a medal that relates to their buying sign, so stepping up to it doesn\u2019t feel like a big jump.','Finish low and slow: "What are the chances you\u2019d be able to stretch the budget up to the ___ medal today?"']},
+    {h:'4. Anchor to a medal in the upsell',items:['In A.A.A.R.R., anchor with a medal that relates to their buying sign, so stepping up to it doesn\u2019t feel like a big jump.','Finish low and slow: "What are the chances you\u2019d be able to stretch the budget up to the ___ medal today?"']},
     {h:'5. Ask everyone',items:['Doors open for those who ask!']}]},
   stopping:{title:'How to improve stops',blocks:[
-    {h:'Distance',items:['6m: "Hey there"','3m: "Just a one off for the Paralympics"','1.5m: they stop']},
+    {h:'SEEC',items:['Smile: your expression lands before your words.','Eye contact: hold it from 6m.','Enthusiasm: if you’re flat, they’ll be flat.','Conviction: you’re not interrupting, you’re giving them a chance.']},
+    {h:'Distance Theory',items:['6m: "Hey!" / "G’day" / "Hello". High energy, slows their pace.','4m: "Just a once off!" Pre-handles the biggest silent objection.','2m: "For the Paralympics!" Let the cause land.']},
+    {h:'Law of Averages + A.C.E.',items:['Every no gets you closer to the next yes. 40 stops at 1 in 4 is 10 sales; 20 stops is 5.','Attitude: approach everyone like they’re about to say yes.','Consistency: same process on every stop, don’t ease off when it’s quiet.','Exposure: see as many people as possible.']},
     {h:'Key focuses',items:['Maintain eye contact from hello until they stop.','Less words, more silence.','High tone on the hello, then low tone on the call to action.','Relaxed and indifferent tone, but convicted.','Strong body language and smiles.']},
     {h:'Mentality',items:['50% of stopping is your mentality going into the day and on every stop attempt. The skills above are the other 50%.','Be conscious of this for yourself and everyone on your team, and don’t over-focus on a skillset change.']}]},
   stopBuyer:{title:'How to improve stop to buyer %',blocks:[
@@ -1355,14 +1371,15 @@ const GUIDES={
     {h:'1. Nail the intro',items:['A strong intro sets up a higher starting price.']},
     {h:'2. Pitch the medals low, slow and passionately',items:['Don’t rush the medals. Explain them clearly and concisely in a passionate tone.','Don’t worry about being cut off. Customers considering a higher price will hear you out; those who cut you off were likely going small anyway.','The better the medal pitch, the higher the starting price. They might pick $100 instead of $50, which makes an upsell to $200+ much easier.']},
     {h:'3. Adapt to what the customer cares about',items:['Disabled kids, wheelchair basketball or winning the money: explain the price card through what they care about, not what you care about.']},
-    {h:'Then work the upsell',items:['See "How to improve buyers to upsells" for AARR.']}]},
-  upsell:{title:'How to improve buyers to upsells',blocks:[
+    {h:'Then work the upsell',items:['See "How to improve upsells" for A.A.A.R.R.']}]},
+  upsell:{title:'How to improve upsells',blocks:[
     {h:'1. Build a connection before being cheeky',items:['Rapport and jokes give you the licence to be cheeky. The more you give, the more the customer gives back.']},
-    {h:'2. Pitch AARR low and slow, just like the price card',items:[
-      'Appreciate: put emphasis on it and make the customer feel amazing.',
-      'Anchor: pitch a high price so your real ask doesn’t feel like a big jump. Pick a medal that relates to what they care about.',
-      'Re-impulse: focus on their buying sign, e.g. they care about disabled kids, so they’re $150 away from a year’s education for disabled kids.',
-      'Re-close: competition against another team; "X away from our goal today"; "yet to have someone jump up to this today".']},
+    {h:'2. A.A.A.R.R., in this order',items:[
+      'Appreciate: "It might sound corny, but a huge thank you for helping out today. Most people just walk past."',
+      'Ask: "Is there any chance I can be a little cheeky with you?"',
+      'Anchor: talk about a much bigger pack, e.g. "We have a goal of 5 Silver Medals today…" The anchor is NOT the ask.',
+      'Re-impulse: "I’m not going to ask you to do a Silver, but I was sitting just one Aussie pack off my next Silver of the day…"',
+      'Re-close: "Can you make the jump to the Aussie so I can get the next one?" Then silence. A no is fine: thank them warmly.']},
     {h:'3. Finish low and slow',items:['"What are the chances you’d be able to stretch the budget up to $___ today?"']},
     {h:'4. Attempt with everyone',items:['Doors open for those who ask!']}]}};
 function slug(t){return t.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
@@ -1392,6 +1409,8 @@ function guideEl(key,open){const g=GUIDES[key];const d=h('details',{class:'guide
     if(b.items)d.append(h('ul',null,b.items.map(i=>h('li',{text:i}))));
     if(b.scripts)b.scripts.forEach(([q,a])=>d.append(h('div',{class:'script'},h('div',{class:'q',text:'“'+q+'”'}),h('div',{class:'a',text:a}))))});
   return d}
+function tierOf(rph){return rph==null?null:rph>=160?{n:'Core',z:'Platinum + Diamond',c:'#1f7a4d'}:rph>=100?{n:'Leader',z:'Silver + Gold',c:'#8a6200'}:{n:'Rookie',z:'Red Zone',c:'#b42318'}}
+function tierLine(uid){const t=last4(uid);const r=RATES.rph(t);const T=tierOf(r);if(!T)return null;const nx=r<100?'Silver (100 RPH) moves you to Leader':r<160?'Platinum (160 RPH) moves you to Core':'Top tier. Keep it there';return h('div',{class:'notice',style:'border-left:4px solid '+T.c},h('b',{text:T.n+' tier · '+T.z}),' · '+money(r)+' RPH over the last 4 weeks. '+nx+'.')}
 function numbersTable(uid){const F=focusFor(uid);
   const tb=h('tbody');F.rows.forEach((r,i)=>{const b=band(r.f);
     tb.append(h('tr',{class:F.priority&&F.priority.f===r.f?'sel':null},h('td',{class:'name',text:`${i+1}. ${r.f.l}`}),h('td',{text:r.v!=null?r.f.show(r.v):'—'}),h('td',null,bandPill(r.st)),
@@ -1415,6 +1434,7 @@ function focusCards(uid){const F=focusFor(uid);
     h('div',{class:'gtop'},h('div',null,h('div',{class:'lbl',text:'Priority focus'}),h('strong',{class:'ftitle',text:p.f.l})),h('span',null,h('span',{class:'gap',text:p.f.show(p.v)+' '}),bandPill(p.st))),
     h('div',{class:'hint',text:p.f.why+' Work on this first; the numbers below it follow.'}),
     h('div',{class:'checklist'},h('div',{class:'lbl',text:'Topics that help'}),p.f.topics.map(t=>{const s=leader()?topicState(uid,t):{};return h('div',{class:'citem'+(s.learnt?' on':'')},h('span',{text:s.ran?'✓✓':s.learnt?'✓':'•','aria-hidden':'true'}),h('span',{text:t+(!leader()?'':s.ran?' · ran independently':s.learnt?' · learnt':' · not learnt yet')}))})),
+    p.f.levers?h('div',{class:'checklist'},h('div',{class:'lbl',text:'Levers that move it'+(p.f.page?' · booklet '+p.f.page:'')}),p.f.levers.map(l=>h('div',{class:'citem'},h('span',{text:'→','aria-hidden':'true'}),h('span',{text:l})))):null,
     guideEl(p.f.guide,true),
     h('div',{class:'gfoot'},h('span',{class:'hint',text:`Target: ${p.f.show(band(p.f).strong)}+ for Strong`}),
       h('button',{class:'primary',onclick:()=>addGrowth(uid,{category:'learning',term:'2w',title:`Lift ${p.f.l.toLowerCase()} to ${p.f.show(band(p.f).strong)}`,
@@ -1426,8 +1446,8 @@ function focusCards(uid){const F=focusFor(uid);
 function renderCoaching(v){
   if(!leader()){
     v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My coaching'}),h('div',{class:'hint',text:'Know your numbers. Fix them in priority order: stops first, then stop to buyer, then sale average.'}))));
-    v.append(numbersTable(S.uid));v.append(averagesTable(S.uid));v.append(focusCards(S.uid));
-    v.append(h('div',{class:'bar'},h('h3',{text:'All guides'})));Object.keys(GUIDES).forEach(k=>v.append(guideEl(k,false)));
+    {const tl=tierLine(S.uid);if(tl)v.append(tl)}v.append(numbersTable(S.uid));v.append(averagesTable(S.uid));v.append(focusCards(S.uid));
+    v.append(compQuiz(S.uid));v.append(h('div',{class:'bar'},h('h3',{text:'All guides'})));Object.keys(GUIDES).forEach(k=>v.append(guideEl(k,false)));
     return}
   v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Coaching'}),h('div',{class:'hint',text:'Each person’s last 4 weeks against your Knowing Your Numbers standards, in priority order.'})),h('button',{onclick:()=>loadAllTeam(true)},'Refresh')));
   if(needsTeam()){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading the team’s history…'})));loadAllTeam();return}
@@ -1700,8 +1720,66 @@ function reviewView(r,uid){if(!r)return h('div',{class:'hint',text:'Not submitte
     h('div',null,h('strong',{text:'Clarity / motivation: '}),r.motivation?r.motivation+'/10':'—'),
     h('div',null,h('strong',{text:'Motivated by: '}),r.motivating||'—'),
     h('div',null,h('strong',{text:'From mentor: '}),r.mentor||'—'))}
+
+/* ---------- half-time review (midweek) ---------- */
+function htKey(){return 'ht-'+S.week}
+function htDue(){const n=new Date(),g=n.getDay(),hr=n.getHours();return (g===3&&hr>=17)||(g===4&&hr<12)}
+function htBanner(){if(!S.me||S.admin||S.week!==weekStart(todayStr())||!htDue())return null;const k=S.uid+'|'+htKey();if(!(k in S.refl)){loadDocs('refl',[S.uid],htKey());return null}if(S.refl[k])return null;
+  return h('div',{class:'panel',style:'border-color:var(--accent);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap'},h('b',{text:'⏱️ Half-time review time: how’s your week tracking?'}),h('button',{class:'primary',onclick:()=>{S.tab='reflect';S.reflView='half';render()}},'Do it now'))}
+function htText(uid,d){const t=weekAll(uid,S.week);const L=a=>(a||[]).map(x=>String(x||'').trim()).filter(Boolean);
+  const out=['**Half-time Review**','WC '+niceDate(S.week,{day:'numeric',month:'short'}),'','**Retail:** '+money(t.retail),'**Stops:** '+t.stops,'**Buyers:** '+t.buyers,'**Hours:** '+(Math.round(t.hours*10)/10),'**RPH:** '+(t.hours>0?money(t.retail/t.hours):'—'),'','**Wins so far**'].concat(L(d.wins).map(x=>'- '+x),['','**Focus for the second half**',String(d.focus||'').trim()]);
+  const pr=L(d.praise);if(pr.length||String(d.needle||'').trim())out.push('','**Leader feedback**',...pr.map(x=>'👏 '+x),...(String(d.needle||'').trim()?['🎯 '+String(d.needle).trim()]:[]));return out.join('\n')}
+function renderHalf(v){const who=leader()?(S.htWho||S.uid):S.uid;const key=htKey();
+  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Half-time review · WC '+niceDate(S.week,{day:'numeric',month:'short'})}),h('div',{class:'hint',text:'Wednesday night or Thursday morning. They find their own wins and focus, then one piece of feedback that turns good into great.'}))));
+  if(leader()){const ppl=[{id:S.uid,name:(S.me&&S.me.name)||'Me'}].concat(repList(true).filter(r=>r.id!==S.uid));
+    v.append(h('label',null,h('span',{class:'lbl',text:'Whose review'}),h('select',{onchange:e=>{S.htWho=e.target.value;render()}},ppl.map(r=>h('option',{value:r.id,selected:r.id===who},r.name)))))}
+  const loaded=(who+'|'+key) in S.refl&&S.refl[who+'|'+key]!==undefined;if(!loaded){loadDocs('refl',[who],key);v.append(h('div',{class:'panel empty'},h('span',{text:'Loading…'})));return}
+  const d=draftOf('refl',who,key);d.wins=d.wins||['','',''];d.praise=d.praise||['',''];const saved=S.refl[who+'|'+key];const t=weekAll(who,S.week);
+  v.append(h('div',{class:'notice'},'Week so far: '+money(t.retail)+' retail · '+t.stops+' stops · '+t.buyers+' buyers · '+(Math.round(t.hours*10)/10)+' hrs'+(t.hours>0?' · '+money(t.retail/t.hours)+' RPH':'')));
+  const f=h('div',{class:'panel rform'});
+  f.append(h('h4',{text:'1. Your wins so far'}),h('div',{class:'hint',text:'Praise yourself. Don’t be too hard on the negatives.'}),...d.wins.map((_,i)=>txt('ht-w'+i,d.wins,i,'Win '+(i+1))));
+  f.append(h('h4',{text:'2. Your focus for the second half'}),txt('ht-f',d,'focus','e.g. 20 stops every day'));
+  f.append(h('h4',{text:'3. Would you like any feedback?'}),h('div',{class:'pills'},['Yes','Not today'].map(x=>h('button',{class:d.ok===x?'on':null,onclick:()=>{d.ok=x;markDirty();render()}},x))));
+  if(d.ok==='Yes'){f.append(h('h4',{text:'4. Leader: genuine praise + one needle-mover'}),txt('ht-p0',d.praise,0,'Something they did really well'),txt('ht-p1',d.praise,1,'Another thing (optional)'),txt('ht-n',d,'needle','The ONE thing that turns good into great'));}
+  f.append(h('div',{class:'formfoot'},h('span',{class:'hint',text:saved?'Saved '+new Date(saved.updatedAt).toLocaleString('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit'}):'Not saved yet'}),
+    h('span',{style:'display:flex;gap:8px'},h('button',{onclick:async()=>{const ok=await copyRich(htText(who,d));toast(ok?'Copied — paste into Telegram':'Couldn’t copy on this device')}},'📋 Copy to Telegram'),h('button',{class:'primary',onclick:()=>saveDoc('refl',who,key)},saved?'Saved':'Save review'))));
+  v.append(f)}
+/* ---------- training scorecard (new starters) ---------- */
+const TS_CRIT=[['Pitch delivery','Confident, natural, on structure'],['Coachability','Takes feedback, implements it immediately'],['Energy & effort','Engaged, brings intensity, doesn’t need pushing'],['Stopping confidence','Initiates, no hesitation or excuses'],['Attitude under pressure','Resets quickly, no sulking or blame'],['Team presence','Adds to the room’s energy'],['Preparation','Came back having worked on the script'],['Compliance understanding','Genuine understanding, not memorised']];
+function tsDecision(n){return n>=35?['Fast track to field','#1f7a4d']:n>=28?['Can get in field','#1f7a4d']:n>=20?['Delayed start: development plan','#8a6200']:['Exit conversation','#b42318']}
+function tsPanel(id){const r=S.reps[id]||{};S.tsDraft=S.tsDraft||{};const d=S.tsDraft[id]=S.tsDraft[id]||JSON.parse(JSON.stringify(r.trainScore||{scores:[],notes:''}));const tot=d.scores.reduce((a,x)=>a+num(x),0),done=d.scores.filter(x=>x).length;
+  const p=h('div',{style:'background:var(--bg);border-radius:10px;padding:10px;margin-top:10px'},h('b',{text:'📝 Training scorecard'}),h('div',{class:'hint',text:'Score 1–5. Score on your own before comparing with a co-assessor.'}));
+  TS_CRIT.forEach(([n,w],i)=>p.append(h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap'},h('div',null,h('div',{style:'font-weight:600;font-size:.85rem',text:(i+1)+'. '+n}),h('div',{class:'hint',style:'font-size:.75rem',text:w})),
+    h('div',{class:'pills'},[1,2,3,4,5].map(x=>h('button',{class:d.scores[i]===x?'on':null,onclick:()=>{d.scores[i]=x;render()}},String(x)))))));
+  const [dl,dc]=tsDecision(tot);p.append(h('div',{style:'margin-top:8px;font-weight:700;color:'+(done===8?dc:'inherit'),text:'Total '+tot+' / 40'+(done===8?' · '+dl:' · '+done+' of 8 scored')}));
+  const n=h('textarea',{rows:2,placeholder:'Field notes',style:'width:100%;margin-top:6px',oninput:e=>{d.notes=e.target.value}});n.value=d.notes||'';p.append(n);
+  p.append(h('button',{class:'primary',style:'margin-top:6px',onclick:async()=>{const body={...d,total:tot,by:(S.me&&S.me.name)||'',date:todayStr()};const ok=await write(()=>S.db.doc('reps/'+id).update({trainScore:body}),'Scorecard saved');if(ok){S.reps[id]={...r,trainScore:body};render()}}},'Save scorecard'));return p}
+/* ---------- compliance quiz ---------- */
+const CQ=[['Does Paralympics Australia receive Government funding?',['Yes, some Government funding','No, none at all','Only during the Games'],0],
+['Does all the money raised go to Paralympics Australia?',['Yes, every dollar','No, not all of it goes directly to them','Only the medal packs'],1],
+['Are you a volunteer, or do you get paid?',['A volunteer','A paid collector','Commission only'],1],
+['What will the funds raised be used for?',['Things like the Winter and Summer Paralympics and getting kids with disabilities into sport','Athletes’ salaries only','Building new stadiums'],0],
+['What’s the minimum price point for entry?',['$10','$25','$50'],1],
+['Will I get a tax-deductible receipt?',['Yes','A proof of purchase, but it isn’t tax deductible','Only over $50'],1],
+['Can I just make a donation instead?',['Yes, here’s my tablet','They can donate on the website, but we’d love their support with this trade promotion today','No, donations aren’t allowed'],1],
+['Which word is right: funds ___ help kids into sport',['“will”','“could” or “can”','“definitely”'],1],
+['What is this, officially?',['A donation','A trade promotion','A raffle ticket'],1]];
+function compQuiz(uid){const r=S.reps[uid]||{};const last=r.compliance;S.cq=S.cq||{};const a=S.cq;const p=h('div',{class:'panel'},h('div',{class:'bar'},h('h3',{text:'✅ Compliance check · 9 questions'}),h('span',{class:'hint',text:last?'Last: '+last.score+'/9 on '+niceDate(last.date,{day:'numeric',month:'short'}):'A mystery shopper asks the same nine every time'})));
+  CQ.forEach(([q,opts,c],i)=>{p.append(h('div',{style:'margin-top:8px;font-weight:600;font-size:.9rem',text:(i+1)+'. '+q}),h('div',{style:'display:flex;flex-direction:column;gap:4px;margin-top:4px'},opts.map((o,j)=>{const pick=a[i]===j,show=a.done;return h('button',{style:'text-align:left;'+(show&&j===c?'border-color:#1f7a4d;background:#e3f4ea':show&&pick?'border-color:#b42318;background:#fde2e2':pick?'border-color:var(--accent)':''),onclick:()=>{if(a.done)return;a[i]=j;render()}},o)})))});
+  const n=CQ.filter((x,i)=>a[i]===x[2]).length;
+  p.append(a.done?h('div',{style:'margin-top:10px;font-weight:700',text:'Score '+n+'/9'+(n===9?' 🎉 Perfect':'. Golden rule: funds “could” or “can”, never “will”, and it’s a trade promotion, never a donation.')},h('div',null,h('button',{onclick:()=>{S.cq={};render()}},'Try again'))):
+    h('button',{class:'primary',style:'margin-top:10px',disabled:CQ.some((x,i)=>a[i]==null),onclick:async()=>{a.done=true;render();const body={score:n,date:todayStr()};await write(()=>S.db.doc('reps/'+uid).update({compliance:body}));S.reps[uid]={...(S.reps[uid]||{}),compliance:body}}},'Check my answers'));return p}
+/* ---------- SMART goal + 1-3-5 + quadrant ---------- */
+function renderSmart(v){const uid=S.uid;const r=S.reps[uid]||{};S.smartD=S.smartD||JSON.parse(JSON.stringify(r.smart||{}));const d=S.smartD;d.whys=d.whys||['','',''];d.hows=d.hows||['','','','',''];d.quad=d.quad||{};
+  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'SMART goal · 1-3-5'}),h('div',{class:'hint',text:'1 goal (what), 3 reasons it matters (why), 5 actions that move you toward it (how). Run it through S.M.A.R.T. before it counts.'}))));
+  const f=h('div',{class:'panel rform'});f.append(h('div',{class:'hint',text:'Specific · Measurable · Action-oriented · Realistic · Timely'}),h('h4',{text:'1 · My #1 goal right now'}),txt('sm-g',d,'goal','e.g. Hit Silver (100 RPH) every week by 1 Dec'));
+  f.append(h('h4',{text:'3 · My whys'}),...d.whys.map((_,i)=>txt('sm-w'+i,d.whys,i,'Why '+(i+1))));f.append(h('h4',{text:'5 · How I’ll get there'}),...d.hows.map((_,i)=>txt('sm-h'+i,d.hows,i,'Action '+(i+1))));v.append(f);
+  v.append(h('div',{class:'bar'},h('h3',{text:'Quadrant goals · 3 / 6 / 12 months'})));const g=h('div',{style:'display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px'});
+  [['business','Business'],['finances','Finances'],['relationships','Relationships'],['health','Health']].forEach(([k,l])=>{const q=d.quad[k]=d.quad[k]||{};g.append(h('div',{class:'panel rform'},h('h4',{text:l}),...['3','6','12'].map(m=>h('label',null,h('span',{class:'lbl',text:m+' months'}),txt('sm-'+k+m,q,m,'')))))});v.append(g);
+  v.append(h('button',{class:'primary',style:'margin-top:10px',onclick:async()=>{const body={...d,updatedAt:new Date().toISOString()};const ok=await write(()=>S.db.doc('reps/'+uid).update({smart:body}),'Goals saved');if(ok)S.reps[uid]={...r,smart:body}}},'Save goals'))}
 function renderReflect(v){
-  v.append(h('div',{class:'seg'},[['daily','Daily reflection'],['weekly','Weekly review']].map(([k,l])=>h('button',{class:S.reflView===k?'primary':null,'aria-pressed':String(S.reflView===k),onclick:()=>{S.reflView=k;render()}},l))));
+  v.append(h('div',{class:'seg'},[['daily','Daily reflection'],['half','Half-time review'],['weekly','Weekly review']].map(([k,l])=>h('button',{class:S.reflView===k?'primary':null,'aria-pressed':String(S.reflView===k),onclick:()=>{S.reflView=k;render()}},l))));
+  if(S.reflView==='half'){renderHalf(v);return}
   const daily=S.reflView!=='weekly';
   if(false){v.append(h('div',{class:'seg'},[['team','Team'],['me','Mine']].map(([k,l])=>h('button',{class:S.reflWho===k?'primary':null,'aria-pressed':String(S.reflWho===k),onclick:()=>{S.reflWho=k;render()}},l))))}
   if(!leader()){
@@ -2053,7 +2131,8 @@ function newStartsPanel(ids){const td=todayStr();const bell=std('bell');
       h('div',{style:'margin:0 0 6px;font-size:.85rem'},h('b',{text:promoted?'🎉 SC promotion reached: ':'SC promotion: '}),money(r10)+' of '+money(SC)+' in '+first10.length+' of 10 days'+(promoted?'':left>0?' · needs '+money(Math.max(0,(SC-r10)/left))+'/day for the next '+left:' · window closed')),
       h('div',{style:'height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-bottom:10px'},h('div',{style:`height:100%;width:${Math.min(100,Math.round(r10/SC*100))}%;background:${ok?'#1f7a4d':'#F5B56E'}`})),
             h('div',{style:'display:flex;gap:6px;flex-wrap:wrap'},chip('Days worked',String(worked.length),dayN>=5?worked.length>=Math.ceil(dayN*5/7*0.5):null),chip('Stops',String(st)+(()=>{const hr=worked.reduce((a,e)=>a+num(e.hours),0);return hr>0?' · '+(st/hr).toFixed(1)+'/hr':worked.length?' · '+spd.toFixed(1)+'/day':''})(),sd.length?ok:null),
-        chip('Buyers',String(by)),chip('Retail',money(rt)),chip('First sale',fs?nd(fs.date):'—',dayN>=4?!!fs:null),chip('First bell 🔔',fb?nd(fb.date):'—',fb?true:null)),
+        chip('Buyers',String(by)),chip('Retail',money(rt)),chip('First sale',fs?nd(fs.date):'—',dayN>=4?!!fs:null),chip('First bell 🔔',fb?nd(fb.date):'—',fb?true:null),chip('Scorecard',r.trainScore&&r.trainScore.total?r.trainScore.total+'/40':'—',r.trainScore&&r.trainScore.total?r.trainScore.total>=28:null),chip('Compliance',r.compliance?r.compliance.score+'/9':'—',r.compliance?r.compliance.score===9:null)),
+      h('button',{style:'margin-top:8px',onclick:()=>{S.tsOpen=S.tsOpen||{};S.tsOpen[id]=!S.tsOpen[id];render()}},(S.tsOpen||{})[id]?'Hide training scorecard':'📝 Training scorecard'),(S.tsOpen||{})[id]?tsPanel(id):null,
       (S.saOpen||{})[id]?h('div',{style:'display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:10px'},saChart('Stops per day',sd.map(x=>x.v),sd.map(x=>x.t),v=>String(Math.round(v)),'aim'),saChart('Sales so far',(()=>{let c=0;return worked.slice(0,10).map(e=>c+=num(e.retail))})(),worked.slice(0,10).map((_,i)=>need*(i+1)),money,'SC pace')):null,
       flags.length?h('div',{class:'hint',style:'margin-top:8px;color:#8a4b08',text:'⚠️ '+flags.join(' · ')}):null))});
   return box}
