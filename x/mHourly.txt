@@ -334,7 +334,7 @@ async function syncNow(quiet){if(S.dirty)await save(true);const t=totals();const
   try{await ref.set(body);S.doc.syncedAt=body.updatedAt;await db.doc(`reps/${S.me.id}/hourly/${S.date}`).set({...S.doc,syncedAt:body.updatedAt});if(!quiet)toast('Synced to Midas KPIs');render()}catch(e){toast('Couldn’t sync — try again')}}
 /* ---------- views ---------- */
 function header(){return h('div',{class:'top'},S.logo?h('img',{src:S.logo,alt:''}):null,h('div',null,h('h1',{text:'Midas Hourly'}),h('div',{class:'sub',text:S.me?S.me.name:''})),h('div',{class:'sp'}),
-  h('a',{href:'https://ameliahcrowe-cloud.github.io/Orexis-Innovations/midas/',target:'_top',class:'ib','aria-label':'Open your day log',title:'Day log',onclick:()=>{if(S.dirty){backup();save(true)}}},h('span',{'aria-hidden':'true'},'📋')),
+  h('a',{href:'https://script.google.com/macros/s/AKfycbygNx44F_JhoaR8DXoKocBxCHLQavLw0o85jA2_JmkhFzwx6cdx1nOG9sYduOMLVkdxOw/exec',target:'_top',class:'ib','aria-label':'Open your day log',title:'Day log',onclick:()=>{if(S.dirty){backup();save(true)}}},h('span',{'aria-hidden':'true'},'📋')),
   h('button',{class:'ib','aria-label':'Log out',title:'Log out',onclick:()=>window.kaizenLogout&&window.kaizenLogout()},h('span',{'aria-hidden':'true'},'⎋')))}
 function dayBar(){const t=today(),d=S.date;const rel=d===t?'Today':d===addDays(t,-1)?'Yesterday':'';
   const go=n=>{if(S.dirty)save(true);S.date=addDays(S.date,n);S.view==='team'?loadTeam():load()};
@@ -499,7 +499,7 @@ async function submitFinal(){const b=document.getElementById('submitFinal');if(b
   S.doc.finished=true;S.doc.finishedAt=new Date().toISOString();S.dirty=true;await save(true);await syncNow(true);await pushRefl();
   try{await db.doc('reps/'+S.me.id).update({finishedDay:S.date})}catch(_){}
   toast('Final KPIs sent ✓',2500);render();
-  const btn=document.getElementById('submitFinal');if(btn){const lk=h('a',{href:'https://ameliahcrowe-cloud.github.io/Orexis-Innovations/midas/',target:'_top',style:'display:block;text-align:center;text-decoration:none;background:var(--ok);color:#fff;font-weight:800;border-radius:10px;padding:15px;font-size:1.05rem'},'✓ Sent — open Midas KPIs for your reflection ›');btn.replaceWith(lk)}}
+  const btn=document.getElementById('submitFinal');if(btn){const lk=h('a',{href:'https://script.google.com/macros/s/AKfycbygNx44F_JhoaR8DXoKocBxCHLQavLw0o85jA2_JmkhFzwx6cdx1nOG9sYduOMLVkdxOw/exec',target:'_top',style:'display:block;text-align:center;text-decoration:none;background:var(--ok);color:#fff;font-weight:800;border-radius:10px;padding:15px;font-size:1.05rem'},'✓ Sent — open Midas KPIs for your reflection ›');btn.replaceWith(lk)}}
 function render(){HOURS=S.view==='team'?Math.max(10,...Object.values(S.team||{}).map(d=>d?Math.max(baseHours(d),num(d.hoursN),...Object.keys(d.slots||{}).map(Number)):0)):(S.doc?Math.max(baseHours(S.doc),num(S.doc.hoursN),...Object.keys(S.doc.slots||{}).filter(k=>F.some(f=>num(S.doc.slots[k][f.k]))).map(Number)):10);const ae=document.activeElement;if(ae&&ae.type==='time'){if(!ae.dataset.rb){ae.dataset.rb=1;ae.addEventListener('blur',()=>setTimeout(render,0),{once:true})}return}const a=$('#app');const keepY=window.scrollY;a.replaceChildren(header());
   if(S.leader)a.append(h('div',{class:'seg'},[['mine','My hourly'],['team','Team live']].map(([k,l])=>h('button',{class:S.view===k?'on':null,onclick:()=>{S.view=k;k==='team'?loadTeam():load()}},l))));
   a.append(dayBar());

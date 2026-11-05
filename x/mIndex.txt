@@ -750,7 +750,7 @@ async function syncFromHourly(){if(S.hSyncBusy)return;S.hSyncBusy=true;render();
   for(const u of ids){const r=await pullHourlyOne(u,S.date);if(r==='ok')ok++;else if(r==='none')none++}
   S.hSyncBusy=false;scheduleSummary&&scheduleSummary();
   toast(ok?(leader()?'Synced '+ok+' '+(ok===1?'person':'people')+' from Midas Hourly':'Synced from Midas Hourly'):'Nothing in Midas Hourly for this day yet',3500);render()}
-const HOURLY_URL='https://ameliahcrowe-cloud.github.io/Orexis-Innovations/midas/hourly/';
+const HOURLY_URL='https://script.google.com/macros/s/AKfycbygNx44F_JhoaR8DXoKocBxCHLQavLw0o85jA2_JmkhFzwx6cdx1nOG9sYduOMLVkdxOw/exec?app=hourly';
 function hourlyBtn(){return h('a',{href:HOURLY_URL,target:'_top',class:'hourlybtn'},'⏱ Hourly full screen ›')}
 function dayBar(){const t=todayStr();const d=S.date;const rel=d===t?'Today':d===addDays(t,-1)?'Yesterday':d===addDays(t,1)?'Tomorrow':'';
   return h('div',{id:'daybar'},h('button',{'aria-label':'Previous day',onclick:()=>setDate(addDays(S.date,-1))},'‹'),
@@ -1569,6 +1569,26 @@ function bonusRow(rule,uid){const s=bonusStatus(rule,uid);
 function weekNav(){return h('div',{style:'display:flex;gap:6px'},h('button',{onclick:()=>setDate(addDays(S.week,-7))},'‹ Last week'),h('button',{onclick:()=>setDate(addDays(S.week,7))},'Next week ›'))}
 function bonusOn(uid){return stageIdx(uid)>=1||(S.isOwner&&uid===S.uid)}
 function bonusLock(uid){const sp=salesProgress(uid,STAGES[0]);return h('div',{class:'panel',style:'text-align:center;padding:22px'},h('div',{style:'font-size:2rem',text:'🔒'}),h('h3',{text:'Bonus unlocks at Sales Consultant'}),h('div',{class:'hint',text:'Hit '+STAGES[0].sales.label+' and get ticked off as SC by your leader to unlock your weekly performance fee.'}),sp?h('div',{style:'margin-top:10px'},bar(sp.pct,sp.done),h('div',{class:'hint',text:sp.line})):null)}
+const MB_WEEK=[[4000,200],[5000,300],[6000,450],[7000,550],[8000,650],[10000,1000],[12000,1250],[15000,1600]];
+const MB_ROAD=[[5000,100],[6000,300],[7000,400],[8000,500],[10000,750],[12000,1000],[15000,1250]];
+const MB_M4=[[18000,400],[22000,700],[26000,1100],[30000,1500],[34000,2000],[38000,2500]];
+const MB_M5=[[22000,500],[26000,900],[30000,1300],[34000,1700],[38000,2100],[42000,2500]];
+const MB_TEAM=[['Director','$50,000',5,8,'5%'],['Assistant Director','$35,000',4,6,'4%'],['Team Manager','$25,000',3,4,'3%'],['Team Manager','$15,000',2,2,'2%']];
+function mbTier(T,v){let t=null;T.forEach(x=>{if(v>=x[0])t=x});const n=T.find(x=>v<x[0])||null;return{t,n,pay:t?t[1]:0}}
+function mbMondays(mk){const [y,m]=mk.split('-').map(Number);let n=0;for(let d=1;d<=31;d++){const x=new Date(y,m-1,d);if(x.getMonth()!==m-1)break;if(x.getDay()===1)n++}return n}
+function feeFor(t){return{fee:0,rph:t.hours>0?t.retail/t.hours:0,tier:null,unlocked:true,next:null,needRetail:null,minGap:0,c:{minRetail:0,tiers:[]}}}
+function feePanel(t,who){const uid=S.uid;const wk=S.week;const road=sourceAll(uid,'period').some(e=>e.week===wk&&e.roadie);const W=road?MB_ROAD:MB_WEEK;const w=mbTier(W,t.retail);
+  const mk=monthKey(S.date);const [y,m]=mk.split('-').map(Number);const a=mk+'-01',b=toStr(new Date(y,m,0));const mt=totalsIn([uid],a,b);const five=mbMondays(mk)>=5;const M=mbTier(five?MB_M5:MB_M4,mt.retail);
+  const row=(lbl,val,sub,ok)=>h('div',{class:'mstat'},h('div',{class:'lbl',text:lbl}),h('div',{class:'big',text:val}),h('div',{class:ok?'achieved':'of',text:sub}));
+  const p=h('div',{class:'panel feebox'},
+    row((road?'Roadtrip ':'')+'weekly bonus',money(w.pay),w.t?'✓ '+money(t.retail)+' retail (tier '+money(w.t[0])+')':money(t.retail)+' retail so far',!!w.t),
+    row('Next weekly tier',w.n?money(w.n[1]):'Top tier',w.n?money(w.n[0]-t.retail)+' more retail to reach '+money(w.n[0]):'🎉',!w.n),
+    row('Monthly bonus · '+(five?'5':'4')+'-week month',money(M.pay),money(mt.retail)+' retail in '+monthName(mk),!!M.t),
+    row('Next monthly tier',M.n?money(M.n[1]):'Top tier',M.n?money(M.n[0]-mt.retail)+' more to reach '+money(M.n[0]):'🎉',!M.n));
+  const tb=h('tbody');MB_TEAM.forEach(r=>tb.append(h('tr',null,r.map(x=>h('td',{text:String(x)})))));
+  return h('div',{class:'stack'},p,h('details',{class:'guide'},h('summary',{text:'Team bonus criteria'}),h('div',{class:'panel scroll'},h('table',null,h('thead',null,h('tr',null,['Role','Sales (back to back weeks)','Direct SLs','Total SLs','Incentive'].map(x=>h('th',{text:x})))),tb)),
+    h('p',{class:'hint',text:'Team bonuses can include TL/TM/AD/D personal sales for criteria, but personal sales aren’t included when calculating the team bonus payment. All sales must be valid; bonuses are paid the pay period after achievement, at the Managing Director’s discretion.'})))}
+
 function renderBonus(v){const rules=bonusRules();const c=feeCfg();
   if(!leader()){
     v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My bonus · week of '+niceDate(S.week,{day:'numeric',month:'long'})}),h('div',{class:'hint',text:'Your weekly performance fee is worked out from your week’s retail and RPH. This is an estimate; your leader confirms the final amount.'})),weekNav()));
