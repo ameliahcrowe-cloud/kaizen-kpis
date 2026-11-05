@@ -718,7 +718,7 @@ function render(){renderHeader();const v=document.getElementById('view');
     if(!S.ready){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading…'})));return}
     if(!S.db)return;
     if(!leader()&&!S.me){renderJoin(v);return}
-    if(leader()&&S.legacy&&S.legacy.entries.length)v.append(legacyPanel());if(S.tab==='log'||S.tab==='reflect'||S.tab==='team'){const mc=missingCard();if(mc)v.append(mc);const hb=htBanner();if(hb)v.append(hb)}
+    if(leader()&&S.legacy&&S.legacy.entries.length)v.append(legacyPanel());if(S.tab==='log'||S.tab==='reflect'||S.tab==='team'){const mc=missingCard();if(mc)v.append(mc);}
     const db_=!(S.admin&&S.tab==='admin')&&(S.tab==='log'||S.tab==='reflect'||S.tab==='hourly'||!S.tab);document.body.classList.toggle('hasDaybar',db_);if(db_)v.append(dayBar());
     if(S.tab==='log'||!S.tab)v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;gap:8px;margin-bottom:-6px'},h('button',{onclick:async()=>{const ok=await copyRich(dailyWrapText());toast(ok?'Day copied — paste into Telegram':'Couldn’t copy on this device')}},'📋 Copy day to Telegram'),h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;align-items:center'},hourlyBtn(),h('button',{id:'syncHourly',class:'icon',title:'Pull my numbers from Hourly now','aria-label':'Pull my numbers from Hourly now',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;min-width:44px'},S.hSyncBusy?'…':'⟳')));
     (S.admin&&isAdminUser()&&S.tab==='admin'?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{line:renderLine,sas:renderSAs,pbboard:renderPBBoard,log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog)(v);
@@ -1721,29 +1721,6 @@ function reviewView(r,uid){if(!r)return h('div',{class:'hint',text:'Not submitte
     h('div',null,h('strong',{text:'Motivated by: '}),r.motivating||'—'),
     h('div',null,h('strong',{text:'From mentor: '}),r.mentor||'—'))}
 
-/* ---------- half-time review (midweek) ---------- */
-function htKey(){return 'ht-'+S.week}
-function htDue(){const n=new Date(),g=n.getDay(),hr=n.getHours();return (g===3&&hr>=17)||(g===4&&hr<12)}
-function htBanner(){if(!S.me||S.admin||S.week!==weekStart(todayStr())||!htDue())return null;const k=S.uid+'|'+htKey();if(!(k in S.refl)){loadDocs('refl',[S.uid],htKey());return null}if(S.refl[k])return null;
-  return h('div',{class:'panel',style:'border-color:var(--accent);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap'},h('b',{text:'⏱️ Half-time review time: how’s your week tracking?'}),h('button',{class:'primary',onclick:()=>{S.tab='reflect';S.reflView='half';render()}},'Do it now'))}
-function htText(uid,d){const t=weekAll(uid,S.week);const L=a=>(a||[]).map(x=>String(x||'').trim()).filter(Boolean);
-  const out=['**Half-time Review**','WC '+niceDate(S.week,{day:'numeric',month:'short'}),'','**Retail:** '+money(t.retail),'**Stops:** '+t.stops,'**Buyers:** '+t.buyers,'**Hours:** '+(Math.round(t.hours*10)/10),'**RPH:** '+(t.hours>0?money(t.retail/t.hours):'—'),'','**Wins so far**'].concat(L(d.wins).map(x=>'- '+x),['','**Focus for the second half**',String(d.focus||'').trim()]);
-  const pr=L(d.praise);if(pr.length||String(d.needle||'').trim())out.push('','**Leader feedback**',...pr.map(x=>'👏 '+x),...(String(d.needle||'').trim()?['🎯 '+String(d.needle).trim()]:[]));return out.join('\n')}
-function renderHalf(v){const who=leader()?(S.htWho||S.uid):S.uid;const key=htKey();
-  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Half-time review · WC '+niceDate(S.week,{day:'numeric',month:'short'})}),h('div',{class:'hint',text:'Wednesday night or Thursday morning. They find their own wins and focus, then one piece of feedback that turns good into great.'}))));
-  if(leader()){const ppl=[{id:S.uid,name:(S.me&&S.me.name)||'Me'}].concat(repList(true).filter(r=>r.id!==S.uid));
-    v.append(h('label',null,h('span',{class:'lbl',text:'Whose review'}),h('select',{onchange:e=>{S.htWho=e.target.value;render()}},ppl.map(r=>h('option',{value:r.id,selected:r.id===who},r.name)))))}
-  const loaded=(who+'|'+key) in S.refl&&S.refl[who+'|'+key]!==undefined;if(!loaded){loadDocs('refl',[who],key);v.append(h('div',{class:'panel empty'},h('span',{text:'Loading…'})));return}
-  const d=draftOf('refl',who,key);d.wins=d.wins||['','',''];d.praise=d.praise||['',''];const saved=S.refl[who+'|'+key];const t=weekAll(who,S.week);
-  v.append(h('div',{class:'notice'},'Week so far: '+money(t.retail)+' retail · '+t.stops+' stops · '+t.buyers+' buyers · '+(Math.round(t.hours*10)/10)+' hrs'+(t.hours>0?' · '+money(t.retail/t.hours)+' RPH':'')));
-  const f=h('div',{class:'panel rform'});
-  f.append(h('h4',{text:'1. Your wins so far'}),h('div',{class:'hint',text:'Praise yourself. Don’t be too hard on the negatives.'}),...d.wins.map((_,i)=>txt('ht-w'+i,d.wins,i,'Win '+(i+1))));
-  f.append(h('h4',{text:'2. Your focus for the second half'}),txt('ht-f',d,'focus','e.g. 20 stops every day'));
-  f.append(h('h4',{text:'3. Would you like any feedback?'}),h('div',{class:'pills'},['Yes','Not today'].map(x=>h('button',{class:d.ok===x?'on':null,onclick:()=>{d.ok=x;markDirty();render()}},x))));
-  if(d.ok==='Yes'){f.append(h('h4',{text:'4. Leader: genuine praise + one needle-mover'}),txt('ht-p0',d.praise,0,'Something they did really well'),txt('ht-p1',d.praise,1,'Another thing (optional)'),txt('ht-n',d,'needle','The ONE thing that turns good into great'));}
-  f.append(h('div',{class:'formfoot'},h('span',{class:'hint',text:saved?'Saved '+new Date(saved.updatedAt).toLocaleString('en-AU',{weekday:'short',hour:'numeric',minute:'2-digit'}):'Not saved yet'}),
-    h('span',{style:'display:flex;gap:8px'},h('button',{onclick:async()=>{const ok=await copyRich(htText(who,d));toast(ok?'Copied — paste into Telegram':'Couldn’t copy on this device')}},'📋 Copy to Telegram'),h('button',{class:'primary',onclick:()=>saveDoc('refl',who,key)},saved?'Saved':'Save review'))));
-  v.append(f)}
 /* ---------- training scorecard (new starters) ---------- */
 const TS_CRIT=[['Pitch delivery','Confident, natural, on structure'],['Coachability','Takes feedback, implements it immediately'],['Energy & effort','Engaged, brings intensity, doesn’t need pushing'],['Stopping confidence','Initiates, no hesitation or excuses'],['Attitude under pressure','Resets quickly, no sulking or blame'],['Team presence','Adds to the room’s energy'],['Preparation','Came back having worked on the script'],['Compliance understanding','Genuine understanding, not memorised']];
 function tsDecision(n){return n>=35?['Fast track to field','#1f7a4d']:n>=28?['Can get in field','#1f7a4d']:n>=20?['Delayed start: development plan','#8a6200']:['Exit conversation','#b42318']}
@@ -1778,8 +1755,7 @@ function renderSmart(v){const uid=S.uid;const r=S.reps[uid]||{};S.smartD=S.smart
   [['business','Business'],['finances','Finances'],['relationships','Relationships'],['health','Health']].forEach(([k,l])=>{const q=d.quad[k]=d.quad[k]||{};g.append(h('div',{class:'panel rform'},h('h4',{text:l}),...['3','6','12'].map(m=>h('label',null,h('span',{class:'lbl',text:m+' months'}),txt('sm-'+k+m,q,m,'')))))});v.append(g);
   v.append(h('button',{class:'primary',style:'margin-top:10px',onclick:async()=>{const body={...d,updatedAt:new Date().toISOString()};const ok=await write(()=>S.db.doc('reps/'+uid).update({smart:body}),'Goals saved');if(ok)S.reps[uid]={...r,smart:body}}},'Save goals'))}
 function renderReflect(v){
-  v.append(h('div',{class:'seg'},[['daily','Daily reflection'],['half','Half-time review'],['weekly','Weekly review']].map(([k,l])=>h('button',{class:S.reflView===k?'primary':null,'aria-pressed':String(S.reflView===k),onclick:()=>{S.reflView=k;render()}},l))));
-  if(S.reflView==='half'){renderHalf(v);return}
+  v.append(h('div',{class:'seg'},[['daily','Daily reflection'],['weekly','Weekly review']].map(([k,l])=>h('button',{class:S.reflView===k?'primary':null,'aria-pressed':String(S.reflView===k),onclick:()=>{S.reflView=k;render()}},l))));
   const daily=S.reflView!=='weekly';
   if(false){v.append(h('div',{class:'seg'},[['team','Team'],['me','Mine']].map(([k,l])=>h('button',{class:S.reflWho===k?'primary':null,'aria-pressed':String(S.reflWho===k),onclick:()=>{S.reflWho=k;render()}},l))))}
   if(!leader()){
