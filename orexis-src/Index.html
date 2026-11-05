@@ -1896,7 +1896,7 @@ const TOPIC_COL={rapport:'#2E3A59',nvc:'#c98a1b',attitude:'#1f7a4d',stopping:'#b
 function topicDia(k){const NS='http:'+'\/\/www.w3.org/2000/svg';const svg=document.createElementNS(NS,'svg');svg.setAttribute('style','width:100%;height:auto;display:block;max-width:600px;margin:10px auto 0');
   const el=(t,a,tx)=>{const e=document.createElementNS(NS,t);for(const x in a)e.setAttribute(x,a[x]);if(tx!=null)e.textContent=tx;svg.appendChild(e);return e};
   const C={navy:'#2E3A59',gold:'#F5B56E',green:'#17663f',red:'#a3201a',amber:'#9a6408',blue:'#1f6896',purple:'#5a3f8c',ink:'#1d2433',muted:'#3f4656',soft:'#efe9df'};svg.style.background='#fff';svg.style.borderRadius='12px';svg.style.padding='6px';
-  const T=(x,y,s,o)=>el('text',Object.assign({x,y,'text-anchor':'middle','font-size':14,fill:C.ink},o||{}),s);
+  const T=(x,y,s,o)=>{const a=Object.assign({x,y,'text-anchor':'middle','font-size':14,fill:C.ink},o||{});a.style='fill:'+a.fill+';font-size:'+a['font-size']+'px';return el('text',a,s)};
   const VB=(w,h)=>svg.setAttribute('viewBox','0 0 '+w+' '+h);
   const badge=(cx,cy,r,col,big,small)=>{el('circle',{cx,cy,r,fill:col});T(cx,cy+(small?2:7),big,{'font-size':r*0.8,'font-weight':800,fill:'#fff'});if(small)T(cx,cy+r+18,small,{'font-size':13,'font-weight':700})};
   if(k==='rapport'){VB(560,230);[['Teacher','Teach them something','about the cause',C.navy],['Student','Ask genuine questions,','let them be the expert',C.amber],['Relate','Share something real','of your own',C.green]].forEach(([n,a,b,c],i)=>{const cx=93+i*187;
