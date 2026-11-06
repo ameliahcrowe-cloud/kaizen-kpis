@@ -321,8 +321,8 @@ function ringFor(r){const l=levelFor(r);return l?l.emoji+' '+l.label:''}
 function celebrate(l){const o=h('div',{style:'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(20,26,45,.6)',onclick:()=>o.remove()},
   h('div',{style:'background:#2E3A59;color:#fff;border-radius:22px;padding:28px 34px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.35);animation:pop .4s ease'},
     h('div',{style:'font-size:4rem;line-height:1',text:l.emoji}),h('div',{style:'font-family:var(--display);font-size:2rem;font-weight:700;color:#F5B56E;letter-spacing:.06em;margin-top:8px',text:l.label+'!'}),
-    h('div',{style:'margin-top:4px',text:money(l.amt)+'+ today. Huge!'})));document.body.append(o);setTimeout(()=>o.remove(),4000)}
-function checkRing(){if(!S.doc||S.date!==today())return;const l=levelFor(totals().retail);if(l&&Number(S.doc.rungAmt||0)<l.amt){S.doc.rungAmt=l.amt;celebrate(l)}}
+    h('div',{style:'margin-top:4px',text:money(l.amt)+'+ today. Huge!'})));document.body.append(o);setTimeout(()=>o.remove(),7000)}
+function checkRing(){try{if(!S.doc||!S.me||S.date!==today())return;const l=levelFor(totals().retail);if(!l)return;const k='rung|'+S.me.id+'|'+S.date;let done=0;try{done=Number(localStorage.getItem(k)||0)}catch(_){done=Number(S.doc.rungAmt||0)}if(done<l.amt){S.doc.rungAmt=l.amt;try{localStorage.setItem(k,String(l.amt))}catch(_){}celebrate(l)}}catch(e){console.error(e)}}
 async function save(quiet){if(!S.doc)return;checkRing();const clean={};for(const k in S.doc.slots){const x={};F.forEach(f=>{const v=num(S.doc.slots[k][f.k]);if(v)x[f.k]=v});const sl=(S.doc.slots[k].sales||[]).map(num).filter(v=>v>0);if(sl.length&&x.retail)x.sales=sl;if(Object.keys(x).length)clean[k]=x}
   const body={...S.doc,date:S.date,slots:clean,updatedAt:new Date().toISOString()};
   try{await db.doc(`reps/${S.me.id}/hourly/${S.date}`).set(body);S.doc.updatedAt=body.updatedAt;S.dirty=false;S.savedAt=Date.now();try{localStorage.removeItem(lsKey())}catch(_){}if(S.date===today())pushStreak();if(!quiet)toast('Saved');renderBar()}catch(e){toast('Couldn’t save — check your signal and try again')}
@@ -509,7 +509,7 @@ function render(){HOURS=S.view==='team'?Math.max(10,...Object.values(S.team||{})
   const ready=num(T.retail)>0&&(D.site||'').trim();if(S.setupOpen==null)S.setupOpen=!ready;
   if(S.setupOpen){setupCards(a,D);a.append(h('button',{onclick:()=>{S.setupOpen=false;render()}},'Done · show my tally'))}
   else a.append(h('div',{class:'card',style:'padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px'},h('div',{style:'min-width:0'},h('b',{text:(D.roadie?'🚐 ':'🏙️ ')+(D.site||'No site set')}),h('div',{class:'hint',text:(((S.camps||[]).find(c=>c.id===(D.campaign||S.homeCamp))||{}).name||'')+' · Target '+money(T.retail)+(D.start?' · started '+hourRange(1).split('–')[0]:'')})),h('button',{onclick:()=>{S.setupOpen=true;render()}},'Edit day')));
-  {const b=checkBanner();if(b)a.append(b)}{const y=yesterdayCard();if(y)a.append(y)}{const w=weekCard();if(w)a.append(w)}
+  setTimeout(checkRing,0);{const b=checkBanner();if(b)a.append(b)}{const y=yesterdayCard();if(y)a.append(y)}{const w=weekCard();if(w)a.append(w)}
   breakNudge(a);
   {const g=goalCard();if(g)a.append(g)}
   S.mode='tally';renderTally(a);
