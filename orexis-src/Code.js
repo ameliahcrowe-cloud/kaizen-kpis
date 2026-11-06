@@ -80,7 +80,7 @@ function syncHourly(dateArg) {
       Object.keys(doc.data.slots).forEach(k => { const x = doc.data.slots[k] || {}; if (H_FIELDS.some(f => Number(x[f]) || 0)) n++; H_FIELDS.forEach(f => tot[f] += Number(x[f]) || 0); });
       const ep = 'reps/' + seg[1] + '/entries/' + date; const cur = t.map[ep] && !t.map[ep].del ? (t.map[ep].data || {}) : {};
       const rep = t.map['reps/' + seg[1]] && t.map['reps/' + seg[1]].data || {};
-      const body = Object.assign({}, cur, tot, { date, week: mondayOf_(date), month: date.slice(0, 7), hours: (Number(cur.hours) || 0) > 0 ? Number(cur.hours) : (Number(doc.data.targets && doc.data.targets.shiftHours) || 8), fromHourly: true, roadie: !!doc.data.roadie, updatedAt: nowIso });
+      const body = Object.assign({}, cur, tot, { date, week: mondayOf_(date), month: date.slice(0, 7), hours: (Number(cur.hours) || 0) > 0 ? Number(cur.hours) : (Number(doc.data.targets && doc.data.targets.shiftHours) || 8), fromHourly: true, roadie: !!doc.data.roadie, updatedAt: nowIso }); if (String(doc.data.cash || '').trim()) body.cash = Number(doc.data.cash) || 0; if (String(doc.data.eftpos || '').trim()) body.eftpos = Number(doc.data.eftpos) || 0;
       if (!body.campaign && rep.campaign) body.campaign = rep.campaign;
       out.push({ path: ep, data: body });
       out.push({ path, data: Object.assign({}, doc.data, { syncedAt: nowIso }) });
