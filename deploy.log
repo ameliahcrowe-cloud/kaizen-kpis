@@ -1,0 +1,19 @@
+└─ appsscript.json
+└─ Code.js
+└─ Hourly.html
+└─ Index.html
+Pulled 4 files.
+total 692
+drwxr-xr-x  2 runner runner   4096 Nov  7 01:04 .
+drwxr-xr-x 14 runner runner   4096 Nov  7 01:04 ..
+-rw-r--r--  1 runner runner     87 Nov  7 01:04 .clasp.json
+-rw-r--r--  1 runner runner 125586 Nov  7 01:04 Code.js
+-rw-r--r--  1 runner runner 142061 Nov  7 01:04 Hourly.html
+-rw-r--r--  1 runner runner 420496 Nov  7 01:04 Index.html
+-rw-r--r--  1 runner runner    208 Nov  7 01:04 appsscript.json
+Pushed 4 files at 1:04:55 AM.
+└─ appsscript.json
+└─ Code.js
+└─ Hourly.html
+└─ Index.html
+Redeployed AKfycbygNx44F_JhoaR8DXoKocBxCHLQavLw0o85jA2_JmkhFzwx6cdx1nOG9sYduOMLVkdxOw @15
