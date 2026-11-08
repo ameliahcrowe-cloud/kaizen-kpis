@@ -492,6 +492,7 @@ function setupScorecards() {
 }
 function addDaysS_(d, n) { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); }
 function weeklyScorecards(weekArg) {
+  if (typeof weekArg !== 'string') return 'Off: scorecards now go out Sunday 8am from the GitHub sender';
   const today = Utilities.formatDate(new Date(), 'Australia/Melbourne', 'yyyy-MM-dd');
   const wk = typeof weekArg === 'string' ? weekArg : mondayOf_(today);
   const to = SCORE_TO || Session.getEffectiveUser().getEmail(), tag = wk.slice(8, 10) + '/' + wk.slice(5, 7);
@@ -529,6 +530,33 @@ function scorecards_(wk) {
   const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const M1 = '#7b1e2e', MUT = '#6b5b60', LINE = '#e6dcde';
   const out = [];
+  { // ---- company card ----
+    const N = '#424965', G = '#F5B56E';
+    const sec2 = t => '<div style="margin:16px 0 8px;font-size:11px;font-weight:700;letter-spacing:.14em;color:' + N + '"><span style="display:inline-block;width:18px;height:2px;background:' + G + ';vertical-align:middle;margin-right:8px"></span>' + t + '</div>';
+    const tile = (l, v, sub) => '<td style="padding:0 14px 0 0;vertical-align:top"><div style="font-size:10px;letter-spacing:.1em;color:' + MUT + '">' + l + '</div><div style="font-size:24px;font-weight:700;color:' + N + '">' + v + '</div><div style="font-size:11px;color:' + MUT + '">' + (sub || '') + '</div></td>';
+    const all = reps.map(x => ({ ...x, s: sum(x.id, wk, end) }));
+    const tot = (list) => { const T = { stops: 0, buyers: 0, retail: 0, upsells: 0, upsellRetail: 0, medals: 0, hours: 0, shifts: 0, days: DN.map(() => 0) }; list.forEach(x => { ['stops', 'buyers', 'retail', 'upsells', 'upsellRetail', 'medals', 'hours', 'shifts'].forEach(k => T[k] += x.s[k]); x.s.days.forEach((d, i) => T.days[i] += d.retail); }); return T; };
+    const T = tot(all); const K = kp(T);
+    const prevT = tot(reps.map(x => ({ ...x, s: sum(x.id, addDaysS_(wk, -7), addDaysS_(wk, -1)) })));
+    const worked = all.filter(x => x.s.shifts);
+    const bells = all.reduce((n, x) => n + x.s.days.filter(d => d.worked && d.retail >= STD.bell && d.retail < STD.gong).length, 0), gongs = all.reduce((n, x) => n + x.s.days.filter(d => d.worked && d.retail >= STD.gong).length, 0);
+    const diff = prevT.retail ? Math.round((T.retail - prevT.retail) / prevT.retail * 100) : null;
+    let h = '<div style="max-width:720px;margin:0 auto;background:#fff;font-family:Helvetica,Arial,sans-serif">' +
+      '<div style="background:' + N + ';color:#fff;padding:14px 20px;border-radius:6px"><table style="width:100%;border-collapse:collapse"><tr><td style="width:110px;vertical-align:middle"><img src="' + OREXIS_LOGO + '" style="height:44px;display:block;border:0"></td><td style="font-size:11px;letter-spacing:.2em;color:' + G + ';vertical-align:middle;text-align:right">COMPANY SCORECARD · WC ' + wk.slice(8, 10) + '/' + wk.slice(5, 7) + '</td></tr></table>' +
+      '<div style="font-size:30px;letter-spacing:.04em;margin-top:8px">' + esc(String(coName).toUpperCase()) + '</div><div style="font-size:12px;color:#dfe2ec">' + worked.length + ' people worked · ' + T.shifts + ' shifts · ' + Math.round(T.hours) + ' hours</div></div>' +
+      '<div style="font-size:14px;line-height:1.5;margin:14px 0">' + money(T.retail) + ' retail this week' + (diff == null ? '' : ', ' + (diff >= 0 ? 'up ' : 'down ') + Math.abs(diff) + '% on last week (' + money(prevT.retail) + ')') + '. ' + gongs + ' gong day' + (gongs === 1 ? '' : 's') + ' 🥁 and ' + bells + ' bell day' + (bells === 1 ? '' : 's') + ' 🔔.</div>' +
+      '<table style="border-collapse:collapse"><tr>' + tile('RETAIL', money(T.retail), T.shifts + ' shifts') + tile('RPH', T.hours ? money(K.rph) : '—', T.hours ? zone(K.rph) : '') + tile('CONVERSION', T.stops ? Math.round(K.conv) + '%' : '—', 'Standard ' + BANDS.conv.strong + '%') + tile('STOPS / SHIFT', T.shifts ? K.stops.toFixed(1) : '—', 'Standard ' + BANDS.stops.strong) + tile('SALE AVERAGE', T.buyers ? money(K.avg) : '—', 'Standard ' + money(BANDS.avg.strong)) + '</tr></table>' +
+      '<table style="border-collapse:collapse;margin-top:10px"><tr>' + tile('STOPS', String(T.stops)) + tile('BUYERS', String(T.buyers)) + tile('UPSELLS', String(T.upsells), T.buyers ? Math.round(T.upsells / T.buyers * 100) + '% of buyers' : '') + tile('MEDALS', String(T.medals)) + '</tr></table>';
+    const mx = Math.max(1, ...T.days);
+    h += sec2('THE WEEK') + '<table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr style="vertical-align:bottom">' + T.days.map(v => '<td style="text-align:center;padding:0 6px;height:110px;vertical-align:bottom"><div style="font-size:10px;color:' + MUT + '">' + (v ? money(v) : '') + '</div><div style="height:' + Math.max(2, Math.round(v / mx * 90)) + 'px;background:' + (v ? N : LINE) + ';border-radius:3px 3px 0 0"></div></td>').join('') + '</tr><tr>' + DN.map(d => '<td style="text-align:center;font-size:10px;color:' + MUT + ';border-top:1px solid ' + LINE + ';padding-top:3px">' + d + '</td>').join('') + '</tr></table>';
+    const wks = [-21, -14, -7, 0].map(o => { const a = addDaysS_(wk, o); return { a, x: tot(reps.map(r => ({ s: sum(r.id, a, addDaysS_(a, 6)) }))) }; });
+    h += sec2('LAST 4 WEEKS') + '<table style="width:100%;border-collapse:separate;border-spacing:6px 0"><tr>' + wks.map(({ a, x }) => '<td style="border:1px solid ' + (a === wk ? G : LINE) + ';border-radius:8px;padding:8px 10px;width:25%"><div style="font-size:10px;color:' + MUT + '">WC ' + a.slice(8, 10) + '/' + a.slice(5, 7) + '</div><div style="font-size:18px;font-weight:700;color:' + N + '">' + money(x.retail) + '</div><div style="font-size:11px;color:' + MUT + '">' + x.shifts + ' shifts · ' + (x.hours ? money(x.retail / x.hours) + ' RPH' : '—') + '</div></td>').join('') + '</tr></table>';
+    const th = 'text-align:left;font-size:10px;letter-spacing:.06em;color:' + MUT + ';padding:6px 8px;border-bottom:1px solid ' + LINE, td = 'padding:6px 8px;border-bottom:1px solid ' + LINE + ';font-size:12px';
+    h += sec2('EVERYONE') + '<table style="width:100%;border-collapse:collapse"><tr>' + ['#', 'Name', 'Shifts', 'Retail', 'RPH', 'Conv', '$ AV', 'Stops/shift'].map(x => '<th style="' + th + '">' + x + '</th>').join('') + '</tr>' +
+      worked.sort((a, b) => b.s.retail - a.s.retail).map((x, i) => { const k = kp(x.s); return '<tr><td style="' + td + '">' + (i + 1) + '</td><td style="' + td + ';font-weight:700">' + esc(x.r.name || 'Rep') + '</td><td style="' + td + '">' + x.s.shifts + '</td><td style="' + td + '">' + money(x.s.retail) + '</td><td style="' + td + '">' + (x.s.hours ? money(k.rph) : '—') + '</td><td style="' + td + '">' + Math.round(k.conv) + '%</td><td style="' + td + '">' + (x.s.buyers ? money(k.avg) : '—') + '</td><td style="' + td + '">' + k.stops.toFixed(1) + '</td></tr>'; }).join('') + '</table>';
+    h += '<div style="margin-top:22px;border-top:1px solid ' + LINE + ';padding-top:8px;font-size:10px;letter-spacing:.06em;color:' + MUT + '">STANDARDS PER SHIFT: ' + BANDS.stops.strong + ' STOPS · ' + BANDS.conv.strong + '% CONVERSION · ' + money(BANDS.avg.strong) + ' SALE AVERAGE · ' + money(STD.rph) + ' RPH</div></div>';
+    out.push({ name: 'Company - ' + coName, html: h });
+  }
   reps.map(x => ({ ...x, s: sum(x.id, wk, end) })).sort((a, b) => b.s.retail - a.s.retail).forEach(({ id, r, s }) => {
     const P = sum(id, addDaysS_(wk, -28), addDaysS_(wk, -1)); const K = kp(s), U = P.shifts ? kp(P) : null;
     const rows = [['Stops per shift', 'stops', K.stops, U && U.stops, x => x.toFixed(1), s.hours ? s.stops / s.hours * 8 : K.stops], ['Stop to buyer %', 'conv', K.conv, U && U.conv, x => Math.round(x) + '%'], ['Sale average', 'avg', K.avg, U && U.avg, money], ['Buyers to upsells %', 'ups', K.ups, U && U.ups, x => Math.round(x) + '%']];
