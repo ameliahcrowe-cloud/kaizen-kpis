@@ -42,4 +42,4 @@ jobs:
           npm i --no-save playwright@1.48.2 >/dev/null && npx playwright install --with-deps chromium >/dev/null
           node tools/render-cards.js cards.json out
           python3 -c "import json,os;p=json.load(open('out/payload.json'));p['key']=os.environ['KEY'];p['test']=os.environ['TEST']=='true';json.dump(p,open('post.json','w'))"
-          curl -sSL -X POST -H 'Content-Type: application/json' --data @post.json "$EXEC"
+          curl -sSL -H 'Content-Type: application/json' --data @post.json "$EXEC"
