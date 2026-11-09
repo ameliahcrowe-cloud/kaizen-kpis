@@ -449,7 +449,7 @@ let STD = Object.assign({}, STD_DEFAULT);
 function setting_(t, name) { const d = t.map['settings/' + name]; return d && !d.del && d.data ? d.data : {}; }
 function loadStd_(t) { const x = setting_(t, 'standards'); STD = Object.assign({}, STD_DEFAULT); Object.keys(STD_DEFAULT).forEach(k => { const v = Number(x[k]); if (isFinite(v) && v > 0) STD[k] = v; });
   BANDS.stops.strong = STD.stops; BANDS.conv.strong = STD.conv; BANDS.avg.strong = STD.avg; BANDS.ups.strong = STD.ups; }
-const CARDS_KEY = '29T5Oa1T0sBnFM3AQ6d2ji7VqcY9IgHC';
+const CARDS_KEY = 'kI3F32ZWxoTf2hSY-lQ6-c-3Vy3Y-UCo';
 const SCORE_INCLUDE_TEST = true; // trial: include test people in scorecards
 const BANDS = {
   stops: { low: 15, strong: 20 },   // per shift: <15 low, 15-20 avg, 20+ strong

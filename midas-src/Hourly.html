@@ -233,6 +233,7 @@ table.grid .hitc{font-weight:800}
     can:async()=>{await ready;return session.role==='owner'},me:async()=>{await ready;return{id:session.uid,name:session.name,isOwner:session.role==='owner',canEdit:session.role!=='rep',email:null,avatarUrl:'',color:'#424965'}},
     profiles:async ids=>{const o={};(Array.isArray(ids)?ids:[ids]).forEach(i=>o[i]={id:i,name:'',avatarUrl:'',color:'#424965',email:null,isMe:i===(session&&session.uid),guest:false});return o},name:async()=>session.name};
   window.claude={use:async n=>{await ready;return n==='db'?db:n==='user'?user:null}};
+  window.kzSync=async()=>{await ready;if(syncing){await new Promise(r=>setTimeout(r,1500))}await sync(false)};
   window.kaizenAdmin={list:()=>call('adminAccess',session.token,'list'),act:(a,uid,v)=>call('adminAccess',session.token,a,uid,v)};
   const FD='https://ameliahcrowe-cloud.github.io';function fdPost(m){try{window.top.postMessage(m,FD)}catch(e){}}
   function logoutLocal(){ls.del(TOK);fdPost({kz:'clear'});location.reload()}
@@ -560,8 +561,9 @@ function renderBar(){const b=$('#savebar');if(S.view==='team'||!S.doc){b.hidden=
   const rec=S.savedAt&&Date.now()-S.savedAt<2500;if(rec){clearTimeout(S.sbT);S.sbT=setTimeout(renderBar,2600)}
   b.replaceChildren(h('div',{class:'st',style:S.dirty?'':rec?'color:var(--ok)':'opacity:0',text:S.dirty?'Saving…':'✓ Saved'}),h('button',{disabled:!(S.undo&&S.undo.length&&S.undo[S.undo.length-1].d===S.date),onclick:undoLast},'↶ Undo last tap'))}
 /* ---------- leader live view ---------- */
-async function loadTeam(){S.team=null;render();const ids=Object.keys(S.reps);const out={};
-  await Promise.all(ids.map(async id=>{try{const d=await db.doc(`reps/${id}/hourly/${S.date}`).get();out[id]=d.exists?d.data():null}catch(_){out[id]=null}}));S.team=out;render()}
+async function loadTeam(quiet){if(!quiet){S.team=null;render()}try{await window.kzSync()}catch(_){}const ids=Object.keys(S.reps);const out={};
+  await Promise.all(ids.map(async id=>{try{const d=await db.doc(`reps/${id}/hourly/${S.date}`).get();out[id]=d.exists?d.data():null}catch(_){out[id]=null}}));S.team=out;S.teamAt=new Date();if(S.view==='team')render()}
+setInterval(()=>{if(S.view==='team'&&document.visibilityState==='visible')loadTeam(true)},15000);
 function renderTeam(a){if(!S.team){a.append(h('div',{class:'empty',text:'Loading the team…'}));return}
   const ids=Object.keys(S.reps).filter(id=>S.reps[id].active!==false).sort((x,y)=>(!!S.reps[x].test-!!S.reps[y].test)||String(S.reps[x].name).localeCompare(String(S.reps[y].name)));
   const tb=h('tbody');const col={};for(let i=1;i<=HOURS;i++)col[i]=0;
