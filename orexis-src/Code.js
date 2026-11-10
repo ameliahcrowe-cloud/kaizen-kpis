@@ -304,7 +304,7 @@ function canRead_(c, path) {
 function canWrite_(c, path) {
   if (c.role === 'owner') return true;
   const s = path.split('/'), top = s[0], id = s[1];
-  if (top === 'teams') return s.length === 2 && id === c.uid;
+  if (top === 'teams') return s.length === 2 && (id === c.uid || (id === 'company' && c.role === 'tl'));
   if (top === 'board') return s.length === 2 && (id === c.uid || (c.role === 'tl' && !!c.members[id]));
   if (top === 'reps') return id === c.uid || (c.role === 'tl' && !!c.members[id]);
   if (top === 'conf') return c.role === 'tl' && !!c.members[id];

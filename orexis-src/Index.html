@@ -623,6 +623,14 @@ function rowVals(uid,date){const saved=savedEntry(uid,date)||{};const d=S.drafts
 function totalsFor(uids,kind,key){const t=blank();uids.forEach(u=>entriesFor(u,kind,key).forEach(e=>sumInto(t,e)));return t}
 function daysFor(uids){const days=DAYS.map(()=>blank());uids.forEach(u=>entriesFor(u,'week',S.week).forEach(e=>{
   const i=Math.round((parse(e.date)-parse(S.week))/864e5);if(i>=0&&i<7)sumInto(days[i],e)}));return days}
+function tgKey(){const all=Object.values(S.reps||{}).filter(r=>r&&!r.test&&r.active!==false).length;return (isAdminUser()||repList(false).filter(r=>!r.test&&r.active!==false).length>=all)?'company':S.uid}
+function teamGoal(week){const k=tgKey();S.tgDocs=S.tgDocs||{};if(!(k in S.tgDocs)){S.tgDocs[k]=null;S.db.doc('teams/'+k).get().then(sn=>{S.tgDocs[k]=sn.exists?sn.data():{};render()}).catch(()=>{S.tgDocs[k]={}})}
+  const d=S.tgDocs[k];const x=d&&d.weekGoals&&d.weekGoals[week];if(!x)return null;const g={};let any=false;GMETRICS.forEach(m=>{g[m.k]=num(x[m.k]);if(g[m.k])any=true});return any?g:null}
+function teamGoalEditor(){const k=tgKey();const cur=teamGoal(S.week)||{};const box=h('div',{class:'panel'});
+  if(!S.tgEdit){box.append(h('div',{class:'bar'},h('div',null,h('strong',{text:'Team goals · this week'}),h('div',{class:'hint',text:Object.keys(cur).length?GMETRICS.filter(m=>cur[m.k]).map(m=>m.l+' '+(m.money?money(cur[m.k]):cur[m.k])).join(' · '):'Not set yet. These are typed in, not added up from people’s own goals.'})),h('button',{onclick:()=>{S.tgEdit={...cur};render()}},Object.keys(cur).length?'Edit team goals':'Set team goals')));return box}
+  box.append(h('strong',{text:'Team goals · week of '+niceDate(S.week,{day:'numeric',month:'long'})}));
+  box.append(h('div',{style:'display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin:10px 0'},GMETRICS.map(m=>h('label',{class:'hint'},m.l,h('input',{type:'text',inputmode:'decimal',class:'num',value:S.tgEdit[m.k]?String(S.tgEdit[m.k]):'',placeholder:'—',oninput:e=>{S.tgEdit[m.k]=e.target.value}})))));
+  box.append(h('div',{style:'display:flex;gap:8px'},h('button',{class:'primary',onclick:async()=>{const o={};GMETRICS.forEach(m=>{if(num(S.tgEdit[m.k]))o[m.k]=num(S.tgEdit[m.k])});const d=S.tgDocs[k]||{};const wg={...(d.weekGoals||{}),[S.week]:o};S.tgDocs[k]={...d,weekGoals:wg};S.tgEdit=null;render();await write(()=>S.db.doc('teams/'+k).set({...d,weekGoals:wg}))}},'Save team goals'),h('button',{onclick:()=>{S.tgEdit=null;render()}},'Cancel')));return box}
 function goalTotal(uids,week){const g={};METRICS.forEach(m=>g[m.k]=0);let any=false;
   uids.forEach(u=>{const x=goalOf(u,week);if(x){any=true;METRICS.forEach(m=>g[m.k]+=num(x[m.k]))}});return any?g:null}
 function scopeIds(){return leader()?repList(false).filter(r=>!r.test).map(r=>r.id):(S.me?[S.uid]:[])}
@@ -1006,10 +1014,11 @@ async function renderDayView(v){const ids=scopeIds();const ws=S.week;let day=S.d
 function renderWeek0(v){
   if(leader()){v.append(h('div',{class:'lgtabs',style:'display:flex;gap:4px;margin-bottom:8px'},[['week','Week'],['day','Day']].map(([k,l])=>h('button',{class:(S.wkMode||'week')===k?'on':null,onclick:()=>{S.wkMode=k;render()}},l))));if(S.wkMode==='day'){v.append(h('div',{class:'bar'},h('h2',{text:'Team · by day'}),h('div',{style:'display:flex;gap:6px'},h('button',{onclick:()=>setDate(addDays(S.week,-7))},'‹ Last week'),h('button',{onclick:()=>setDate(addDays(S.week,7))},'Next week ›'))));renderDayView(v);return}}
   if(leader()){loadHourlyAll(repList(false).map(r=>r.id));v.append(h('div',{style:'display:flex;justify-content:flex-end'},h('button',{id:'copyWrap',onclick:copyWrap},'Copy weekly wrap for Telegram')));const tb0=tgBox();if(tb0)v.append(tb0)}
-  const ids=scopeIds();const t=totalsFor(ids,'week',S.week);const g=goalTotal(ids,S.week);
+  const ids=scopeIds();const t=totalsFor(ids,'week',S.week);const g=leader()?teamGoal(S.week):goalTotal(ids,S.week);
   v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:(leader()?'Team · ':'My week · ')+'week of '+niceDate(S.week,{day:'numeric',month:'long'})}),
-    h('div',{class:'hint',text:g?(leader()?'Team outcome against the sum of everyone’s goals.':'Your outcome against your goals.'):'No goals set for this week yet. Add them on the goals tab.'})),
+    h('div',{class:'hint',text:leader()?(g?'Team outcome against the team goals set for this week.':'No team goals set for this week yet.'):(g?'Your outcome against your goals.':'No goals set for this week yet. Add them on the goals tab.')})),
     h('div',{style:'display:flex;gap:6px'},h('button',{onclick:()=>setDate(addDays(S.week,-7))},'‹ Last week'),h('button',{onclick:()=>setDate(addDays(S.week,7))},'Next week ›'))));
+  if(leader())v.append(teamGoalEditor());
   const gh=goalsHit(t,g);
   if(gh)v.append(h('div',{class:'notice'+(gh.hit===gh.set?' win':'')},gh.hit===gh.set?`✓ All ${gh.set} weekly goals achieved.`:`${gh.hit} of ${gh.set} weekly goals achieved so far.`));
   v.append(tilesFor(t,g));v.append(ratesFor(t,leader()?'Team RPH':'My RPH'));

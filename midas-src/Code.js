@@ -304,7 +304,7 @@ function canRead_(c, path) {
 function canWrite_(c, path) {
   if (c.role === 'owner') return true;
   const s = path.split('/'), top = s[0], id = s[1];
-  if (top === 'teams') return s.length === 2 && id === c.uid;
+  if (top === 'teams') return s.length === 2 && (id === c.uid || (id === 'company' && c.role === 'tl'));
   if (top === 'board') return s.length === 2 && (id === c.uid || (c.role === 'tl' && !!c.members[id]));
   if (top === 'reps') return id === c.uid || (c.role === 'tl' && !!c.members[id]);
   if (top === 'conf') return c.role === 'tl' && !!c.members[id];
@@ -449,7 +449,7 @@ let STD = Object.assign({}, STD_DEFAULT);
 function setting_(t, name) { const d = t.map['settings/' + name]; return d && !d.del && d.data ? d.data : {}; }
 function loadStd_(t) { const x = setting_(t, 'standards'); STD = Object.assign({}, STD_DEFAULT); Object.keys(STD_DEFAULT).forEach(k => { const v = Number(x[k]); if (isFinite(v) && v > 0) STD[k] = v; });
   BANDS.stops.strong = STD.stops; BANDS.conv.strong = STD.conv; BANDS.avg.strong = STD.avg; BANDS.ups.strong = STD.ups; }
-const CARDS_KEY = 'axZUNQPkOY3uhpiYB5h_zO3yZhXrLKeF';
+const CARDS_KEY = '9WfIJM9mCNt0YqtCZhpi2B1hvMLYRu8m';
 const SCORE_INCLUDE_TEST = true; // trial: include test people in scorecards
 const BANDS = {
   stops: { low: 15, strong: 20 },   // per shift: <15 low, 15-20 avg, 20+ strong
