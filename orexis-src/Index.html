@@ -818,7 +818,7 @@ async function setPlan(uid,date,camp){const r=repDoc(uid);const p={...(r.campPla
   await write(()=>S.db.doc('reps/'+uid).update({campPlan:p}))}
 async function setHomeCamp(uid,camp){if(S.reps[uid])S.reps[uid]={...S.reps[uid],campaign:camp||null};if(uid===S.uid&&S.me)S.me={...S.me,campaign:camp||null};render();
   await write(()=>S.db.doc('reps/'+uid).update({campaign:camp||null}),'Usual campaign saved')}
-function rosterPanel(){const ros=repList(true);if(!ros.length||campaigns().length<2)return null;const cl=campaigns().filter(c=>c.active!==false);
+function rosterPanel(){const ros=repList(true);if(!ros.length||campaigns().length<2)return null;const whOn=campaigns().some(c=>/wound/i.test(String(c.name||c.id))&&c.active!==false);if(!whOn&&!S.rosterOpen)return h('div',{class:'bar'},h('div',null,h('strong',{text:'Campaign roster'}),h('div',{class:'hint',text:'Hidden while Wounded Heroes isn’t active.'})),h('button',{onclick:()=>{S.rosterOpen=true;render()}},'Show'));const cl=campaigns().filter(c=>c.active!==false);
   const days=[0,1,2,3,4,5,6].map(i=>addDays(S.week,i));const cn=id=>(campaigns().find(c=>c.id===id)||{}).name||'';
   const sel=(val,blankLbl,on)=>h('select',{onchange:e=>on(e.target.value),'aria-label':'Campaign'},h('option',{value:'',text:blankLbl}),cl.map(c=>h('option',{value:c.id,selected:c.id===val,text:c.name})));
   const tb=h('tbody');ros.forEach(r=>{const doc=repDoc(r.id);const plan=doc.campPlan||{};
