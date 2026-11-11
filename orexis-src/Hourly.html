@@ -466,6 +466,17 @@ function weekCard(){if(S.date!==today()||new Date().getDay()!==5||!S.past)return
   const c={};all.forEach(x=>{const k=x.toLowerCase();c[k]=c[k]||{t:x,n:0};c[k].n++});const L=Object.values(c).sort((a,b)=>b.n-a.n);
   return h('div',{class:'hint',style:'margin-top:8px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel)'},h('b',{style:'color:var(--ink)'},'This week you’ve worked on: '),L.slice(0,4).map(x=>x.t+(x.n>1?' ×'+x.n:'')).join(' · '),'. What keeps coming up?')}
 function reflStreak(){const P=S.past;if(!P)return 0;const D=S.doc;let n=0;const today_=!!(linesOf(D.improve).length||linesOf(D.wins).length);if(today_)n++;for(const r of P.refl){if(r)n++;else break}return n}
+function goldBanner(){try{if(S.view!=='mine'||S.date!==today()||!S.me)return null;const dt=new Date(S.date+'T12:00:00');if(dt.getDay()!==4||new Date().getHours()>=13)return null;
+  const k='goldseen|'+S.me.id+'|'+S.date;try{if(localStorage.getItem(k))return null}catch(_){}
+  if(!S.gold||S.gold.d!==S.date){S.gold={d:S.date,v:null};const mon=new Date(dt);mon.setDate(dt.getDate()-3);const ds=[0,1,2].map(i=>{const x=new Date(mon);x.setDate(mon.getDate()+i);return x.toISOString().slice(0,10)});
+    Promise.all(ds.map(d=>S.db.doc('reps/'+S.me.id+'/entries/'+d).get().then(sn=>sn.exists?sn.data():null).catch(()=>null))).then(r=>{let R=0,H=0;r.forEach(e=>{if(e){R+=num(e.retail);H+=num(e.hours)}});S.gold.v={R,H};render()})}
+  const v=S.gold.v;if(!v||!v.H)return null;const GOLD=120,rph=v.R/v.H,gap=Math.round(GOLD*v.H-v.R);
+  const ok=gap<=0;const ex=Math.round(GOLD*(v.H+18)-v.R);
+  return h('div',{style:'background:'+(ok?'#e8f6ee':'#fff4e5')+';border:2px solid '+(ok?'#3bb273':'#F5B56E')+';border-radius:14px;padding:12px 14px;margin:0 0 12px'},
+    h('div',{style:'font-weight:800;font-size:1.05rem',text:ok?'🥇 You’re in the Gold zone!':'🥇 Gold zone check'}),
+    h('div',{style:'margin-top:4px',text:'Mon–Wed: '+money(v.R)+' over '+v.H+' hrs = '+money(Math.round(rph))+' RPH.'}),
+    h('div',{style:'margin-top:4px;font-weight:700',text:ok?'You’re '+money(-gap)+' above Gold ($120 RPH). Keep it there!':'You’re '+money(gap)+' off Gold ($120 RPH). Over 3 more 6-hr shifts you need '+money(ex)+' retail ('+money(Math.round(ex/18))+' an hour).'}),
+    h('button',{style:'margin-top:8px;font-size:.85rem',onclick:()=>{try{localStorage.setItem(k,'1')}catch(_){}S.gold.v=null;S.gold.d='x';render()}},'Got it'))}catch(e){return null}}
 function checkBanner(){const D=S.doc;if(S.date!==today()||S.view!=='mine')return null;const hr=new Date().getHours();const wkd=[0,6].includes(new Date(S.date+'T12:00:00').getDay());const w=hr===12?'12pm':hr===14?'2pm':hr===16?'4pm':null;if(!w||D['copied'+w])return null;
   return h('div',{class:'banner'},h('b',{text:w+' check-in time! Send your numbers to the group 📲'}),h('button',{onclick:()=>openFold('t'+w)},'Open'))}
 function tgCard(){const D=S.doc;const t=totals();
@@ -520,7 +531,7 @@ function render(){HOURS=S.view==='team'?Math.max(10,...Object.values(S.team||{})
   const ready=num(T.retail)>0&&(D.site||'').trim();if(S.setupOpen==null)S.setupOpen=!ready;
   if(S.setupOpen){setupCards(a,D);a.append(h('button',{onclick:()=>{S.setupOpen=false;render()}},'Done · show my tally'))}
   else a.append(h('div',{class:'card',style:'padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:8px'},h('div',{style:'min-width:0'},h('b',{text:(D.roadie?'🚐 ':'🏙️ ')+(D.site||'No site set')}),h('div',{class:'hint',text:(((S.camps||[]).find(c=>c.id===(D.campaign||S.homeCamp))||{}).name||'')+' · Target '+money(T.retail)+(D.start?' · started '+hourRange(1).split('–')[0]:'')})),h('button',{onclick:()=>{S.setupOpen=true;render()}},'Edit day')));
-  setTimeout(checkRing,0);{const b=checkBanner();if(b)a.append(b)}{const y=yesterdayCard();if(y)a.append(y)}{const w=weekCard();if(w)a.append(w)}
+  setTimeout(checkRing,0);{const gb=goldBanner();if(gb)a.append(gb)}{const b=checkBanner();if(b)a.append(b)}{const y=yesterdayCard();if(y)a.append(y)}{const w=weekCard();if(w)a.append(w)}
   breakNudge(a);
   {const g=goalCard();if(g)a.append(g)}
   S.mode='tally';renderTally(a);
