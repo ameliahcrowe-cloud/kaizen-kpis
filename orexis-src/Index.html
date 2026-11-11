@@ -1553,29 +1553,29 @@ function feePanel(t,who){const F=feeFor(t);const c=F.c;
     tips.length?h('div',{class:'feetips hint',text:tips.join(' ')}):null)}
 
 /* ---------- BONUS PLANNER: what's needed for the rest of the week ---------- */
-function planHours(uid){const r=S.reps[uid]||{};const p=(r.planHours||{})[S.week];return p==null?null:num(p)}
-async function setPlanHours(uid,val){const r=S.reps[uid]||{};S.reps[uid]={...r,planHours:{...(r.planHours||{}),[S.week]:val}};if(uid===S.uid)S.me=S.reps[uid];render();
-  await write(()=>S.db.doc('reps/'+uid).update({planHours:{[S.week]:val}}))}
-function planFor(uid){const t=weekAll(uid);const c=feeCfg();const left=planHours(uid);const H=t.hours+(left||0);
+function planHours(uid){const r=S.reps[uid]||{};const p=(r.planTotal||{})[S.week];return p==null?null:num(p)}
+async function setPlanHours(uid,val){const r=S.reps[uid]||{};S.reps[uid]={...r,planTotal:{...(r.planTotal||{}),[S.week]:val}};if(uid===S.uid)S.me=S.reps[uid];render();
+  await write(()=>S.db.doc('reps/'+uid).update({planTotal:{[S.week]:val}}))}
+function planFor(uid){const t=weekAll(uid);const c=feeCfg();const tot=planHours(uid);const td=todayStr();const before=sourceAll(uid,'period').filter(e=>e.week===S.week&&e.date<td).reduce((n,e)=>n+num(e.hours),0);const H=tot==null?t.hours:Math.max(tot,t.hours);const left=tot==null?null:Math.max(0,Math.round((tot-before)*10)/10);
   const tiers=c.tiers.map(x=>{const target=Math.max(x.rph*H,c.minRetail);const need=Math.max(0,Math.ceil(target-t.retail));
     return{...x,target,need,perHour:left>0?need/left:null,fee:target*x.pct/100,done:need===0&&H>0}});
   return{t,left,H,tiers,cur:feeFor(t)}}
 function planCell(x,left){if(x.done)return h('td',null,h('span',{class:'achieved',text:'✓ On track'}),h('div',{class:'hint small',text:'~'+money(x.fee)}));
   return h('td',null,h('strong',{text:money(x.need)+' more'}),h('div',{class:'hint small',text:left>0?money(x.perHour)+'/hr over '+left+' hrs · ~'+money(x.fee):'add hours left'}))}
-function hoursInput(uid){const v=planHours(uid);return h('input',{type:'text',inputmode:'decimal',class:'num',id:'plan-'+uid,value:v==null?'':String(v),placeholder:'0','aria-label':'Hours left this week',
+function hoursInput(uid){const v=planHours(uid);return h('input',{type:'text',inputmode:'decimal',class:'num',id:'plan-'+uid,value:v==null?'':String(v),placeholder:'0','aria-label':'Total hours this week',
   onchange:e=>setPlanHours(uid,num(e.target.value))})}
 function plannerTable(ros){const c=feeCfg();const tb=h('tbody');
   ros.forEach(r=>{const P=planFor(r.id);tb.append(h('tr',null,h('td',{class:'name',text:r.name}),h('td',{text:money(P.t.retail)}),h('td',{text:String(Math.round(P.t.hours*10)/10)}),
     h('td',null,P.t.hours?money(P.cur.rph):'—',P.t.hours?h('div',null,zoneEl(P.cur.rph)):null),h('td',null,hoursInput(r.id)),P.tiers.map(x=>planCell(x,P.left))))});
-  return h('div',{class:'panel scroll'},h('table',null,h('thead',null,h('tr',null,['Name','Retail so far','Hours so far','RPH now','Hours left'].map(x=>h('th',{text:x})),c.tiers.map(x=>h('th',{text:`${money(x.rph)} RPH · ${x.pct}%`})))),tb))}
+  return h('div',{class:'panel scroll'},h('table',null,h('thead',null,h('tr',null,['Name','Retail so far','Hours so far','RPH now','Total hrs'].map(x=>h('th',{text:x})),c.tiers.map(x=>h('th',{text:`${money(x.rph)} RPH · ${x.pct}%`})))),tb))}
 function plannerCard(uid){const P=planFor(uid);const c=feeCfg();
   const box=h('div',{class:'panel rform'});
-  box.append(h('div',{class:'bar'},h('h4',{text:'What I need for the rest of the week'}),h('label',{class:'hint',for:'plan-'+uid},'Hours left this week ',hoursInput(uid))));
-  if(P.left==null)box.append(h('div',{class:'hint',text:'Enter how many hours you’re working for the rest of the week to see what each tier needs.'}));
+  box.append(h('div',{class:'bar'},h('h4',{text:'What I need for the rest of the week'}),h('label',{class:'hint',for:'plan-'+uid},'Total hours this week ',hoursInput(uid))));
+  if(P.left==null)box.append(h('div',{class:'hint',text:'Enter your total hours for the whole week (worked + still to work) to see what each tier needs.'}));
   box.append(h('div',{class:'checklist'},P.tiers.map(x=>h('div',{class:'citem'},h('span',{class:'tierpill'+(x.done?' on':''),text:`${money(x.rph)} · ${x.pct}%`}),
     h('span',{text:x.done?`On track at ${Math.round(P.H*10)/10} hrs`:`${money(x.need)} more retail`+(P.left>0?` · ${money(x.perHour)} per hour for ${P.left} hrs`:'')}),
     h('span',{class:'hint',text:'earns ~'+money(x.fee)})))));
-  box.append(h('div',{class:'hint',text:`Based on ${money(P.t.retail)} so far over ${Math.round(P.t.hours*10)/10} hrs plus ${P.left||0} hrs left. Minimum ${money(c.minRetail)} retail applies to every tier.`}));
+  box.append(h('div',{class:'hint',text:`Based on ${money(P.t.retail)} so far and ${Math.round(P.H*10)/10} hrs total this week (${P.left||0} hrs still to go, including today). Minimum ${money(c.minRetail)} retail applies to every tier.`}));
   return box}
 
 /* ---------- BONUSES (leader defines rules, everyone sees progress) ---------- */
