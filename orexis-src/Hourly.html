@@ -469,7 +469,7 @@ function reflStreak(){const P=S.past;if(!P)return 0;const D=S.doc;let n=0;const 
 function goldBanner(){try{if(S.view!=='mine'||S.date!==today()||!S.me)return null;const dt=new Date(S.date+'T12:00:00');if(dt.getDay()!==4||new Date().getHours()>=13)return null;
   const k='goldseen|'+S.me.id+'|'+S.date;try{if(localStorage.getItem(k))return null}catch(_){}
   if(!S.gold||S.gold.d!==S.date){S.gold={d:S.date,v:null};const mon=new Date(dt);mon.setDate(dt.getDate()-3);const ds=[0,1,2].map(i=>{const x=new Date(mon);x.setDate(mon.getDate()+i);return x.toISOString().slice(0,10)});
-    Promise.all(ds.map(d=>S.db.doc('reps/'+S.me.id+'/entries/'+d).get().then(sn=>sn.exists?sn.data():null).catch(()=>null))).then(r=>{let R=0,H=0;r.forEach(e=>{if(e){R+=num(e.retail);H+=num(e.hours)}});S.gold.v={R,H};render()})}
+    Promise.all(ds.map(d=>db.doc('reps/'+S.me.id+'/entries/'+d).get().then(sn=>sn.exists?sn.data():null).catch(()=>null))).then(r=>{let R=0,H=0;r.forEach(e=>{if(e){R+=num(e.retail);H+=num(e.hours)}});S.gold.v={R,H};render()})}
   const v=S.gold.v;if(!v||!v.H)return null;const GOLD=120,rph=v.R/v.H,gap=Math.round(GOLD*v.H-v.R);
   const ok=gap<=0;const ex=Math.round(GOLD*(v.H+18)-v.R);
   return h('div',{style:'background:'+(ok?'#e8f6ee':'#fff4e5')+';border:2px solid '+(ok?'#3bb273':'#F5B56E')+';border-radius:14px;padding:12px 14px;margin:0 0 12px'},
