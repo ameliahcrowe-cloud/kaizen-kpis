@@ -67,6 +67,7 @@ function setupBackups() {
 /* ---------- hourly tracker: add each rep's hours for today into their day log ---------- */
 const H_FIELDS = ['stops', 'buyers', 'retail', 'upsells', 'upsellRetail', 'medals'];
 function mondayOf_(d) { const x = new Date(d + 'T00:00:00Z'); const wd = (x.getUTCDay() + 6) % 7; x.setUTCDate(x.getUTCDate() - wd); return x.toISOString().slice(0, 10); }
+function hrsSoFar_(d, date) { const shift = Number(d.targets && d.targets.shiftHours) || 8; const tz = 'Australia/Melbourne'; if (date !== Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd')) return shift; const st = String(d.start || '').match(/(\d+):(\d+)/); if (!st) return shift; const nowS = Utilities.formatDate(new Date(), tz, 'HH:mm').split(':'); const el = (Number(nowS[0]) * 60 + Number(nowS[1]) - (Number(st[1]) * 60 + Number(st[2]))) / 60; return Math.max(0.25, Math.min(shift, Math.round(el * 4) / 4)); }
 function syncHourly(dateArg) {
   const date = typeof dateArg === 'string' ? dateArg : Utilities.formatDate(new Date(), 'Australia/Melbourne', 'yyyy-MM-dd');
   const lock = LockService.getScriptLock(); lock.waitLock(25000);
@@ -80,7 +81,7 @@ function syncHourly(dateArg) {
       Object.keys(doc.data.slots).forEach(k => { const x = doc.data.slots[k] || {}; if (H_FIELDS.some(f => Number(x[f]) || 0)) n++; H_FIELDS.forEach(f => tot[f] += Number(x[f]) || 0); });
       const ep = 'reps/' + seg[1] + '/entries/' + date; const cur = t.map[ep] && !t.map[ep].del ? (t.map[ep].data || {}) : {};
       const rep = t.map['reps/' + seg[1]] && t.map['reps/' + seg[1]].data || {};
-      const body = Object.assign({}, cur, tot, { date, week: mondayOf_(date), month: date.slice(0, 7), hours: (Number(cur.hours) || 0) > 0 ? Number(cur.hours) : (Number(doc.data.targets && doc.data.targets.shiftHours) || 8), fromHourly: true, roadie: !!doc.data.roadie, updatedAt: nowIso }); if (String(doc.data.cash || '').trim()) body.cash = Number(doc.data.cash) || 0; if (String(doc.data.eftpos || '').trim()) body.eftpos = Number(doc.data.eftpos) || 0;
+      const body = Object.assign({}, cur, tot, { date, week: mondayOf_(date), month: date.slice(0, 7), hours: ((Number(cur.hours) || 0) > 0 && !cur.fromHourly) ? Number(cur.hours) : hrsSoFar_(doc.data, date), fromHourly: true, roadie: !!doc.data.roadie, updatedAt: nowIso }); if (String(doc.data.cash || '').trim()) body.cash = Number(doc.data.cash) || 0; if (String(doc.data.eftpos || '').trim()) body.eftpos = Number(doc.data.eftpos) || 0;
       if (!body.campaign && rep.campaign) body.campaign = rep.campaign;
       out.push({ path: ep, data: body });
       out.push({ path, data: Object.assign({}, doc.data, { syncedAt: nowIso }) });
