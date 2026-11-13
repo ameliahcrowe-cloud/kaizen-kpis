@@ -771,7 +771,7 @@ async function syncFromHourly(){if(S.hSyncBusy)return;S.hSyncBusy=true;render();
   for(const u of ids){const r=await pullHourlyOne(u,S.date);if(r==='ok')ok++;else if(r==='none')none++}
   S.hSyncBusy=false;scheduleSummary&&scheduleSummary();
   toast(ok?(leader()?'Synced '+ok+' '+(ok===1?'person':'people')+' from Orexis Hourly':'Synced from Orexis Hourly'):'Nothing in Orexis Hourly for this day yet',3500);render()}
-const HOURLY_URL='https://ameliahcrowe-cloud.github.io/Orexis-Innovations/hourly/';
+const HOURLY_URL='https://script.google.com/macros/s/AKfycbyriI5naP0q1cUQ3PR4q_YwNZLBZ2ybO7jzGIp7QTX1kN9wu5tTasokUHN07eGdRttvfw/exec?app=hourly';
 function hourlyBtn(){return h('a',{href:HOURLY_URL,target:'_top',class:'hourlybtn'},'⏱ Hourly full screen ›')}
 function dayBar(){const t=todayStr();const d=S.date;const rel=d===t?'Today':d===addDays(t,-1)?'Yesterday':d===addDays(t,1)?'Tomorrow':'';
   return h('div',{id:'daybar'},h('button',{'aria-label':'Previous day',onclick:()=>setDate(addDays(S.date,-1))},'‹'),
