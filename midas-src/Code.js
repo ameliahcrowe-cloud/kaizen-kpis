@@ -703,6 +703,7 @@ function cardsJson_(p) {
 }
 function doPost(e) {
   let b = {}; try { b = JSON.parse(e.postData.contents); } catch (x) { }
+  if (b.api) return api_(b);
   if (b.key !== CARDS_KEY) return ContentService.createTextOutput('bad key');
   const t0 = loadTable_(), sc = setting_(t0, 'scorecards'), tag = b.tag || '';
   const to = b.test ? (sc.testTo || 'ameliah.crowe@gmail.com') : (sc.to || SCORE_TO);
@@ -721,4 +722,12 @@ function supportMessage(token, msg) {
   MailApp.sendEmail({ to: 'ameliah.crowe@gmail.com', subject: 'Midas support · ' + a.name, name: 'Midas Support',
     htmlBody: '<div style="font-family:Helvetica,Arial,sans-serif;font-size:14px"><b>From:</b> ' + esc(a.name) + '<br><b>Sent:</b> ' + Utilities.formatDate(new Date(), 'Australia/Sydney', 'EEE d MMM, h:mm a') + '<br><br>' + esc(msg).replace(/\n/g, '<br>') + '</div>' });
   return { ok: true };
+}
+
+function api_(b) {
+  const F = { sync: sync, write: write, login: login, logout: logout, register: register, publicInfo: publicInfo, adminAccess: adminAccess, supportMessage: supportMessage };
+  let out;
+  try { if (!F[b.api]) throw new Error('BAD_API'); out = { ok: true, r: F[b.api].apply(null, b.args || []) }; }
+  catch (err) { out = { ok: false, e: String(err && err.message || err) }; }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
