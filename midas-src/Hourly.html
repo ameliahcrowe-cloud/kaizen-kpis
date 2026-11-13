@@ -359,7 +359,7 @@ function field(label,obj,key,ph,area,type){const el=h(area?'textarea':'input',{p
 function threeList(label,D,key,old){if(!Array.isArray(D[key])){D[key]=['','',''];if(D[old])D[key][0]=D[old]}
   return h('div',{style:'margin-top:12px'},h('span',{class:'lbl',text:label}),h('div',{style:'display:flex;flex-direction:column;gap:6px'},[0,1,2].map(i=>{const el=h('input',{type:'text',placeholder:(i+1)+'.','aria-label':label+' '+(i+1),oninput:e=>{D[key][i]=e.target.value;markDirty()}});el.value=D[key][i]||'';return el})))}
 function streaks(){let cur=0,best=0,run=0;const last=Math.max(0,...Object.keys(S.doc.slots).map(Number).filter(i=>F.some(f=>num(S.doc.slots[i][f.k]))));
-  let won=0;for(let i=1;i<=last;i++){if(hit(i)===true){run++;won++;best=Math.max(best,run)}else run=0}cur=run;return{cur,best,won}}
+  let won=0;for(let i=0;i<=last;i++){if(hit(i)===true){run++;won++;best=Math.max(best,run)}else run=0}cur=run;return{cur,best,won}}
 function inStreak(n){if(hit(n)!==true)return false;let a=n,b=n;while(a>1&&hit(a-1)===true)a--;while(hit(b+1)===true)b++;return b-a+1>=2}
 async function pushStreak(){try{const st=streaks();const ref=db.doc('board/'+S.me.id);const d=await ref.get();const o=(d.exists&&d.data().streak)||{};
   if(o.date===S.date&&o.best===st.best&&o.cur===st.cur&&o.won===st.won)return;const sv={date:S.date,best:st.best,cur:st.cur,won:st.won,name:S.me.name};d.exists?await ref.update({streak:sv}):await ref.set({name:S.me.name,streak:sv})}catch(_){}}

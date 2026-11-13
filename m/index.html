@@ -985,7 +985,7 @@ function rate(l,val,f,extra){return h('div',{class:'rate'},h('div',{class:'lbl',
 
 /* ---------- weekly wrap for Telegram ---------- */
 function docStreak(d){if(!d||!d.slots)return 0;let run=0,best=0;const won=x=>x&&((num(x.stops)>=3)+(num(x.buyers)>=2)+(num(x.retail)>=150))>=2;
-  const last=Math.max(0,...Object.keys(d.slots).map(Number));for(let i=1;i<=last;i++){const x=d.slots[String(i)];if(won(x)){run++;best=Math.max(best,run)}else run=0}return best}
+  const last=Math.max(0,...Object.keys(d.slots).map(Number));for(let i=0;i<=last;i++){const x=d.slots[String(i)];if(won(x)){run++;best=Math.max(best,run)}else run=0}return best}
 function weeklyWrapText(){const wk=S.week,end=addDays(wk,6);const ids=repList(false).filter(r=>!r.test).map(r=>r.id);const t=totalsIn(ids,wk,end);
   const rows=ids.map(u=>({u,t:totalsIn([u],wk,end)})).filter(x=>x.t.retail>0).sort((a,b)=>b.t.retail-a.t.retail);
   let bestDay=null;ids.forEach(u=>entriesIn(u,wk,end).forEach(e=>{if(!bestDay||num(e.retail)>bestDay.v)bestDay={u,v:num(e.retail),d:e.date}}));
