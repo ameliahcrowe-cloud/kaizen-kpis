@@ -67,7 +67,7 @@ function setupBackups() {
 /* ---------- hourly tracker: add each rep's hours for today into their day log ---------- */
 const H_FIELDS = ['stops', 'buyers', 'retail', 'upsells', 'upsellRetail', 'medals'];
 function mondayOf_(d) { const x = new Date(d + 'T00:00:00Z'); const wd = (x.getUTCDay() + 6) % 7; x.setUTCDate(x.getUTCDate() - wd); return x.toISOString().slice(0, 10); }
-function hrsSoFar_(d, date) { const shift = Number(d.targets && d.targets.shiftHours) || 8; const tz = 'Australia/Melbourne'; if (date !== Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd')) return shift; const st = String(d.start || '').match(/(\d+):(\d+)/); if (!st) return shift; const nowS = Utilities.formatDate(new Date(), tz, 'HH:mm').split(':'); const el = (Number(nowS[0]) * 60 + Number(nowS[1]) - (Number(st[1]) * 60 + Number(st[2]))) / 60; return Math.max(0.25, Math.min(shift, Math.round(el * 4) / 4)); }
+function hrsSoFar_(d, date) { const shift = Number(d.targets && d.targets.shiftHours) || 8; const tz = 'Australia/Melbourne'; if (date !== Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd')) return shift; const st = String(d.start || '').match(/(\d+):(\d+)/); if (!st) return shift; const nowS = Utilities.formatDate(new Date(), tz, 'HH:mm').split(':'); const el = (Number(nowS[0]) * 60 + Number(nowS[1]) - (Number(st[1]) * 60 + Number(st[2]))) / 60; return Math.max(0.5, Math.min(shift, Math.ceil(el * 2) / 2)); }
 function syncHourly(dateArg) {
   const date = typeof dateArg === 'string' ? dateArg : Utilities.formatDate(new Date(), 'Australia/Melbourne', 'yyyy-MM-dd');
   const lock = LockService.getScriptLock(); lock.waitLock(25000);
