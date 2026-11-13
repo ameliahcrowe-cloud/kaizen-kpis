@@ -158,7 +158,8 @@ table.grid .hitc{font-weight:800}
   window.KAIZEN_GOOGLE=true;
   const TOK='kaizen_token';
   const ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}},del:k=>{try{localStorage.removeItem(k)}catch(e){}}};
-  function call(fn,...args){return new Promise((res,rej)=>{google.script.run.withSuccessHandler(res).withFailureHandler(e=>rej(e))[fn](...args)})}
+  function call(fn,...args){if(window.google&&google.script&&google.script.run)return new Promise((res,rej)=>{google.script.run.withSuccessHandler(res).withFailureHandler(e=>rej(e))[fn](...args)});
+  return fetch(window.KZ_API||'https://script.google.com/macros/s/AKfycbyriI5naP0q1cUQ3PR4q_YwNZLBZ2ybO7jzGIp7QTX1kN9wu5tTasokUHN07eGdRttvfw/exec',{method:'POST',body:JSON.stringify({api:fn,args})}).then(r=>r.json()).then(j=>{if(!j||!j.ok)throw new Error((j&&j.e)||'Server error');return j.r})}
   let session=null;let sessionReady;const ready=new Promise(r=>sessionReady=r);
   const store={};const listeners=new Set();let since=0;let syncing=false;let pending=false;
   /* ---- local store + live queries ---- */
