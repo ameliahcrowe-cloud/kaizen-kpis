@@ -723,3 +723,5 @@ function supportMessage(token, msg) {
     htmlBody: '<div style="font-family:Helvetica,Arial,sans-serif;font-size:14px"><b>From:</b> ' + esc(a.name) + '<br><b>Sent:</b> ' + Utilities.formatDate(new Date(), 'Australia/Sydney', 'EEE d MMM, h:mm a') + '<br><br>' + esc(msg).replace(/\n/g, '<br>') + '</div>' });
   return { ok: true };
 }
+
+function hourlyHtml() { return HtmlService.createHtmlOutputFromFile('Hourly').getContent(); }
