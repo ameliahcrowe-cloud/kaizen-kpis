@@ -2531,14 +2531,14 @@ function renderBoard(v){if(S.isOwner&&!S.viewMe){S.boardSync=S.boardSync||{};if(
   v.append(h('div',{class:'hint',text:'Ranked by retail. If two people are tied, the one with the higher RPH goes first.'}))}
 
 function indTables(v,ind,lined){
-  const HEAD=lined?['Name','Team','Retail','Stops','Buyers','Upsells','Medals','Sale avg','RPH']:['Name','Team','Retail','Sale avg'];const hi=std('gold'),lo=std('silver');
+  const HEAD=lined?['Name','Retail','Stops','Buyers','Upsells','Medals','Sale avg','RPH']:['Name','Retail','Sale avg'];const hi=std('gold'),lo=std('silver');
   const rphOf=r=>r.t.hours>0?r.t.retail/r.t.hours:null;
   const groups=!lined?[['','',()=>true,'#151515']]:[['⬆️ Above the line',`${money(hi)}+ RPH`,r=>rphOf(r)!=null&&rphOf(r)>=hi,'#1f7a4d'],['➖ The middle',`${money(lo)}–${money(hi-1)} RPH`,r=>rphOf(r)!=null&&rphOf(r)>=lo&&rphOf(r)<hi,'#b7791f'],['⬇️ Below the line',`under ${money(lo)} RPH`,r=>rphOf(r)==null||rphOf(r)<lo,'#c2410c']];
   if(!ind.length)v.append(h('div',{class:'panel empty'},h('span',{text:'Nothing logged for this period yet.'})));
   let rank=0;groups.forEach(([title,sub,test,col])=>{const g=ind.filter(test).sort(lined?(a,b)=>(rphOf(b)||0)-(rphOf(a)||0):(a,b)=>(b.t.retail-a.t.retail)||((rphOf(b)||0)-(rphOf(a)||0)));if(!ind.length)return;
     if(lined)v.append(h('div',{class:'bar',style:'margin-top:10px'},h('h3',{text:title,style:'color:'+col}),h('span',{class:'hint',text:sub+' · '+g.length+(g.length===1?' person':' people')})));
     const itb=h('tbody');g.forEach(r=>{rank++;const t=r.t;const rph=rphOf(r);
-      itb.append(h('tr',{class:r.id===S.uid?'sel':null},h('td',{class:'name'},h('span',{class:'tcell'},h('b',{class:'rank',text:String(rank)}),avatar(r.id,22),r.name+(r.id===S.uid?' (you)':''),stageTag(r.id))),h('td',null,h('span',{class:'tcell'},teamLogo(r.team,'tlogo sm'),teamName(r.team))),
+      itb.append(h('tr',{class:r.id===S.uid?'sel':null},h('td',{class:'name'},h('span',{class:'tcell'},h('b',{class:'rank',text:String(rank)}),avatar(r.id,22),r.name+(r.id===S.uid?' (you)':''),stageTag(r.id))),
         h('td',{text:money(t.retail)}),lined?[h('td',{text:String(Math.round(t.stops))}),h('td',{text:String(Math.round(t.buyers))}),h('td',{text:String(Math.round(t.upsells))}),h('td',{text:String(Math.round(t.medals))})]:null,
         h('td',{text:t.buyers>0?money(t.retail/t.buyers):'—'}),lined?h('td',null,rph!=null?h('span',null,h('b',{text:money(rph)+' '}),zoneEl(rph)):'—'):null))});
     if(!g.length)itb.append(h('tr',null,h('td',{colspan:HEAD.length,class:'hint',text:'No one here yet.'})));
