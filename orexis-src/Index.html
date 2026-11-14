@@ -2198,9 +2198,10 @@ function renderPBs(v){
 /* ---------- KAIZEN TEAMS ---------- */
 function teamList(){return Object.entries(S.teams).map(([id,t])=>({id,...t})).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')))}
 function coName(){return('Orexis Innovations').trim()||'Orexis Innovations'}
-function topTeam(){const ids=Object.keys(S.reps).filter(i=>S.reps[i]&&S.reps[i].team===i&&S.reps[i].active!==false).sort((a,b)=>num(S.reps[a].order)-num(S.reps[b].order));return ids[0]||''}
-function teamName(id){if(!id)return coName();const r=S.reps[id];if(r&&r.team===id)return coName();const td=S.teams[id];if(td&&td.name)return td.name;const fn=r&&r.name?String(r.name).trim().split(/\s+/)[0]:'';return fn?fn+'’s team':coName()}
-function teamLogo(id,cls){const t=S.teams[id];const co=!id||(S.reps[id]&&S.reps[id].team===id);const src=co?((S.logo&&S.logo.data)||window.OREXIS_LOGO):(t&&t.logo);return src&&String(src).startsWith('data:image/')?h('img',{class:cls||'tlogo',src,alt:''}):h('span',{class:(cls||'tlogo')+' blank',text:(teamName(id)[0]||'?').toUpperCase(),'aria-hidden':'true'})}
+function topTeam(){const ids=Object.keys(S.reps).filter(i=>S.reps[i]&&S.reps[i].team===i&&S.reps[i].active!==false&&!(S.teams[i]&&S.teams[i].name)).sort((a,b)=>num(S.reps[a].order)-num(S.reps[b].order));return ids[0]||''}
+function countTeam(id){const r=S.reps[id];if(S.teams[id]&&S.teams[id].name)return id;return (r&&r.team)||''}
+function teamName(id){if(!id)return coName();const r=S.reps[id];if(S.teams[id]&&S.teams[id].name)return S.teams[id].name;if(r&&r.team===id)return coName();const td=S.teams[id];if(td&&td.name)return td.name;const fn=r&&r.name?String(r.name).trim().split(/\s+/)[0]:'';return fn?fn+'’s team':coName()}
+function teamLogo(id,cls){const t=S.teams[id];const co=!id||(S.reps[id]&&S.reps[id].team===id&&!(S.teams[id]&&S.teams[id].name));const src=co?((S.logo&&S.logo.data)||window.OREXIS_LOGO):(t&&t.logo);return src&&String(src).startsWith('data:image/')?h('img',{class:cls||'tlogo',src,alt:''}):h('span',{class:(cls||'tlogo')+' blank',text:(teamName(id)[0]||'?').toUpperCase(),'aria-hidden':'true'})}
 function canCreateTeam(){if(S.isOwner)return true;if(leader())return true;const i=stageIdx(S.uid);return i>=2}
 const STAGE_ABBR={sa:'SA',sc:'SC',sl:'SL',tl:'TL',tm:'TM',ad:'AD',dir:'D',md:'MD'};
 function stageOfAny(uid){const r=S.reps[uid];const k=(r&&r.promo&&r.promo.stage)||((S.board[uid]||{}).stage)||'sa';return STAGE_ABBR[k]?k:'sa'}
@@ -2474,7 +2475,7 @@ async function pushBoard(uid,wk){if(!S.db||!uid)return;if((S.reps[uid]||{}).test
   const t=blank();const byC={};list.forEach(e=>{sumInto(t,e);sumInto(byC[campOf(e)]=byC[campOf(e)]||blank(),e)});
   const row={};BOARD_FIELDS.forEach(k=>row[k]=Math.round(num(t[k])*100)/100);
   const wcRow={};Object.keys(byC).forEach(c=>{const x={};BOARD_FIELDS.forEach(k=>x[k]=Math.round(num(byC[c][k])*100)/100);wcRow[c]=x});
-  const r=S.reps[uid]||{};const cur=S.board[uid];const name=r.name||(cur&&cur.name)||'Team member';const team=r.team||(cur&&cur.team)||'';
+  const r=S.reps[uid]||{};const cur=S.board[uid];const name=r.name||(cur&&cur.name)||'Team member';const team=countTeam(uid)||(cur&&cur.team)||'';
   if(cur&&JSON.stringify((cur.weeks||{})[wk])===JSON.stringify(row)&&JSON.stringify((cur.wc||{})[wk]||{})===JSON.stringify(wcRow)&&cur.name===name&&(cur.team||'')===team&&(cur.stage||'sa')===(((r.promo||{}).stage)||'sa'))return;
   const stage=((r.promo||{}).stage)||'sa';const body={name,team,stage,weeks:{[wk]:row},wc:{[wk]:wcRow}};
   S.board[uid]={...(cur||{}),name,team,weeks:{...((cur&&cur.weeks)||{}),[wk]:row},wc:{...((cur&&cur.wc)||{}),[wk]:wcRow}};
@@ -2483,7 +2484,7 @@ function boardRows(){const m=S.boardPeriod==='month';const mk=monthKey(S.date);
   return Object.entries(S.board).map(([id,b])=>{const t=blank();const w=b.weeks||{};
     const cf=S.campFilter&&S.campFilter!=='all'?S.campFilter:null;
     Object.keys(w).filter(k=>m?monthKey(k)===mk:k===S.week).forEach(k=>{const src=cf?(((b.wc||{})[k]||{})[cf]||(campaigns().length<2||cf===defCampaign()&&!(b.wc||{})[k]?w[k]:null)):w[k];if(src)BOARD_FIELDS.forEach(f=>t[f]+=num(src[f]))});
-    return{id,name:b.name||'Team member',team:b.team||topTeam(),t}}).filter(x=>(x.t.retail>0||x.t.stops>0)&&!(S.reps[x.id]||{}).test)}
+    return{id,name:b.name||'Team member',team:countTeam(id)||b.team||topTeam(),t}}).filter(x=>(x.t.retail>0||x.t.stops>0)&&!(S.reps[x.id]||{}).test)}
 function renderBoard(v){if(S.isOwner&&!S.viewMe){S.boardSync=S.boardSync||{};if(!S.boardSync[S.week]){S.boardSync[S.week]=1;setTimeout(()=>repListAll(false).filter(r=>!r.test).forEach(r=>pushBoard(r.id,S.week)),300)}}const rows=boardRows();const m=S.boardPeriod==='month';
   const label=m?monthName(monthKey(S.date))+' (weeks starting this month)':'Week of '+niceDate(S.week,{day:'numeric',month:'long'});
   v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Leaderboard'}),h('div',{class:'hint',text:label+'. Only leaders see this.'})),
