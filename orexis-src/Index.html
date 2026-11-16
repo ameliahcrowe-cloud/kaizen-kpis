@@ -1024,8 +1024,13 @@ async function renderDayView(v){const ids=scopeIds();const ws=S.week;let day=S.d
 function cashPanel(ids){const days=[0,1,2,3,4,5,6].map(i=>addDays(S.week,i));const by={};days.forEach(d=>by[d]={c:0,e:0,r:0});const per={};
   ids.forEach(id=>entriesFor(id,'week',S.week).forEach(e=>{const x=by[e.date];if(!x)return;const c=num(e.cash),ef=num(e.eftpos)||Math.max(0,num(e.retail)-num(e.cash));x.c+=c;x.e+=ef;x.r+=num(e.retail);const q=per[id]=per[id]||{c:0,e:0};q.c+=c;q.e+=ef}));
   const T=days.reduce((a,d)=>({c:a.c+by[d].c,e:a.e+by[d].e}),{c:0,e:0});
-  const tile=(l,v,sub)=>h('div',{style:'flex:1;min-width:90px'},h('div',{class:'hint',style:'font-size:.75rem;letter-spacing:.08em',text:l}),h('div',{style:'font-size:1.5rem;font-weight:800',text:money(v)}),sub?h('div',{class:'hint',style:'font-size:.75rem',text:sub}):null);
-  return h('div',{class:'panel'},h('strong',{text:'💵 Cash & EFTPOS this week'}),h('div',{style:'display:flex;gap:12px;margin-top:8px;flex-wrap:wrap'},tile('CASH',T.c,(T.c+T.e)?Math.round(T.c/(T.c+T.e)*100)+'%':''),tile('EFTPOS',T.e),tile('TOTAL',T.c+T.e)))}
+  const tot=T.c+T.e,pc=tot?Math.round(T.c/tot*100):0;
+  const tile=(l,v,sub,col)=>h('div',{style:'flex:1;min-width:0'},h('div',{style:'font-size:.72rem;letter-spacing:.14em;color:var(--muted);font-weight:600',text:l}),h('div',{style:'font-family:var(--display);font-size:2rem;line-height:1.1;margin-top:4px;color:'+(col||'var(--ink,#1d2433)'),text:money(v)}),h('div',{style:'font-size:.8rem;color:var(--muted);min-height:1em',text:sub||''}));
+  return h('div',{class:'panel',style:'padding:20px 22px'},
+    h('div',{style:'display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.05rem'},h('span',{text:'💵'}),h('span',{text:'Cash & EFTPOS this week'})),
+    h('div',{style:'display:flex;gap:10px;margin-top:14px'},tile('CASH',T.c,pc+'% of sales','#1f7a4d'),tile('EFTPOS',T.e,(tot?100-pc:0)+'% of sales'),tile('TOTAL',tot,'')),
+    h('div',{style:'display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--line);margin-top:12px'},h('div',{style:'width:'+pc+'%;background:#3bb273'}),h('div',{style:'flex:1;background:var(--navy,#2E3A59);opacity:'+(tot?1:0)})),
+    h('div',{style:'display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);margin-top:4px'},h('span',{text:'Cash'}),h('span',{text:'EFTPOS'})))}
 function renderWeek0(v){
   if(leader()){v.append(h('div',{class:'lgtabs',style:'display:flex;gap:4px;margin-bottom:8px'},[['week','Week'],['day','Day']].map(([k,l])=>h('button',{class:(S.wkMode||'week')===k?'on':null,onclick:()=>{S.wkMode=k;render()}},l))));if(S.wkMode==='day'){v.append(h('div',{class:'bar'},h('h2',{text:'Team · by day'}),h('div',{style:'display:flex;gap:6px'},h('button',{onclick:()=>setDate(addDays(S.week,-7))},'‹ Last week'),h('button',{onclick:()=>setDate(addDays(S.week,7))},'Next week ›'))));renderDayView(v);return}}
   if(leader()){loadHourlyAll(repList(false).map(r=>r.id));v.append(h('div',{style:'display:flex;justify-content:flex-end'},h('button',{id:'copyWrap',onclick:copyWrap},'Copy weekly wrap for Telegram')));const tb0=tgBox();if(tb0)v.append(tb0)}
