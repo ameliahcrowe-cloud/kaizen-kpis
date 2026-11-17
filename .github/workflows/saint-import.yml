@@ -1,0 +1,10 @@
+name: Saint import
+on: { workflow_dispatch: {} }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          KEY=$(grep -o "const CARDS_KEY = '[^']*'" saint-src/Code.js | cut -d"'" -f2)
+          curl -sSL -H 'Content-Type: text/plain' --data "{\"importKey\":\"$KEY\"}" "https://script.google.com/macros/s/AKfycbwZm_POzxW6ebLOcJwvmVUsmqCiJi4U8oMmcafIJu3RGpTlAnVDBI1EsSCmwWB-P2pdgQ/exec" | head -c 500

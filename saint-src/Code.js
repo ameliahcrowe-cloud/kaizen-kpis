@@ -704,6 +704,7 @@ function cardsJson_(p) {
 function doPost(e) {
   let b = {}; try { b = JSON.parse(e.postData.contents); } catch (x) { }
   if (b.api) return api_(b);
+  if (b.importKey && b.importKey === CARDS_KEY) return ContentService.createTextOutput(JSON.stringify(importTeamSheets_())).setMimeType(ContentService.MimeType.JSON);
   if (b.key !== CARDS_KEY) return ContentService.createTextOutput('bad key');
   const t0 = loadTable_(), sc = setting_(t0, 'scorecards'), tag = b.tag || '';
   const to = b.test ? (sc.testTo || 'ameliah.crowe@gmail.com') : (sc.to || SCORE_TO);
@@ -745,4 +746,52 @@ function firstSetup(pin) {
     if (!t.map['settings/main']) putDocs_(t, [{ path: 'settings/main', data: { teamName: 'Saint Marketing' } }]);
   } finally { lock.releaseLock(); }
   return login(OWNER_NAME, pin);
+}
+
+/* ---------- one-off: import Tom's monthly TEAM_ sheets ---------- */
+function importTeamSheets_() {
+  const ss = ss_(), TOM = 'u_fb8170a397fa4179a2e7', D = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+  const M = { APRIL: 4, MAY: 5, JUNE: 6, JULY: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11 };
+  const ent = {};
+  const iso = d => Utilities.formatDate(d, 'UTC', 'yyyy-MM-dd');
+  const today = Utilities.formatDate(new Date(), 'Australia/Melbourne', 'yyyy-MM-dd');
+  Object.keys(M).forEach(k => {
+    const sh = ss.getSheetByName('TEAM_' + k); if (!sh) return;
+    const rows = sh.getRange(1, 1, Math.min(sh.getMaxRows(), 200), Math.min(sh.getMaxColumns(), 78)).getDisplayValues();
+    const hd = rows[1].filter(c => String(c).trim()); const mm = String(hd[0] || '').match(/WC (\d+)\/(\d+)/);
+    let base;
+    if (mm) base = new Date(Date.UTC(2026, +mm[2] - 1, +mm[1]));
+    else { base = new Date(Date.UTC(2026, M[k] - 1, 1)); while (base.getUTCDay() !== 1) base.setUTCDate(base.getUTCDate() + 1); }
+    for (let w = 0; w < 5; w++) {
+      const o = 3 + 15 * w; let day = null;
+      rows.forEach(rr => {
+        const t = String(rr[o] || '').trim().toUpperCase(); if (!t) return;
+        const hit = D.findIndex(d => t.indexOf(d) === 0);
+        if (hit >= 0 && String(rr[o + 1] || '').toUpperCase().indexOf('RETAIL') >= 0) { day = hit; return; }
+        if (t.indexOf('TOTAL') === 0 || t.indexOf('MONTH') >= 0 || t.indexOf('WEEK') >= 0) { day = null; return; }
+        if (day === null) return;
+        const n = i => { const v = parseFloat(String(rr[o + i] || '').replace(/[$,%]/g, '')); return isFinite(v) ? v : 0; };
+        const v = { retail: n(1), stops: n(3), buyers: n(4), medals: n(5), upsells: n(8), upsellRetail: n(9), hours: n(12) };
+        if (!(v.retail || v.stops || v.buyers)) return;
+        const dt = new Date(base.getTime()); dt.setUTCDate(dt.getUTCDate() + 7 * w + day);
+        const ds = iso(dt); if (ds > today) return;
+        let nm = String(rr[o]).trim(); nm = nm.charAt(0).toUpperCase() + nm.slice(1).toLowerCase(); if (nm === 'Ant') nm = 'Antony';
+        if (!ent[nm + '|' + ds]) ent[nm + '|' + ds] = v;
+      });
+    }
+  });
+  const lock = LockService.getScriptLock(); lock.waitLock(30000);
+  try {
+    const acc = readAccess_(), t = loadTable_(), ids = { Tom: TOM }, docs = [];
+    Object.keys(t.map).forEach(p => { const m = p.match(/^reps\/([^/]+)$/); if (m && t.map[p].data && t.map[p].data.name) ids[t.map[p].data.name.split(' ')[0]] = ids[t.map[p].data.name.split(' ')[0]] || m[1]; });
+    Object.keys(ent).forEach(k => { const nm = k.split('|')[0]; if (!ids[nm]) {
+      const uid = 'u_' + Utilities.getUuid().replace(/-/g, '').slice(0, 20); ids[nm] = uid;
+      appendAccess_({ uid, name: nm, pinHash: 'unset', role: 'rep', tokens: [], created: new Date().toISOString() });
+      docs.push({ path: 'reps/' + uid, data: { name: nm, team: TOM, active: true, order: Date.now() + docs.length, joinedAt: new Date().toISOString(), imported: true } });
+    } });
+    Object.keys(ent).forEach(k => { const [nm, ds] = k.split('|'); const d = new Date(ds + 'T00:00:00Z'); const mon = new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * 864e5);
+      docs.push({ path: 'reps/' + ids[nm] + '/entries/' + ds, data: Object.assign({ date: ds, week: iso(mon), month: ds.slice(0, 7), fromSheet: true }, ent[k]) }); });
+    putDocs_(t, docs);
+    return { people: Object.keys(ids).length, entries: Object.keys(ent).length };
+  } finally { lock.releaseLock(); }
 }
