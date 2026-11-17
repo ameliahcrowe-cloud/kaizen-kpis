@@ -2356,10 +2356,10 @@ function newStartsPanel(ids){const td=todayStr();const bell=std('bell');
   if(!list.length)return null;
   if(leader()&&needsTeam&&needsTeam()&&!S.allTeamReady)loadAllTeam();
   const box=h('div',{class:'stack'});
-  box.append(h('div',{class:'bar'},h('h3',{text:'🌱 New starts · first 2 weeks'}),h('span',{class:'hint',text:'Who’s settling in and who needs support early.'})));
+  box.append(h('div',{class:'bar'},h('h3',{text:'🌱 New starts · since they started'}),h('span',{class:'hint',text:'Who’s settling in and who needs support early.'})));
   list.sort((a,b)=>String(b.r.joinedAt).localeCompare(String(a.r.joinedAt))).forEach(({id,r})=>{
     const j=String(r.joinedAt).slice(0,10);const dayN=Math.round((new Date(td)-new Date(j))/864e5)+1;
-    const es=sourceAll(id,'period').filter(e=>e.date>=j&&e.date<=addDays(j,13)).sort((a,b)=>a.date.localeCompare(b.date));
+    const es=sourceAll(id,'period').filter(e=>e.date>=j).sort((a,b)=>a.date.localeCompare(b.date));
     const worked=es.filter(e=>num(e.stops)||num(e.retail)||num(e.hours));const st=worked.reduce((a,e)=>a+num(e.stops),0),by=worked.reduce((a,e)=>a+num(e.buyers),0),rt=worked.reduce((a,e)=>a+num(e.retail),0);
     const fs=worked.find(e=>num(e.buyers)>0),fb=worked.find(e=>num(e.retail)>=bell);const spd=worked.length?st/worked.length:0;
     const flags=[];if(dayN>=4&&!fs)flags.push('No sale yet');if(dayN>=5&&worked.length<Math.ceil(dayN*5/7*0.5))flags.push('Low attendance');
