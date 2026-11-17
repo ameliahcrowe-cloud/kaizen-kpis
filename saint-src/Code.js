@@ -138,7 +138,7 @@ function setOwnerPin() {
   if (!t.map['reps/' + OWNER_UID] || t.map['reps/' + OWNER_UID].del) {
     putDocs_(t, [{ path: 'reps/' + OWNER_UID, data: { name: OWNER_NAME, team: '', active: true, order: 0, joinedAt: new Date().toISOString() } }]);
   }
-  if (!t.map['settings/main']) putDocs_(t, [{ path: 'settings/main', data: { teamName: 'Kaizen Enterprises' } }]);
+  if (!t.map['settings/main']) putDocs_(t, [{ path: 'settings/main', data: { teamName: 'Saint Marketing' } }]);
   ui.alert('Done. Log in to the app as "' + OWNER_NAME + '" with that PIN.');
 }
 
@@ -725,9 +725,24 @@ function supportMessage(token, msg) {
 }
 
 function api_(b) {
-  const F = { sync: sync, write: write, login: login, logout: logout, register: register, publicInfo: publicInfo, adminAccess: adminAccess, supportMessage: supportMessage };
+  const F = { firstSetup: firstSetup, sync: sync, write: write, login: login, logout: logout, register: register, publicInfo: publicInfo, adminAccess: adminAccess, supportMessage: supportMessage };
   let out;
   try { if (!F[b.api]) throw new Error('BAD_API'); out = { ok: true, r: F[b.api].apply(null, b.args || []) }; }
   catch (err) { out = { ok: false, e: String(err && err.message || err) }; }
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function firstSetup(pin) {
+  pin = String(pin || '').trim();
+  if (!/^\d{4,8}$/.test(pin)) throw new Error('Please use 4 to 8 digits.');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    ensureSheets_();
+    if (readAccess_().some(a => a.role === 'owner')) throw new Error('Setup is already done. Log in instead.');
+    appendAccess_({ uid: OWNER_UID, name: OWNER_NAME, pinHash: hash_(pin), role: 'owner', tokens: [], created: new Date().toISOString() });
+    const t = loadTable_();
+    if (!t.map['reps/' + OWNER_UID]) putDocs_(t, [{ path: 'reps/' + OWNER_UID, data: { name: OWNER_NAME, team: '', active: true, order: 0, joinedAt: new Date().toISOString() } }]);
+    if (!t.map['settings/main']) putDocs_(t, [{ path: 'settings/main', data: { teamName: 'Saint Marketing' } }]);
+  } finally { lock.releaseLock(); }
+  return login(OWNER_NAME, pin);
 }
