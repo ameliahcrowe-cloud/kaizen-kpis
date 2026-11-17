@@ -2511,14 +2511,13 @@ function renderBoard(v){if(S.isOwner&&!S.viewMe){S.boardSync=S.boardSync||{};if(
       h('button',{onclick:()=>setDate(m?addDays(monthKey(S.date)+'-01',-1):addDays(S.week,-7))},'‹'),h('button',{onclick:()=>setDate(m?addDays(monthKey(S.date)+'-01',32):addDays(S.week,7))},'›'))));
   // teams
   const byTeam={};rows.forEach(r=>{const x=byTeam[r.team]=byTeam[r.team]||{team:r.team,t:blank(),n:0};BOARD_FIELDS.forEach(f=>x.t[f]+=r.t[f]);x.n++});
-  const rp=t=>t.hours>0?t.retail/t.hours:0;const teams=Object.values(byTeam).sort((a,b)=>(b.t.retail-a.t.retail)||(rp(b.t)-rp(a.t)));
-  v.append(h('div',{class:'bar'},h('h3',{text:'Teams'}),h('span',{class:'hint',text:'Ranked by retail. Everything counts towards Orexis.'})));
+  const rp=t=>t.hours>0?t.retail/t.hours:0;let teams=Object.values(byTeam).filter(x=>teamName(x.team)!==coName()).sort((a,b)=>(b.t.retail-a.t.retail)||(rp(b.t)-rp(a.t)));
+  if(rows.length){const all=blank();rows.forEach(r=>BOARD_FIELDS.forEach(f=>all[f]+=r.t[f]));teams=[{team:topTeam(),t:all,n:rows.length,co:true}].concat(teams)}
+  v.append(h('div',{class:'bar'},h('h3',{text:'Teams'}),h('span',{class:'hint',text:coName()+' includes every team. Teams below are ranked by retail.'})));
   const ttb=h('tbody');teams.forEach((x,i)=>{const t=x.t;const rph=t.hours>0?t.retail/t.hours:null;
-    ttb.append(h('tr',{class:S.me&&S.me.team===x.team?'sel':null},h('td',{class:'name'},h('span',{class:'tcell'},h('b',{class:'rank',text:String(i+1)}),teamLogo(x.team),teamName(x.team))),
+    ttb.append(h('tr',{class:S.me&&S.me.team===x.team?'sel':null},h('td',{class:'name'},h('span',{class:'tcell'},h('b',{class:'rank',text:x.co?'★':String(i)}),teamLogo(x.team),teamName(x.team))),
       h('td',{text:money(t.retail)}),h('td',{text:t.buyers>0?money(t.retail/t.buyers):'—'}),h('td',{text:String(x.n)})))});
-  if(teams.length){const k=blank();rows.forEach(r=>BOARD_FIELDS.forEach(f=>k[f]+=r.t[f]));const rph=k.hours>0?k.retail/k.hours:null;
-    ttb.append(h('tr',{class:'total'},h('td',{text:'All of '+coName()}),h('td',{text:money(k.retail)}),h('td',{text:k.buyers>0?money(k.retail/k.buyers):'—'}),h('td',{text:String(rows.length)})))}
-  else ttb.append(h('tr',null,h('td',{colspan:4,class:'hint',text:'Nothing logged for this period yet.'})));
+  if(!teams.length)ttb.append(h('tr',null,h('td',{colspan:4,class:'hint',text:'Nothing logged for this period yet.'})));
   v.append(h('div',{class:'panel scroll'},h('table',null,h('thead',null,h('tr',null,['Team','Retail','Sale avg','People'].map(x=>h('th',{text:x})))),ttb)));
   // individuals
   const filt=S.boardTeam||'all';const myT=(S.me&&S.me.team)||(S.teams[S.uid]?S.uid:'');
