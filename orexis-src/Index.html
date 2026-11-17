@@ -568,7 +568,7 @@ function zoneEl(rph){const z=zone(rph);return z?h('span',{class:'zone '+z[1],tex
 let toastT;function toast(msg,ms){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms||2400)}
 function status(msg,cls){const s=document.getElementById('status');if(!msg){s.hidden=true;return}s.className='notice'+(cls?' '+cls:'');s.textContent=msg;s.hidden=false}
 function blank(){const o={};for(const f of LOGFIELDS)o[f.k]=0;return o}
-function sumInto(acc,e){for(const f of LOGFIELDS)acc[f.k]=(acc[f.k]||0)+num(e[f.k]);return acc}
+function sumInto(acc,e){for(const f of LOGFIELDS)acc[f.k]=(acc[f.k]||0)+num(e[f.k]);acc.days=(acc.days||0)+((num(e.retail)||num(e.stops)||num(e.hours))?1:0);return acc}
 function leadRole(){return S.isOwner||S.isAdmin}
 function leader(){return leadRole()&&!S.viewMe}
 function repList(activeOnly){let l=repListAll(activeOnly);const f=S.teamFilter;
@@ -1087,8 +1087,8 @@ async function loadAllTeam(force){if(!leader()||S.allTeamLoading||(S.allTeamRead
     const o=S.conf[r.id]=S.conf[r.id]||{};snap.docs.forEach(d=>o[d.id]=d.data())}catch(_){}}));
   S.allTeam=out;S.allTeamReady=true;S.allTeamLoading=false;render();scheduleTeamPB()}
 function needsTeam(){return leader()&&!S.allTeamReady}
-function periodHead(first){return h('tr',null,h('th',{text:first}),HMETRICS.map(mm=>h('th',{text:mm.l})),['Conv %','Upsell %','Medal %','$ AV','RPH','RPH zone'].map(x=>h('th',{text:x})))}
-function periodRow(label,x,cls){return h('tr',cls?{class:cls}:null,h('td',{class:cls?null:'name',text:label}),HMETRICS.map(mm=>h('td',{text:fmt(mm,x[mm.k])})),
+function periodHead(first){return h('tr',null,h('th',{text:first}),h('th',{text:'Consignments'}),HMETRICS.map(mm=>h('th',{text:mm.l})),['Conv %','Upsell %','Medal %','$ AV','RPH','RPH zone'].map(x=>h('th',{text:x})))}
+function periodRow(label,x,cls){return h('tr',cls?{class:cls}:null,h('td',{class:cls?null:'name',text:label}),h('td',{text:String(x.days||0)}),HMETRICS.map(mm=>h('td',{text:fmt(mm,x[mm.k])})),
   rateCells(x).map(c=>h('td',{text:c})),h('td',null,zoneEl(x.hours>0?x.retail/x.hours:null)))}
 const PERIODS=[['day','Day'],['week','Week'],['month','Month'],['quarter','Quarter'],['year','Year'],['all','All time'],['range','Date range']];
 function groupKey(g,e){return g==='day'?e.date:g==='week'?e.week:g==='year'?e.date.slice(0,4):monthKey(e.date)}
