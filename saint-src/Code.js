@@ -113,7 +113,7 @@ function sundaySummary_(t, force) {
   rows.sort((a, b) => b.rt - a.rt);
   const tot = rows.reduce((a, x) => a + x.rt, 0), th = rows.reduce((a, x) => a + (x.rph ? x.rt / x.rph : 0), 0);
   const tr = rows.map((x, i) => '<tr><td>' + (i + 1) + '. ' + x.n + '</td><td>' + money(x.rt) + '</td><td>' + (x.rph ? money(x.rph) : '—') + '</td><td>' + x.st + '/' + x.by + '</td><td>' + x.days + '</td></tr>').join('');
-  const html = '<div style="font-family:Arial,sans-serif;color:#1d2433"><h2 style="color:#111111">Saint week · WC ' + wk + '</h2><p><b>' + money(tot) + '</b> retail' + (th ? ' · <b>' + money(tot / th) + '</b> RPH' : '') + ' · ' + rows.length + ' people</p>' +
+  const html = '<div style="font-family:Arial,sans-serif;color:#161616"><h2 style="color:#111111">Saint week · WC ' + wk + '</h2><p><b>' + money(tot) + '</b> retail' + (th ? ' · <b>' + money(tot / th) + '</b> RPH' : '') + ' · ' + rows.length + ' people</p>' +
     '<table cellpadding="6" style="border-collapse:collapse;font-size:14px"><tr style="background:#111111;color:#fff"><th align="left">Person</th><th>Retail</th><th>RPH</th><th>Stops/Buyers</th><th>Days</th></tr>' + tr + '</table>' +
     '<h3>📝 Missing reflections</h3><p>' + (missing.length ? missing.join('<br>') : 'Everyone reflected on every day worked 🎉') + '</p>' +
     '<h3>🌱 New starters</h3><p>' + (newbies.length ? newbies.join('<br>') : 'No new starters this fortnight.') + '</p></div>';
@@ -405,7 +405,7 @@ const OREXIS_LOGO_LIGHT = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w
 function orexis_(hourly) {
   let s = HtmlService.createHtmlOutputFromFile(hourly ? 'Hourly' : 'Index').getContent();
   const rep = (a, b) => { s = s.split(a).join(b); };
-  rep('#7b1e2e', '#424965'); rep('#f4e6e8', '#fbe1d8'); rep('#6e1423', '#111111');
+  rep('#7b1e2e', '#3a3a3a'); rep('#f4e6e8', '#fbe1d8'); rep('#6e1423', '#111111');
   rep('<title>Kaizen KPIs</title>', '<title>Saint KPIs</title>'); rep('<title>Kaizen Hourly</title>', '<title>Saint Hourly</title>');
   rep("if(info.logo){", "if(window.OREXIS_LOGO)info.logo=window.OREXIS_LOGO;if(info.logo){");
   rep("info.name||'Kaizen KPIs'", "'Saint'");
@@ -421,10 +421,10 @@ function orexis_(hourly) {
   rep('Kaizen', 'Saint'); rep('Saint Enterprises', 'Saint');
   // Kaizen test people never appear in Saint
   rep('applyDocs(r.docs);', 'applyDocs((r.docs||[]).filter(d=>!/^(reps|conf|teams)\\/(u_0902e9eb82174b99b8e2|u_32e3e5910f7b422aa08f)(\\/|$)/.test(d.p)));');
-  const css = ':root{--bg:#F6F3EE!important;--line:#e3dfd7!important;--muted:#5b6275!important;--ink:#0b0b0b!important;--accent:#111111!important;--accent-soft:#fbe1d8!important}' +
-    'body{background:#F6F3EE!important}header.top,.top{background:#111111!important;color:#E8552E!important;border-radius:14px;padding:12px 14px!important;margin-bottom:10px}' +
-    'header.top h1,.top h1,#teamTitle{color:#E8552E!important;letter-spacing:.12em}#teamSub,.top .sub{color:#c9cfe0!important}' +
-    'header.top button,.top button,header.top input,header.top select{background:#414A63!important;color:#fff!important;border-color:#5a6688!important}' +
+  const css = ':root{--bg:#fbe1d8!important;--line:#e3dfd7!important;--muted:#3a3a3a!important;--ink:#0b0b0b!important;--accent:#111111!important;--accent-soft:#fbe1d8!important}' +
+    'body{background:#fbe1d8!important}header.top,.top{background:#111111!important;color:#E8552E!important;border-radius:14px;padding:12px 14px!important;margin-bottom:10px}' +
+    'header.top h1,.top h1,#teamTitle{color:#E8552E!important;letter-spacing:.12em}#teamSub,.top .sub{color:#e9e6e4!important}' +
+    'header.top button,.top button,header.top input,header.top select{background:#3a3a3a!important;color:#fff!important;border-color:#3a3a3a!important}' +
     'nav.tabs button[aria-selected=true]{border-bottom-color:#E8552E!important}#mnav button[aria-selected=true]{color:#111111!important;background:#fbe1d8!important}' +
     'h2,h3{color:#111111}.card{border-color:#e3dfd7}';
   s = s.replace('</style>', css + '</style>');
@@ -522,7 +522,7 @@ function scorecards_(wk) {
       if (has) { s.shifts++; ['stops', 'buyers', 'retail', 'upsells', 'upsellRetail', 'medals', 'hours'].forEach(k => s[k] += Number(e[k]) || 0); } } return s; };
   const kp = s => { const n = Math.max(1, s.shifts); return { stops: s.stops / n, conv: s.stops ? s.buyers / s.stops * 100 : 0, avg: s.buyers ? s.retail / s.buyers : 0, ups: s.buyers ? s.upsells / s.buyers * 100 : 0, rph: s.hours ? s.retail / s.hours : 0, buyers: s.buyers / n }; };
   const band = (k, v) => v >= BANDS[k].strong ? 'STRONG' : v >= BANDS[k].low ? 'AVG' : 'LOW';
-  const BC = { STRONG: '#1f7a4d', AVG: '#b86e00', LOW: '#c2410c' };
+  const BC = { STRONG: '#C1272D', AVG: '#C1272D', LOW: '#c2410c' };
   const money = n => '$' + Math.round(n).toLocaleString('en-AU');
   const DN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const ROLE = { sa: 'Sales Associate', sc: 'Sales Consultant', sl: 'Sales Leader', tl: 'Team Leader', tm: 'Team Manager', ad: 'Assistant Director', dir: 'Director', md: 'Managing Director' };
@@ -531,7 +531,7 @@ function scorecards_(wk) {
   const M1 = '#7b1e2e', MUT = '#6b5b60', LINE = '#e6dcde';
   const out = [];
   { // ---- company card ----
-    const N = '#424965', G = '#E8552E';
+    const N = '#3a3a3a', G = '#E8552E';
     const sec2 = t => '<div style="margin:16px 0 8px;font-size:11px;font-weight:700;letter-spacing:.14em;color:' + N + '"><span style="display:inline-block;width:18px;height:2px;background:' + G + ';vertical-align:middle;margin-right:8px"></span>' + t + '</div>';
     const tile = (l, v, sub) => '<td style="padding:0 14px 0 0;vertical-align:top"><div style="font-size:10px;letter-spacing:.1em;color:' + MUT + '">' + l + '</div><div style="font-size:24px;font-weight:700;color:' + N + '">' + v + '</div><div style="font-size:11px;color:' + MUT + '">' + (sub || '') + '</div></td>';
     const all = reps.map(x => ({ ...x, s: sum(x.id, wk, end) }));
@@ -543,7 +543,7 @@ function scorecards_(wk) {
     const diff = prevT.retail ? Math.round((T.retail - prevT.retail) / prevT.retail * 100) : null;
     let h = '<div style="max-width:720px;margin:0 auto;background:#fff;font-family:Helvetica,Arial,sans-serif">' +
       '<div style="background:' + N + ';color:#fff;padding:14px 20px;border-radius:6px"><table style="width:100%;border-collapse:collapse"><tr><td style="width:110px;vertical-align:middle"><img src="' + OREXIS_LOGO + '" style="height:44px;display:block;border:0"></td><td style="font-size:11px;letter-spacing:.2em;color:' + G + ';vertical-align:middle;text-align:right">COMPANY SCORECARD · WC ' + wk.slice(8, 10) + '/' + wk.slice(5, 7) + '</td></tr></table>' +
-      '<div style="font-size:30px;letter-spacing:.04em;margin-top:8px">' + esc(String(coName).toUpperCase()) + '</div><div style="font-size:12px;color:#dfe2ec">' + worked.length + ' people worked · ' + T.shifts + ' shifts · ' + Math.round(T.hours) + ' hours</div></div>' +
+      '<div style="font-size:30px;letter-spacing:.04em;margin-top:8px">' + esc(String(coName).toUpperCase()) + '</div><div style="font-size:12px;color:#e9e6e4">' + worked.length + ' people worked · ' + T.shifts + ' shifts · ' + Math.round(T.hours) + ' hours</div></div>' +
       '<div style="font-size:14px;line-height:1.5;margin:14px 0">' + money(T.retail) + ' retail this week' + (diff == null ? '' : ', ' + (diff >= 0 ? 'up ' : 'down ') + Math.abs(diff) + '% on last week (' + money(prevT.retail) + ')') + '. ' + gongs + ' gong day' + (gongs === 1 ? '' : 's') + ' 🥁 and ' + bells + ' bell day' + (bells === 1 ? '' : 's') + ' 🔔.</div>' +
       '<table style="border-collapse:collapse"><tr>' + tile('RETAIL', money(T.retail), T.shifts + ' shifts') + tile('RPH', T.hours ? money(K.rph) : '—', T.hours ? zone(K.rph) : '') + tile('CONVERSION', T.stops ? Math.round(K.conv) + '%' : '—', 'Standard ' + BANDS.conv.strong + '%') + tile('STOPS / SHIFT', T.shifts ? K.stops.toFixed(1) : '—', 'Standard ' + BANDS.stops.strong) + tile('SALE AVERAGE', T.buyers ? money(K.avg) : '—', 'Standard ' + money(BANDS.avg.strong)) + '</tr></table>' +
       '<table style="border-collapse:collapse;margin-top:10px"><tr>' + tile('STOPS', String(T.stops)) + tile('BUYERS', String(T.buyers)) + tile('UPSELLS', String(T.upsells), T.buyers ? Math.round(T.upsells / T.buyers * 100) + '% of buyers' : '') + tile('MEDALS', String(T.medals)) + '</tr></table>';
@@ -604,7 +604,7 @@ function scorecards_(wk) {
     const sec = (title, body) => '<div style="margin-top:14px"><div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:' + M1 + ';margin-bottom:6px">' + title + '</div>' + body + '</div>';
     const ul = a => '<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.5">' + a.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>';
     // ---- simple layout (Atlas-style): header, one line, 5 numbers, weeks, wins/challenges, 3 focuses ----
-    const N = '#424965', G = '#E8552E';
+    const N = '#3a3a3a', G = '#E8552E';
     const sec2 = t => '<div style="margin:16px 0 8px;font-size:11px;font-weight:700;letter-spacing:.14em;color:' + N + '"><span style="display:inline-block;width:18px;height:2px;background:' + G + ';vertical-align:middle;margin-right:8px"></span>' + t + '</div>';
     const wkTag = d => d.slice(8, 10) + '/' + d.slice(5, 7);
     // one-line summary
@@ -614,9 +614,9 @@ function scorecards_(wk) {
     const tile = (l, v, sub) => '<td style="padding:0 14px 0 0;vertical-align:top"><div style="font-size:10px;letter-spacing:.1em;color:' + MUT + '">' + l + '</div><div style="font-size:24px;font-weight:700;color:' + N + '">' + v + '</div><div style="font-size:11px;color:' + MUT + '">' + sub + '</div></td>';
     let h = '<div style="max-width:720px;margin:0 auto;background:#fff;font-family:Helvetica,Arial,sans-serif">' +
       '<div style="background:' + N + ';color:#fff;padding:14px 20px;border-radius:6px">' +
-      '<table style="width:100%;border-collapse:collapse"><tr><td style="width:110px;vertical-align:middle"><img src="' + OREXIS_LOGO + '" style="height:44px;display:block;border:0"></td><td style="font-size:11px;letter-spacing:.2em;color:' + G + ';vertical-align:middle">' + 'OREXIS INNOVATIONS · WEEKLY SCORECARD</td><td style="text-align:right;font-size:11px;color:#dfe2ec;vertical-align:middle">WC ' + wkTag(wk) + '/' + wk.slice(0, 4) + '</td></tr></table>' +
+      '<table style="width:100%;border-collapse:collapse"><tr><td style="width:110px;vertical-align:middle"><img src="' + OREXIS_LOGO + '" style="height:44px;display:block;border:0"></td><td style="font-size:11px;letter-spacing:.2em;color:' + G + ';vertical-align:middle">' + 'OREXIS INNOVATIONS · WEEKLY SCORECARD</td><td style="text-align:right;font-size:11px;color:#e9e6e4;vertical-align:middle">WC ' + wkTag(wk) + '/' + wk.slice(0, 4) + '</td></tr></table>' +
       '<div style="font-size:30px;letter-spacing:.04em;margin-top:8px">' + esc((r.name || 'Rep').toUpperCase()) + '</div>' +
-      '<div style="font-size:12px;color:#dfe2ec">' + role + ' · ' + s.shifts + ' shift' + (s.shifts === 1 ? '' : 's') + ' this week</div></div>' +
+      '<div style="font-size:12px;color:#e9e6e4">' + role + ' · ' + s.shifts + ' shift' + (s.shifts === 1 ? '' : 's') + ' this week</div></div>' +
       '<div style="font-size:14px;line-height:1.5;margin:14px 0">' + esc(line) + '</div>' +
       '<table style="border-collapse:collapse"><tr>' +
       tile('RETAIL', money(s.retail), s.shifts + ' shift' + (s.shifts === 1 ? '' : 's')) +
@@ -627,13 +627,13 @@ function scorecards_(wk) {
     // daily retail chart (table bars so it survives the PDF converter)
     const mx = Math.max(STD.bell, ...s.days.map(d => d.retail));
     h += sec2('THE WEEK') + '<table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr style="vertical-align:bottom">' + s.days.map(d => { const bh = Math.round(d.retail / mx * 90); const gong = d.worked && d.retail >= STD.gong, bell = d.worked && d.retail >= STD.bell;
-      return '<td style="text-align:center;padding:0 6px;height:110px;vertical-align:bottom"><div style="font-size:10px;color:' + MUT + '">' + (d.worked ? money(d.retail) : '') + (gong ? ' 🥁' : bell ? ' 🔔' : '') + '</div><div style="height:' + Math.max(d.worked ? 3 : 0, bh) + 'px;background:' + (gong ? '#C8862A' : bell ? G : N) + ';border-radius:4px 4px 0 0"></div></td>'; }).join('') + '</tr><tr>' +
+      return '<td style="text-align:center;padding:0 6px;height:110px;vertical-align:bottom"><div style="font-size:10px;color:' + MUT + '">' + (d.worked ? money(d.retail) : '') + (gong ? ' 🥁' : bell ? ' 🔔' : '') + '</div><div style="height:' + Math.max(d.worked ? 3 : 0, bh) + 'px;background:' + (gong ? '#E8552E' : bell ? G : N) + ';border-radius:4px 4px 0 0"></div></td>'; }).join('') + '</tr><tr>' +
       s.days.map((d, i) => '<td style="text-align:center;font-size:10px;color:' + MUT + ';border-top:1px solid ' + LINE + ';padding-top:3px">' + DN[i] + '</td>').join('') + '</tr></table>';
     // tracker: standard vs this week vs their usual (last 4 weeks)
     const TR = [['Stops / shift', K.stops, U && U.stops, BANDS.stops.strong, x => x.toFixed(1)], ['Conversion', K.conv, U && U.conv, BANDS.conv.strong, x => Math.round(x) + '%'], ['Sale average', K.avg, U && U.avg, BANDS.avg.strong, money], ['Upsells', K.ups, U && U.ups, BANDS.ups.strong, x => Math.round(x) + '%'], ['RPH', K.rph, U && U.rph, STD.rph, money]];
     const bar = (v, m, c, lab) => '<tr><td style="width:96px;white-space:nowrap;font-size:10px;color:' + MUT + ';padding:1px 6px 1px 0">' + lab + '</td><td style="padding:1px 0"><div style="height:8px;width:' + Math.max(1, Math.round(Math.min(1, (v || 0) / m) * 100)) + '%;background:' + c + ';border-radius:4px"></div></td></tr>';
     h += sec2('TRACKER · STANDARD vs YOU vs YOUR USUAL') + '<table style="width:100%;border-collapse:collapse">' + TR.map(([l, v, u, st, f]) => { const m = Math.max(st, v || 0, u || 0) * 1.05;
-      return '<tr style="vertical-align:middle"><td style="width:120px;padding:6px 0;border-bottom:1px solid ' + LINE + '"><div style="font-size:12px;font-weight:700">' + l + '</div><div style="font-size:11px;color:' + MUT + '">' + (s.shifts ? f(v) : '—') + ' <span style="color:' + (s.shifts && v >= st ? '#1f7a4d' : '#c2410c') + '">' + (s.shifts ? (v >= st ? '✓' : '↓') : '') + '</span></div></td><td style="padding:6px 0;border-bottom:1px solid ' + LINE + '"><table style="width:100%;border-collapse:collapse">' +
+      return '<tr style="vertical-align:middle"><td style="width:120px;padding:6px 0;border-bottom:1px solid ' + LINE + '"><div style="font-size:12px;font-weight:700">' + l + '</div><div style="font-size:11px;color:' + MUT + '">' + (s.shifts ? f(v) : '—') + ' <span style="color:' + (s.shifts && v >= st ? '#C1272D' : '#c2410c') + '">' + (s.shifts ? (v >= st ? '✓' : '↓') : '') + '</span></div></td><td style="padding:6px 0;border-bottom:1px solid ' + LINE + '"><table style="width:100%;border-collapse:collapse">' +
         bar(st, m, G, 'Standard ' + f(st)) + bar(s.shifts ? v : 0, m, N, 'You ' + (s.shifts ? f(v) : '—')) + bar(u || 0, m, '#b9adb0', 'Usual ' + (u != null ? f(u) : '—')) + '</table></td></tr>'; }).join('') + '</table>';
     // last 4 weeks incl this one
     const wks = [-21, -14, -7, 0].map(o => { const a = addDaysS_(wk, o), x = sum(id, a, addDaysS_(a, 6)); return { a, x }; });
@@ -662,7 +662,7 @@ function scorecards_(wk) {
       const tf = T.shifts ? ['stops', 'conv', 'avg', 'ups'].map(k => [k, k === 'stops' ? TK.stops : TK[k]]).find(([k, v]) => band(k, v) === 'LOW') : null;
       const word = !T.shifts ? 'Activity' : tf ? PEOPLE_NEED[tf[0]] : (T.hours && T.retail / T.hours < STD.rph ? 'Belief' : 'Recognition');
       const piece = teamPiece_(team.length, ld, ns, 0);
-      const tt = (l, v, st, ok) => '<td style="border:1px solid ' + LINE + ';border-radius:8px;padding:8px;text-align:center;width:25%"><div style="font-size:10px;letter-spacing:.08em;color:' + MUT + '">' + l + '</div><div style="font-size:20px;font-weight:700;color:' + N + '">' + v + '</div><div style="font-size:10px;color:' + (T.shifts ? (ok ? '#1f7a4d' : '#c2410c') : MUT) + '">' + (T.shifts ? (ok ? '✓ ' : '↓ ') : '') + 'Standard ' + st + '</div></td>';
+      const tt = (l, v, st, ok) => '<td style="border:1px solid ' + LINE + ';border-radius:8px;padding:8px;text-align:center;width:25%"><div style="font-size:10px;letter-spacing:.08em;color:' + MUT + '">' + l + '</div><div style="font-size:20px;font-weight:700;color:' + N + '">' + v + '</div><div style="font-size:10px;color:' + (T.shifts ? (ok ? '#C1272D' : '#c2410c') : MUT) + '">' + (T.shifts ? (ok ? '✓ ' : '↓ ') : '') + 'Standard ' + st + '</div></td>';
       const bph = T.hours ? T.buyers / T.hours : 0, spd = T.shifts ? T.stops / T.shifts : 0, bpd = T.shifts ? T.buyers / T.shifts : 0, sph = T.hours ? T.stops / T.hours : 0, rphT = T.hours ? T.retail / T.hours : 0;
       const tn = r.team === id ? coName : ((get('teams/' + id) || {}).name) || (r.name ? String(r.name).trim().split(/\s+/)[0] + '’s team' : coName);
       h += sec2('YOUR TEAM · ' + esc(String(tn).toUpperCase())) + '<div style="font-size:13px;line-height:1.6">' + team.length + ' people · ' + ld + ' leaders · ' + ns + ' new starts · ' + money(T.retail) + ' team retail</div>' +
