@@ -17,4 +17,5 @@ def build(src,out,name,short,theme,icons):
     open(out+'/manifest.webmanifest','w').write(json.dumps({"name":name+" KPIs","short_name":short,"start_url":"./","display":"standalone","background_color":"#ffffff","theme_color":theme,"icons":[{"src":"icon-192.png","sizes":"192x192","type":"image/png"},{"src":"icon-512.png","sizes":"512x512","type":"image/png"}]}))
 build('midas-src','m','Midas','Midas','#151515',[('icons/midas-192.png','icon-192.png'),('icons/midas-512.png','icon-512.png')])
 build('orexis-src','o','Orexis','Orexis','#424965',[('orexis/icon-192.png','icon-192.png'),('orexis/icon-512.png','icon-512.png')])
+build('saint-src','s','Saint','Saint','#111111',[('icons/saint-192.png','icon-192.png'),('icons/saint-512.png','icon-512.png')])
 print('built')
