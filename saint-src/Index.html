@@ -1583,7 +1583,7 @@ function plannerTable(ros){const c=feeCfg();const tb=h('tbody');
   ros.forEach(r=>{const P=planFor(r.id);tb.append(h('tr',null,h('td',{class:'name',text:r.name}),h('td',{text:money(P.t.retail)}),h('td',{text:String(Math.round(P.t.hours*10)/10)}),
     h('td',null,P.t.hours?money(P.cur.rph):'—',P.t.hours?h('div',null,zoneEl(P.cur.rph)):null),h('td',null,hoursInput(r.id)),P.tiers.map(x=>planCell(x,P.left))))});
   return h('div',{class:'panel scroll'},h('table',null,h('thead',null,h('tr',null,['Name','Retail so far','Hours so far','RPH now','Total hrs'].map(x=>h('th',{text:x})),c.tiers.map(x=>h('th',{text:`${money(x.rph)} RPH · ${x.pct}%`})))),tb))}
-function plannerCard(uid){const P=planFor(uid);const c=feeCfg();
+function plannerCard(uid){return null;const P=planFor(uid);const c=feeCfg();
   const box=h('div',{class:'panel rform'});
   box.append(h('div',{class:'bar'},h('h4',{text:'What I need for the rest of the week'}),h('label',{class:'hint',for:'plan-'+uid},'Total hours this week ',hoursInput(uid))));
   if(P.left==null)box.append(h('div',{class:'hint',text:'Enter your total hours for the whole week (worked + still to work) to see what each tier needs.'}));
@@ -1642,7 +1642,7 @@ function renderBonus(v){const rules=bonusRules();const c=feeCfg();
   if(!leader()){
     v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My bonus · week of '+niceDate(S.week,{day:'numeric',month:'long'})}),h('div',{class:'hint',text:'Your weekly performance fee is worked out from your week’s retail and RPH. This is an estimate; your leader confirms the final amount.'})),weekNav()));
     if(!bonusOn(S.uid)){v.append(bonusLock(S.uid));return}
-    v.append(feePanel(weekAll(S.uid),'My'));v.append(plannerCard(S.uid));
+    v.append(feePanel(weekAll(S.uid),'My'));{const pc=plannerCard(S.uid);if(pc)v.append(pc)}
     if(rules.length){const won=rules.filter(r=>bonusStatus(r,S.uid).achieved).length;
       v.append(h('div',{class:'bar'},h('h3',{text:'Extra incentives'}),h('span',{class:'hint',text:`${won} of ${rules.length} achieved`})));
       v.append(h('div',{class:'panel blist'},rules.map(r=>bonusRow(r,S.uid))))}
