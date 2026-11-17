@@ -1,0 +1,28 @@
+name: Saint create
+on: { workflow_dispatch: {} }
+permissions: { contents: write }
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: |
+          npm install -g @google/clasp
+          printf '%s' "$CLASPRC" > ~/.clasprc.json
+        env: { CLASPRC: "${{ secrets.CLASPRC }}" }
+      - name: Create bound project, push, deploy
+        run: |
+          mkdir work && cd work
+          clasp create --title "Saint KPIs" --parentId 1Hzdflel_km9oDb_oP9D0qrt1DnWh0m9Ul_oYwpMdO3Q 2>&1 | tee -a ../deploy.log
+          cat .clasp.json | tee -a ../deploy.log
+          cp ../saint-src/Code.js ../saint-src/Index.html ../saint-src/Hourly.html ../saint-src/appsscript.json .
+          clasp push --force 2>&1 | tee -a ../deploy.log
+          clasp deploy --description "first" 2>&1 | tee -a ../deploy.log
+      - if: always()
+        run: |
+          touch deploy.log; cp deploy.log /tmp/d.log
+          git config user.name bot; git config user.email bot@users.noreply.github.com
+          git checkout --orphan t; git rm -rqf . || true
+          cp /tmp/d.log deploy.log; git add deploy.log; git commit -qm log; git push -f origin HEAD:deploy-log-saint
