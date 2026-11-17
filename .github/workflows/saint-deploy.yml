@@ -1,0 +1,55 @@
+name: Saint deploy
+on:
+  push:
+    branches: [main]
+    paths: ['saint-src/**', '.github/workflows/saint-deploy.yml']
+  workflow_dispatch:
+concurrency: saint-deploy
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SCRIPT_ID: 1zMOBnR86X5xDjAzo49ZIkksobJdRAKliTXY-a1y9rJXtcGMIEYWD3kSv
+      DEPLOYMENT_ID: AKfycbwZm_POzxW6ebLOcJwvmVUsmqCiJi4U8oMmcafIJu3RGpTlAnVDBI1EsSCmwWB-P2pdgQ
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Check the code before publishing
+        run: |
+          node --check saint-src/Code.js
+          for f in Index Hourly; do
+            python3 -c "import re,sys;s=open('saint-src/$f.html').read();open('/tmp/$f.js','w').write('\n'.join(re.findall(r'<script>(.*?)</script>',s,re.S)))"
+            node --check /tmp/$f.js
+          done
+      - name: Install clasp and sign in
+        run: |
+          npm install -g @google/clasp
+          printf '%s' "$CLASPRC" > ~/.clasprc.json
+        env:
+          CLASPRC: ${{ secrets.CLASPRC }}
+      - name: Pull, replace files, push
+        run: |
+          mkdir work && cd work
+          echo "{\"scriptId\":\"$SCRIPT_ID\",\"rootDir\":\".\"}" > .clasp.json
+          clasp pull 2>&1 | tee -a ../deploy.log
+          ls -la | tee -a ../deploy.log
+          cp ../saint-src/Code.js Code.js
+          cp ../saint-src/Index.html Index.html
+          cp ../saint-src/Hourly.html Hourly.html
+          clasp push --force 2>&1 | tee -a ../deploy.log; test ${PIPESTATUS[0]} -eq 0
+      - name: Publish new version to the live link
+        run: |
+          cd work
+          (clasp update-deployment "$DEPLOYMENT_ID" --description "auto $(date -u +%F' '%H:%M)" || clasp deploy --deploymentId "$DEPLOYMENT_ID" --description "auto $(date -u +%F' '%H:%M)") 2>&1 | tee -a ../deploy.log; test ${PIPESTATUS[0]} -eq 0
+      - name: Save log
+        if: always()
+        run: |
+          touch deploy.log; cp deploy.log /tmp/d.log
+          git config user.name bot; git config user.email bot@users.noreply.github.com
+          git fetch origin deploy-log || true
+          git checkout --orphan deploy-log-tmp; git rm -rqf . || true
+          cp /tmp/d.log deploy.log; git add deploy.log; git commit -qm "log $GITHUB_RUN_ID"; git push -f origin HEAD:deploy-log-saint
+
