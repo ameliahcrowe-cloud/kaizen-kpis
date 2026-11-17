@@ -2215,6 +2215,12 @@ function teamName(id){if(!id)return coName();const r=S.reps[id];if(S.teams[id]&&
 function teamLogo(id,cls){const t=S.teams[id];const co=!id||(S.reps[id]&&S.reps[id].team===id&&!(S.teams[id]&&S.teams[id].name));const src=co?((S.logo&&S.logo.data)||window.OREXIS_LOGO):(t&&t.logo);return src&&String(src).startsWith('data:image/')?h('img',{class:cls||'tlogo',src,alt:''}):h('span',{class:(cls||'tlogo')+' blank',text:(teamName(id)[0]||'?').toUpperCase(),'aria-hidden':'true'})}
 function canCreateTeam(){if(S.isOwner)return true;if(leader())return true;const i=stageIdx(S.uid);return i>=2}
 const STAGE_ABBR={sa:'SA',sc:'SC',sl:'SL',tl:'TL',tm:'TM',ad:'AD',dir:'D',md:'MD'};
+const LV_DEF=STAGES.map(p=>({k:p.k,name:p.from,abbr:STAGE_ABBR[p.k]}));
+function applyLevels(){const L=(S.levels&&S.levels.list)||{};STAGES.forEach((p,i)=>{const d=LV_DEF[i],o=L[p.k]||{};p.from=(o.name||'').trim()||d.name;STAGE_ABBR[p.k]=(o.abbr||'').trim()||d.abbr});STAGES.forEach((p,i)=>{if(STAGES[i+1])p.to=STAGES[i+1].from})}
+function adminLevels(v){const cur=(S.levels&&S.levels.list)||{};S.lvDraft=S.lvDraft||JSON.parse(JSON.stringify(cur));const box=h('div',{class:'panel'});
+  box.append(h('h3',{text:'Level names'}),h('p',{class:'hint',text:'Rename each level and its short tag. Order is lowest to highest. Leave blank to use the default.'}));
+  LV_DEF.forEach(d=>{const o=S.lvDraft[d.k]=S.lvDraft[d.k]||{};box.append(h('div',{style:'display:grid;grid-template-columns:1fr 90px;gap:8px;margin:6px 0'},h('input',{type:'text',value:o.name||'',placeholder:d.name,oninput:e=>{o.name=e.target.value}}),h('input',{type:'text',value:o.abbr||'',placeholder:d.abbr,maxlength:4,oninput:e=>{o.abbr=e.target.value.toUpperCase()}})))});
+  box.append(h('button',{class:'primary',onclick:async()=>{const list=S.lvDraft;S.levels={list};applyLevels();S.lvDraft=null;render();await write(()=>db.doc('settings/levels').set({list,updatedAt:new Date().toISOString()}),'Level names saved')}},'Save level names'));v.append(box)}
 function stageOfAny(uid){const r=S.reps[uid];const k=(r&&r.promo&&r.promo.stage)||((S.board[uid]||{}).stage)||'sa';return STAGE_ABBR[k]?k:'sa'}
 function stageTag(uid){return h('span',{title:(STAGES.find(p=>p.k===stageOfAny(uid))||{}).from||'',style:'font-size:.66rem;font-weight:700;letter-spacing:.04em;padding:2px 6px;border-radius:6px;background:#2E3A59;color:#F5B56E;margin-left:6px;vertical-align:middle',text:STAGE_ABBR[stageOfAny(uid)]})}
 function photoOf(uid){const b=S.board[uid];return b&&b.photo&&String(b.photo).startsWith('data:image/')?b.photo:null}
@@ -2375,7 +2381,7 @@ function newStartsPanel(ids){const td=todayStr();const bell=std('bell');
       flags.length?h('div',{class:'hint',style:'margin-top:8px;color:#8a4b08',text:'⚠️ '+flags.join(' · ')}):null))});
   return box}
 /* ---------- ADMIN (Ameliah only) ---------- */
-const ADMIN_SECS=[['people','People'],['standards','Standards'],['celebrations','Celebrations'],['dailylog','Edit daily log'],['scorecards','Scorecards'],['brand','Branding & settings']];
+const ADMIN_SECS=[['people','People'],['standards','Standards'],['celebrations','Celebrations'],['levels','Level names'],['dailylog','Edit daily log'],['scorecards','Scorecards'],['brand','Branding & settings']];
 async function adminDailyLog(v){v.append(h('div',{class:'seg',style:'margin-bottom:8px'},[['one','One person'],['day','Whole team · one day']].map(([k,l])=>h('button',{class:(S.alMode||'one')===k?'primary':null,onclick:()=>{S.alMode=k;render()}},l))));if(S.alMode==='day')return adminDayGrid(v);return adminDailyLogOne(v)}
 async function adminDayGrid(v){S.alDay=S.alDay||todayStr();const ppl=repListAll(false).filter(r=>!(S.reps[r.id]||{}).test).sort((a,b)=>String(a.name).localeCompare(String(b.name)));
   v.append(h('div',{class:'panel',style:'display:flex;gap:10px;align-items:end;flex-wrap:wrap'},h('label',null,h('span',{class:'lbl',text:'Day'}),h('input',{type:'date',value:S.alDay,onchange:e=>{S.alDay=e.target.value||todayStr();S.alG=null;render()}})),h('span',{class:'hint',text:'Edit any cell, then Save all. Blank rows are left alone.'})));
@@ -2406,7 +2412,7 @@ function renderHourlyTab(v){v.append(h('div',{class:'bar'},h('div',null,h('h2',{
 function renderAdmin(v){S.adminSec=S.adminSec||'people';
   v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Admin'}),h('div',{class:'hint',text:'Only you can see this. Changes apply to everyone in Orexis.'}))));
   v.append(h('div',{class:'seg',style:'flex-wrap:wrap'},ADMIN_SECS.map(([k,l])=>h('button',{class:S.adminSec===k?'primary':null,'aria-pressed':String(S.adminSec===k),onclick:()=>{S.adminSec=k;render()}},l))));
-  ({people:adminPeople,standards:adminStandards,celebrations:adminCelebrations,scorecards:adminScorecards,brand:adminBrand,dailylog:adminDailyLog})[S.adminSec](v)}
+  ({people:adminPeople,standards:adminStandards,celebrations:adminCelebrations,levels:adminLevels,scorecards:adminScorecards,brand:adminBrand,dailylog:adminDailyLog})[S.adminSec](v)}
 function adminPeople(v){
   const nm=h('input',{type:'text',id:'apName',placeholder:'First and last name','aria-label':'Name'}),pin=h('input',{type:'password',inputmode:'numeric',id:'apPin',placeholder:'PIN (4–8 digits)','aria-label':'PIN'});
   const role=h('select',{id:'apRole','aria-label':'Role'},h('option',{value:'rep'},'Rep'),h('option',{value:'tl'},'Team leader'));
@@ -2625,6 +2631,7 @@ S.week=weekStart(S.date);render();
   db.doc('settings/campaigns').onSnapshot(s=>{S.campaignsCfg=s.exists?s.data():null;if(S.ready)render()},()=>{});
   db.doc('settings/logo').onSnapshot(s=>{S.logo=s.exists?s.data():null;renderHeader()},()=>{});
   db.doc('settings/steps').onSnapshot(s=>{S.steps=s.exists?s.data():null;if(S.ready)render()},()=>{});
+  db.doc('settings/levels').onSnapshot(s=>{S.levels=s.exists?s.data():null;applyLevels();if(S.ready)render()},()=>{});
   db.doc('settings/promo').onSnapshot(s=>{S.promoCfg=s.exists?s.data():null;if(S.ready)render()},()=>{});
   db.doc('settings/coaching').onSnapshot(s=>{S.coach=s.exists?s.data():null;if(S.ready)render()},()=>{});
   db.doc('settings/bonus').onSnapshot(s=>{S.bonus=s.exists?s.data():null;if(S.ready)render()},()=>{});
