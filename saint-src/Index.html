@@ -2492,7 +2492,9 @@ function loginsPanel(){const box=h('div',{class:'stack'});
     box.append(h('div',{class:'panel empty'},h('span',{text:'Loading logins\u2026'})));return box}
   const act=async(a,uid,val,msg)=>{try{await window.kaizenAdmin.act(a,uid,val);toast(msg);S.logins=null;render()}catch(e){toast(String(e&&e.message||e).replace(/^Error: /,''))}};
   const list=h('div',{class:'panel teamlist'});
-  S.logins.filter(l=>!/\(removed /.test(l.name)).forEach(l=>{const pinIn=h('input',{type:'password',inputmode:'numeric',class:'num',id:'pin-'+l.uid,placeholder:'New PIN','aria-label':'New PIN for '+l.name});
+  const isAct=l=>{const r=S.reps[l.uid];return l.role==='owner'||(r&&r.active!==false)};const nIn=S.logins.filter(l=>!/\(removed /.test(l.name)&&!isAct(l)).length;
+  if(nIn)box.append(h('button',{style:'margin:4px 0 8px',onclick:()=>{S.showInactiveLogins=!S.showInactiveLogins;render()}},S.showInactiveLogins?'Hide inactive ('+nIn+')':'Show inactive ('+nIn+')'));
+  S.logins.filter(l=>!/\(removed /.test(l.name)&&(S.showInactiveLogins||isAct(l))).forEach(l=>{const pinIn=h('input',{type:'password',inputmode:'numeric',class:'num',id:'pin-'+l.uid,placeholder:'New PIN','aria-label':'New PIN for '+l.name});
     list.append(h('div',{class:'teamrow'},h('strong',{style:'flex:1;min-width:140px',text:l.name}),
       l.role==='owner'?h('span',{class:'hint',text:l.uid==='u_owner'?'Admin':'Owner'}):h('select',{id:'role-'+l.uid,'aria-label':l.name+' access',onchange:e=>act('role',l.uid,e.target.value,'Access updated')},[['rep','Rep'],['tl','Team leader']].map(([k,t])=>h('option',{value:k,selected:l.role===k},t))),h('select',{id:'lvl-'+l.uid,'aria-label':l.name+' level',style:'margin-left:6px',onchange:async e=>{const st=e.target.value;const r=S.reps[l.uid]||{};const pr={...(r.promo||{}),stage:st};S.reps[l.uid]={...r,promo:pr};render();await write(()=>db.doc('reps/'+l.uid).update({promo:pr}),'Level updated')}},STAGES.map(p=>h('option',{value:p.k,selected:stageOfAny(l.uid)===p.k},p.from))),
       l.role==='owner'&&!isAdminUser()?null:pinIn,l.role==='owner'&&!isAdminUser()?null:h('button',{onclick:()=>act('pin',l.uid,pinIn.value,'PIN reset for '+l.name)},'Reset PIN'),
