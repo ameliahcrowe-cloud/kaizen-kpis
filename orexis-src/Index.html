@@ -2622,7 +2622,7 @@ S.week=weekStart(S.date);render();
   if(!db||!user){status('Sign in to claude.ai to use the tracker.','warn');S.ready=true;render();return}
   S.db=db;S.uid=await user.id();S.isOwner=await user.isOwner();S.isAdmin=!S.isOwner&&await user.canEdit();if(S.isAdmin)S.teamFilter='all';
   if(!S.uid&&!S.isOwner){status('Your account can’t log numbers here. Ask your team leader to invite you by email from the Share menu.','warn');S.ready=true;render();return}
-  {let vw='me';try{vw=localStorage.getItem('kz_view')||'me'}catch(e){}S.viewMe=vw==='me';if(vw==='admin'&&S.isOwner&&S.uid==='u_owner'){S.admin=true;S.viewMe=false;S.tab='admin'}}
+  {let vw='me';try{vw=localStorage.getItem('kz_view')||'me'}catch(e){}S.viewMe=vw==='me';if(vw==='admin'){S.viewMe=false;S.tab='log'}}
   if(!leader()&&!tabs().some(t=>t[0]===S.tab))S.tab='log';
   const parts={settings:false,reps:false,mine:!S.uid};
   const check=()=>{if(!S.ready&&parts.settings&&parts.reps&&parts.mine)S.ready=true;render()};
