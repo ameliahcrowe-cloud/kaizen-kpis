@@ -2080,15 +2080,16 @@ function roleName(p){return p.from}
 function lastN(uid,n){const L=hist(uid).filter(e=>e.date<=todayStr());return L.slice(-n).reduce((a,e)=>a+num(e.retail),0)}
 /* sales progress resets each week: the bar is this week's retail; two weeks in a row at target completes it */
 function salesProgress(uid,p){if(!p.sales)return null;const s=p.sales;const m=(promoOf(uid).m||{})[p.k+'_sales'];
-  if(s.kind==='10days'){const cur=lastN(uid,10),best=bestRolling(uid,10);const ever=best>=s.amt;
+  if(s.kind==='10days'){const cur=lastN(uid,10),best=bestRolling(uid,10);const ever=best>=s.amt;const nd=hist(uid).filter(e=>e.date<=todayStr()).length;const lft=Math.max(0,s.amt-cur);const togo=ever?'':nd<10?` · ${money(lft)} left in ${10-nd} working day${10-nd===1?'':'s'}`:` · ${money(lft)} short over the last 10 working days`;
     return{v:cur,amt:s.amt,pct:Math.min(100,cur/s.amt*100),done:ever||!!m,manual:!!m&&!ever,label:s.label,alt:s.alt,
-      line:`Last 10 working days: ${money(cur)} of ${money(s.amt)}`+(ever&&cur<s.amt?` · achieved (best ${money(best)})`:''),short:ever?'✓':`${money(cur)} of ${money(s.amt)}`}}
+      line:`Last 10 working days: ${money(cur)} of ${money(s.amt)}`+(ever&&cur<s.amt?` · achieved (best ${money(best)})`:'')+togo,short:ever?'✓':`${money(cur)} of ${money(s.amt)}`+togo}}
   const uids=s.kind==='b2b'?[uid]:[uid].concat(downOf(uid).map(r=>r.id));const w=weekMap(uids);const wk=weekStart(todayStr());const cur=w[wk]||0,last=w[addDays(wk,-7)]||0;
   const T=k=>s.roadieAmt&&hist(uid).some(e=>e.week===k&&e.roadie)?s.roadieAmt:s.amt;
+  const dl=Math.max(0,Math.round((new Date(addDays(wk,6)+'T12:00:00')-new Date(todayStr()+'T12:00:00'))/864e5)+1);const tgt=s.roadieAmt?(hist(uid).some(e=>e.week===wk&&e.roadie)?s.roadieAmt:s.amt):s.amt;const wl=Math.max(0,tgt-cur);const wtogo=wl>0?` · ${money(wl)} left this week, ${dl} day${dl===1?'':'s'} to go`:'';
   const ever=s.roadieAmt?Object.keys(w).some(k=>w[k]>=T(k)&&(w[addDays(k,-7)]||0)>=T(addDays(k,-7))):bestB2B(uids)>=s.amt;const lastHit=last>=T(addDays(wk,-7));
   return{v:cur,last,amt:s.amt,pct:Math.min(100,cur/s.amt*100),done:ever||!!m,manual:!!m&&!ever,label:s.label,alt:s.alt,lastHit,
-    line:`${s.kind==='teamb2b'?'Team this':'This'} week: ${money(cur)} of ${money(s.amt)} · last week ${money(last)}${lastHit?' ✓':''}`+(ever?' · back-to-back achieved':lastHit?' · hit it again this week to complete':''),
-    short:ever?'✓ achieved':`${money(cur)} of ${money(s.amt)} this week`}}
+    line:`${s.kind==='teamb2b'?'Team this':'This'} week: ${money(cur)} of ${money(s.amt)} · last week ${money(last)}${lastHit?' ✓':''}`+(ever?' · back-to-back achieved':lastHit?' · hit it again this week to complete':'')+(ever?'':wtogo),
+    short:ever?'✓ achieved':`${money(cur)} of ${money(s.amt)} this week`+wtogo}}
 function ownerId(){return S.isOwner?S.uid:'u_owner'}
 function parentOf(r){if(!r.team)return r.id===ownerId()?null:ownerId();if(r.team===r.id)return null;return r.team}
 function kidsOf(uid,incTest){return repListAll(false,true).filter(r=>r.id!==uid&&(incTest||!r.test)&&r.active!==false&&parentOf(r)===uid)}
