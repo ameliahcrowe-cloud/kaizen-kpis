@@ -2153,13 +2153,13 @@ function pathTable(uid){const cur=uid?stageIdx(uid):-1;const tb=h('tbody');
     const open=!uid||j<=cur||(j===cur+1&&stageDone(uid,STAGES[cur]));if(!open){if(sp)sp={...sp,done:false,short:'After '+STAGES[j-1].to+' is reached'};if(tp)tp={...tp,done:false}}
     const cell=(prog,txt)=>past?h('td',{class:'pathbar'},bar(100,true),h('span',{class:'achieved small',text:'✓'})):prog?h('td',{class:'pathbar'},bar(prog.pct,prog.done),h('span',{class:prog.done?'achieved small':'hint small',text:txt})):h('td',{class:'pathbar hint',text:'—'});
     tb.append(h('tr',{class:j===cur?'sel':null},h('td',{class:'name',text:p.from+' → '+p.to}),
-      h('td',{class:'wrapcell'},p.appointed?'Appointed':(p.sales?p.sales.label:''),p.need?h('div',{class:'hint small',text:'+ any '+p.need+' of: '+p.extras.map(x=>x.l).join(' \u00b7 ')}):(p.extras||[]).filter(x=>!x.optional).map(x=>h('div',{class:'hint small',text:'+ '+x.l}))),
+      h('td',{class:'wrapcell'},p.appointed?'Appointed':(p.sales?p.sales.label:''),(()=>{const ex=(p.extras||[]).filter(x=>!x.optional);if(!ex.length)return null;const m=uid?(promoOf(uid).m||{}):{};const ed=uid&&canPromote(uid);return h('div',{class:'hint small'},h('div',{text:p.need?'+ any '+p.need+' of:':'+ also:'}),ex.map(x=>uid?h('label',{style:'display:flex;gap:6px;align-items:center;margin:3px 0'},h('input',{type:'checkbox',checked:!!m[p.k+'_'+x.k],disabled:!ed,onchange:e=>setPromo(uid,{m:{[p.k+'_'+x.k]:e.target.checked}})}),x.l):h('div',{text:'· '+x.l})))})()),
       h('td',{class:'wrapcell',text:p.team?`${p.team.direct} direct · ${p.team.total} in total`:'—'}),
       uid?cell(sp?{pct:sp.done?100:sp.pct,done:sp.done}:null,sp?sp.short:''):null,
       uid?cell(tp?{pct:(Math.min(tp.direct,tp.needDirect)+Math.min(tp.total,tp.needTotal))/(tp.needDirect+tp.needTotal)*100,done:tp.done}:null,tp?`${tp.direct}/${tp.needDirect} direct · ${tp.total}/${tp.needTotal} total`:''):null))});
   return h('div',{class:'stack'},h('div',{class:'bar'},h('h3',{text:'Promotion path'}),h('span',{class:'hint',text:uid?'Every step from Sales Associate, with '+(uid===S.uid?'your':repName(uid)+'’s')+' progress.':'Every step from Sales Associate. Tap a name above to see their progress.'})),
     h('div',{class:'panel scroll'},h('table',{class:'train'},h('thead',null,h('tr',null,h('th',{text:'Step',style:'text-align:left'}),h('th',{text:'Sales',style:'text-align:left'}),h('th',{text:'Team members',style:'text-align:left'}),uid?h('th',{text:'Sales progress',style:'text-align:left'}):null,uid?h('th',{text:'Team progress',style:'text-align:left'}):null)),tb)))}
-function canPromote(uid){return S.isOwner||(uid!==S.uid&&['tm','ad','dir','md'].includes(promoOf(S.uid).stage||(S.me&&S.me.promo&&S.me.promo.stage)))}
+function canPromote(uid){const me=S.peekUid||S.uid;return S.isOwner||(uid!==me&&['tm','ad','dir','md'].includes(promoOf(me).stage||(S.me&&S.me.promo&&S.me.promo.stage)))}
 function renderTeamProgress(v){
   if(needsTeam()){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading the team…'})));loadAllTeam();return}
   const ros=repList(true).filter(r=>!r.test);if(!ros.length){v.append(noReps());return}
