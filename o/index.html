@@ -2065,8 +2065,8 @@ function bestB2B(uids){const w=weekMap(uids);let best=0;Object.keys(w).forEach(k
 function teamMembers(uid){return repListAll(false).filter(r=>r.id===uid||r.team===uid).map(r=>r.id)}
 /* the path: each step has a sales target and (for leadership) a team target */
 const STAGES=[
-  {k:'sa',from:'Sales Associate',to:'Sales Consultant',sales:{kind:'10days',amt:5000,label:'$5,000 retail in 10 days'},extras:[{k:'video',l:'Video pitch sent to journey chat',optional:true}]},
-  {k:'sc',from:'Sales Consultant',to:'Sales Leader',sales:{kind:'b2b',amt:3000,label:'$3,000 back-to-back weeks',alt:'One week was a roadie and you hit $5,000'},need:2,extras:[{k:'site',l:'Run a successful site ($1,200 retail)'},{k:'bell',l:'Solo bell ($700 retail)'},{k:'gong',l:'City gong ($1,000 retail)'}]},
+  {k:'sa',from:'Sales Associate',to:'Sales Consultant',sales:{kind:'10days',amt:5000,label:'$5,000 retail in 10 working days'},extras:[{k:'video',l:'Video pitch sent to journey chat',optional:true}]},
+  {k:'sc',from:'Sales Consultant',to:'Sales Leader',sales:{kind:'b2b',amt:3000,roadieAmt:5000,label:'$3,000 back-to-back city weeks ($5,000 for a roadie week)',alt:'A roadie week needs $5,000'},need:2,extras:[{k:'site',l:'Run a successful site ($1,200 retail)'},{k:'bell',l:'Solo bell ($700 retail)'},{k:'gong',l:'City gong ($1,000 retail)'}]},
   {k:'sl',from:'Sales Leader',to:'Team Leader',sales:{kind:'teamb2b',amt:15000,label:'$15,000 back-to-back weeks'},team:{direct:2,total:3,what:'Sales Leaders'}},
   {k:'tl',from:'Team Leader',to:'Team Manager',sales:{kind:'teamb2b',amt:25000,label:'$25,000 back-to-back weeks'},team:{direct:3,total:5,what:'leaders'}},
   {k:'tm',from:'Team Manager',to:'Assistant Director',sales:{kind:'teamb2b',amt:35000,label:'$35,000 back-to-back weeks'},team:{direct:4,total:6,what:'leaders'}},
@@ -2082,9 +2082,10 @@ function lastN(uid,n){const L=hist(uid).filter(e=>e.date<=todayStr());return L.s
 function salesProgress(uid,p){if(!p.sales)return null;const s=p.sales;const m=(promoOf(uid).m||{})[p.k+'_sales'];
   if(s.kind==='10days'){const cur=lastN(uid,10),best=bestRolling(uid,10);const ever=best>=s.amt;
     return{v:cur,amt:s.amt,pct:Math.min(100,cur/s.amt*100),done:ever||!!m,manual:!!m&&!ever,label:s.label,alt:s.alt,
-      line:`Last 10 days: ${money(cur)} of ${money(s.amt)}`+(ever&&cur<s.amt?` · achieved (best ${money(best)})`:''),short:ever?'✓':`${money(cur)} of ${money(s.amt)}`}}
+      line:`Last 10 working days: ${money(cur)} of ${money(s.amt)}`+(ever&&cur<s.amt?` · achieved (best ${money(best)})`:''),short:ever?'✓':`${money(cur)} of ${money(s.amt)}`}}
   const uids=s.kind==='b2b'?[uid]:[uid].concat(downOf(uid).map(r=>r.id));const w=weekMap(uids);const wk=weekStart(todayStr());const cur=w[wk]||0,last=w[addDays(wk,-7)]||0;
-  const ever=bestB2B(uids)>=s.amt;const lastHit=last>=s.amt;
+  const T=k=>s.roadieAmt&&hist(uid).some(e=>e.week===k&&e.roadie)?s.roadieAmt:s.amt;
+  const ever=s.roadieAmt?Object.keys(w).some(k=>w[k]>=T(k)&&(w[addDays(k,-7)]||0)>=T(addDays(k,-7))):bestB2B(uids)>=s.amt;const lastHit=last>=T(addDays(wk,-7));
   return{v:cur,last,amt:s.amt,pct:Math.min(100,cur/s.amt*100),done:ever||!!m,manual:!!m&&!ever,label:s.label,alt:s.alt,lastHit,
     line:`${s.kind==='teamb2b'?'Team this':'This'} week: ${money(cur)} of ${money(s.amt)} · last week ${money(last)}${lastHit?' ✓':''}`+(ever?' · back-to-back achieved':lastHit?' · hit it again this week to complete':''),
     short:ever?'✓ achieved':`${money(cur)} of ${money(s.amt)} this week`}}
@@ -2148,7 +2149,8 @@ function currentCard(uid){const i=stageIdx(uid);const p=STAGES[i];const m=promoO
   return card}
 /* the whole path with progress for every step, starting from Sales Associate */
 function pathTable(uid){const cur=uid?stageIdx(uid):-1;const tb=h('tbody');
-  STAGES.filter(p=>!p.top).forEach((p,j)=>{const sp=uid&&!p.appointed?salesProgress(uid,p):null,tp=uid&&!p.appointed?teamProgress(uid,p):null;const past=uid&&j<cur;
+  STAGES.filter(p=>!p.top).forEach((p,j)=>{let sp=uid&&!p.appointed?salesProgress(uid,p):null,tp=uid&&!p.appointed?teamProgress(uid,p):null;const past=uid&&j<cur;
+    const open=!uid||j<=cur||(j===cur+1&&stageDone(uid,STAGES[cur]));if(!open){if(sp)sp={...sp,done:false,short:'After '+STAGES[j-1].to+' is reached'};if(tp)tp={...tp,done:false}}
     const cell=(prog,txt)=>past?h('td',{class:'pathbar'},bar(100,true),h('span',{class:'achieved small',text:'✓'})):prog?h('td',{class:'pathbar'},bar(prog.pct,prog.done),h('span',{class:prog.done?'achieved small':'hint small',text:txt})):h('td',{class:'pathbar hint',text:'—'});
     tb.append(h('tr',{class:j===cur?'sel':null},h('td',{class:'name',text:p.from+' → '+p.to}),
       h('td',{class:'wrapcell'},p.appointed?'Appointed':(p.sales?p.sales.label:''),p.need?h('div',{class:'hint small',text:'+ any '+p.need+' of: '+p.extras.map(x=>x.l).join(' \u00b7 ')}):(p.extras||[]).filter(x=>!x.optional).map(x=>h('div',{class:'hint small',text:'+ '+x.l}))),
