@@ -589,7 +589,7 @@ async function write(fn,okMsg){
 
 /* ---------- entries ---------- */
 function rawSource(uid,kind){
-  if(uid===S.uid&&S.mineReady)return Object.values(S.allMine);
+  if(uid===S.uid&&S.mineReady&&!S.peekUid)return Object.values(S.allMine);
   if(kind==='period')return Object.values(Object.assign({},S.allTeam[uid]||{},S.weekEntries[uid]||{}));
   return Object.values(S.weekEntries[uid]||{})}
 /* confirmed figures (leader-entered) replace the rep's own numbers for that day */
@@ -2166,8 +2166,8 @@ function renderTeamProgress(v){
   v.append(h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px'},
     h('select',{'aria-label':'Team member',style:'font-size:1rem;padding:8px 10px',onchange:e=>{S.tpSel=e.target.value;render()}},ros.map(r=>h('option',{value:r.id,selected:r.id===S.tpSel},r.name))),
     h('div',{class:'lgtabs',style:'display:flex;gap:4px'},[['promo','🎖️ Promotion'],['bonus','💰 Bonus']].map(([k,l])=>h('button',{class:(S.tpView||'promo')===k?'on':null,onclick:()=>{S.tpView=k;render()}},l)))));
-  const me=S.uid,vm=S.viewMe,ad=S.admin;S.uid=S.tpSel;S.viewMe=true;S.admin=false;
-  try{(S.tpView==='bonus'?renderBonus:renderPromo)(v)}finally{S.uid=me;S.viewMe=vm;S.admin=ad}}
+  const me=S.uid,vm=S.viewMe,ad=S.admin;S.peekUid=S.tpSel!==me?me:null;S.uid=S.tpSel;S.viewMe=true;S.admin=false;
+  try{(S.tpView==='bonus'?renderBonus:renderPromo)(v)}finally{S.uid=me;S.viewMe=vm;S.admin=ad;S.peekUid=null}}
 function renderPromo(v){
   if(needsTeam()){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading the team’s history…'})));loadAllTeam();return}
   if(!leader()){
