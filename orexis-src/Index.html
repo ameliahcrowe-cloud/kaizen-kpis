@@ -521,8 +521,8 @@ const HMETRICS=METRICS.concat([{k:'hours',l:'Hours'}]);
 const DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 const PB_DAY=[['retail','Retail',1],['stops','Stops'],['buyers','Buyers'],['upsells','Upsells'],['upsellRetail','Upsell retail',1],['medals','Medals'],['rph','RPH',1]];
 const PB_WEEK=[['retail','Retail',1],['stops','Stops'],['buyers','Buyers'],['upsells','Upsells'],['upsellRetail','Upsell retail',1],['medals','Medals']];
-const LEADER_TABS=[['log','Today'],['week','Weekly'],['goals','Goals'],['reflect','Reflection'],['totals','Totals'],['promo','Progress'],['bonus','Bonus'],['teamweek','Team totals'],['board','Leaderboard'],['line','The Line'],['sas','Sales Associates'],['team','Team members'],['topics','Topics'],['coaching','Coaching'],['pbs','PBs'],['pbboard','PB Board']];
-const TAB_GROUPS=[['me','👤 Personal',['log','week','goals','reflect','totals','promo','bonus']],['team','👥 Team',['teamweek','sas','team']],['develop','🌱 Development',['topics','coaching','pbs','pbboard']]];
+const LEADER_TABS=[['log','Today'],['week','Weekly'],['goals','Goals'],['reflect','Reflection'],['totals','Totals'],['promo','Progress'],['bonus','Bonus'],['teamweek','Team totals'],['tprog','Team progress'],['board','Leaderboard'],['line','The Line'],['sas','Sales Associates'],['team','Team members'],['topics','Topics'],['coaching','Coaching'],['pbs','PBs'],['pbboard','PB Board']];
+const TAB_GROUPS=[['me','👤 Personal',['log','week','goals','reflect','totals','promo','bonus']],['team','👥 Team',['teamweek','tprog','sas','team']],['develop','🌱 Development',['topics','coaching','pbs','pbboard']]];
 const REP_TABS=[['log','Today'],['week','My week'],['totals','My totals'],['goals','My goals'],['coaching','Coaching'],['reflect','Reflect'],['promo','Progress'],['bonus','My bonus'],['pbs','PBs'],['myteam','My team']];
 const EXEC_URL='https://script.google.com/macros/s/AKfycbysdcYkFm9h77HCdBzClsJZKArAVZJHSd4n6GU-clFZ7F912IRouvqPp3wtQNBylwvopA/exec';
 if(window.KOVA){for(const T of [REP_TABS,LEADER_TABS]){T.unshift(['live','Live']);T.push(['mypb','My PBs'])}}
@@ -756,7 +756,7 @@ function render(){renderHeader();const v=document.getElementById('view');setTime
     const db_=!(S.admin&&S.tab==='admin')&&(S.tab==='log'||S.tab==='reflect'||!S.tab);document.body.classList.toggle('hasDaybar',db_);if(db_)v.append(dayBar());
     if(S.tab==='log'||!S.tab)v.append(leader()?h('div',{style:'display:flex;justify-content:flex-end;gap:8px;margin-bottom:-6px'},h('button',{onclick:async()=>{const ok=await copyRich(dailyWrapText());toast(ok?'Day copied — paste into Telegram':'Couldn’t copy on this device')}},'📋 Copy day to Telegram'),h('button',{id:'syncHourly',class:'icon',title:'Sync everyone from Hourly now (also runs at 12pm, 3:45pm and 9pm)','aria-label':'Sync everyone from Hourly',disabled:!!S.hSyncBusy,onclick:syncFromHourly},S.hSyncBusy?'…':'⟳')):h('div',{style:'display:flex;justify-content:flex-end;gap:8px;align-items:center'},hourlyBtn(),h('button',{id:'syncHourly',class:'icon',title:'Pull my numbers from Hourly now','aria-label':'Pull my numbers from Hourly now',disabled:!!S.hSyncBusy,onclick:syncFromHourly,style:'min-height:44px;min-width:44px'},S.hSyncBusy?'…':'⟳')));
     {const sw=pairSwitch();if(sw)v.append(sw)}
-    {const fnR=(S.admin&&isAdminUser()&&S.tab==='admin'?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{teamweek:v2=>{const o=S.viewMe;S.viewMe=false;try{renderWeek(v2)}finally{S.viewMe=o}},topics:renderTopics,line:renderLine,sas:renderSAs,pbboard:renderPBBoard,hourly:renderHourlyTab,log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog);
+    {const fnR=(S.admin&&isAdminUser()&&S.tab==='admin'?renderAdmin:S.tab==='live'||S.tab==='mypb'?()=>{}:{tprog:v2=>{const o=S.viewMe;S.viewMe=false;try{renderTeamProgress(v2)}finally{S.viewMe=o}},teamweek:v2=>{const o=S.viewMe;S.viewMe=false;try{renderWeek(v2)}finally{S.viewMe=o}},topics:renderTopics,line:renderLine,sas:renderSAs,pbboard:renderPBBoard,hourly:renderHourlyTab,log:renderLog,week:renderWeek,totals:renderTotals,goals:renderGoalsTab,coaching:renderCoaching,reflect:renderReflect,promo:renderPromo,board:renderBoard,myteam:renderMyTeam,bonus:renderBonus,pbs:renderPBs,team:renderTeam}[S.tab]||renderLog);
      const own=leadRole()&&!(S.admin&&S.tab==='admin')&&TAB_GROUPS[0][2].includes(PAIR_OF[S.tab]||S.tab);if(own){const o=S.viewMe,oa=S.admin;S.viewMe=true;S.admin=false;try{fnR(v)}finally{S.viewMe=o;S.admin=oa}}else fnR(v)}
     markTest(v);cardify(v)});kovaEmbeds()}
 /* phone helpers: day switcher, swipe, tables as cards */
@@ -2158,6 +2158,26 @@ function pathTable(uid){const cur=uid?stageIdx(uid):-1;const tb=h('tbody');
   return h('div',{class:'stack'},h('div',{class:'bar'},h('h3',{text:'Promotion path'}),h('span',{class:'hint',text:uid?'Every step from Sales Associate, with '+(uid===S.uid?'your':repName(uid)+'’s')+' progress.':'Every step from Sales Associate. Tap a name above to see their progress.'})),
     h('div',{class:'panel scroll'},h('table',{class:'train'},h('thead',null,h('tr',null,h('th',{text:'Step',style:'text-align:left'}),h('th',{text:'Sales',style:'text-align:left'}),h('th',{text:'Team members',style:'text-align:left'}),uid?h('th',{text:'Sales progress',style:'text-align:left'}):null,uid?h('th',{text:'Team progress',style:'text-align:left'}):null)),tb)))}
 function canPromote(uid){return S.isOwner||(uid!==S.uid&&['tm','ad','dir','md'].includes(promoOf(S.uid).stage||(S.me&&S.me.promo&&S.me.promo.stage)))}
+function renderTeamProgress(v){
+  if(needsTeam()){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading the team…'})));loadAllTeam();return}
+  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Team progress'}),h('div',{class:'hint',text:'Where everyone is for their next promotion and this week’s bonus.'})),h('button',{onclick:()=>loadAllTeam(true)},'Refresh')));
+  const ros=repList(true).filter(r=>!r.test);if(!ros.length){v.append(noReps());return}
+  const row=(l,val,sub)=>h('div',{style:'display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line)'},h('span',{class:'hint',text:l}),h('span',{style:'text-align:right'},h('b',{text:val}),sub?h('div',{class:'hint small',text:sub}):null));
+  const rows=ros.map(r=>{const t=weekAll(r.id);const F=feeFor(t);return{r,t,F}}).sort((a,b)=>b.t.retail-a.t.retail);
+  rows.forEach(({r,t,F})=>{const i=stageIdx(r.id);const p=STAGES[i];const sp=!p.top&&!p.appointed?salesProgress(r.id,p):null,tp=!p.top&&!p.appointed?teamProgress(r.id,p):null;const ready=stageDone(r.id,p);
+    const card=h('div',{class:'panel',style:'padding:16px 18px'});
+    card.append(h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:8px'},h('b',{style:'font-size:1.1rem',text:r.name}),h('span',{class:'hint',text:STAGE_ABBR[p.k]+' → '+(p.top?'top level':(STAGE_ABBR[(STAGES[i+1]||{}).k]||''))})));
+    card.append(h('div',{class:'hint',style:'margin:10px 0 4px;letter-spacing:.1em;font-size:.72rem',text:'PROMOTION'}));
+    if(p.top)card.append(row('Level',p.from,'Top level'));
+    else{card.append(row('Working towards',p.to+(p.appointed?' (appointed)':'')));
+      if(sp){card.append(h('div',{style:'margin:6px 0'},bar(sp.done?100:sp.pct,sp.done),h('div',{class:'hint small',text:'Sales: '+sp.short})))}
+      if(tp){card.append(h('div',{style:'margin:6px 0'},bar((Math.min(tp.direct,tp.needDirect)+Math.min(tp.total,tp.needTotal))/(tp.needDirect+tp.needTotal)*100,tp.done),h('div',{class:'hint small',text:'Team: '+tp.direct+'/'+tp.needDirect+' direct · '+tp.total+'/'+tp.needTotal+' total'})))}
+      if(ready)card.append(h('div',{class:'achieved',style:'margin-top:4px',text:'✓ Ready to promote'}))}
+    card.append(h('div',{class:'hint',style:'margin:12px 0 4px;letter-spacing:.1em;font-size:.72rem',text:'BONUS THIS WEEK'}));
+    card.append(row('Retail · hours',money(t.retail)+' · '+(Math.round(t.hours*10)/10)+'h',F.minGap>0?money(F.minGap)+' to the '+money(F.c.minRetail)+' minimum':'Minimum reached ✓'));
+    card.append(row('RPH',t.hours>0?money(Math.round(F.rph)):'—',F.tier?'Tier '+F.tier.pct+'% reached':'Below first tier'));
+    card.append(row('Bonus so far',money(Math.round(F.fee)),F.next&&F.needRetail!=null?money(F.needRetail)+' more at these hours for '+F.next.pct+'%':(F.tier?'Top tier':'')));
+    v.append(card)})}
 function renderPromo(v){
   if(needsTeam()){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading the team’s history…'})));loadAllTeam();return}
   if(!leader()){
