@@ -2160,24 +2160,14 @@ function pathTable(uid){const cur=uid?stageIdx(uid):-1;const tb=h('tbody');
 function canPromote(uid){return S.isOwner||(uid!==S.uid&&['tm','ad','dir','md'].includes(promoOf(S.uid).stage||(S.me&&S.me.promo&&S.me.promo.stage)))}
 function renderTeamProgress(v){
   if(needsTeam()){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading the team…'})));loadAllTeam();return}
-  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Team progress'}),h('div',{class:'hint',text:'Where everyone is for their next promotion and this week’s bonus.'})),h('button',{onclick:()=>loadAllTeam(true)},'Refresh')));
   const ros=repList(true).filter(r=>!r.test);if(!ros.length){v.append(noReps());return}
-  const row=(l,val,sub)=>h('div',{style:'display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line)'},h('span',{class:'hint',text:l}),h('span',{style:'text-align:right'},h('b',{text:val}),sub?h('div',{class:'hint small',text:sub}):null));
-  const rows=ros.map(r=>{const t=weekAll(r.id);const F=feeFor(t);return{r,t,F}}).sort((a,b)=>b.t.retail-a.t.retail);
-  rows.forEach(({r,t,F})=>{const i=stageIdx(r.id);const p=STAGES[i];const sp=!p.top&&!p.appointed?salesProgress(r.id,p):null,tp=!p.top&&!p.appointed?teamProgress(r.id,p):null;const ready=stageDone(r.id,p);
-    const card=h('div',{class:'panel',style:'padding:16px 18px'});
-    card.append(h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:8px'},h('b',{style:'font-size:1.1rem',text:r.name}),h('span',{class:'hint',text:STAGE_ABBR[p.k]+' → '+(p.top?'top level':(STAGE_ABBR[(STAGES[i+1]||{}).k]||''))})));
-    card.append(h('div',{class:'hint',style:'margin:10px 0 4px;letter-spacing:.1em;font-size:.72rem',text:'PROMOTION'}));
-    if(p.top)card.append(row('Level',p.from,'Top level'));
-    else{card.append(row('Working towards',p.to+(p.appointed?' (appointed)':'')));
-      if(sp){card.append(h('div',{style:'margin:6px 0'},bar(sp.done?100:sp.pct,sp.done),h('div',{class:'hint small',text:'Sales: '+sp.short})))}
-      if(tp){card.append(h('div',{style:'margin:6px 0'},bar((Math.min(tp.direct,tp.needDirect)+Math.min(tp.total,tp.needTotal))/(tp.needDirect+tp.needTotal)*100,tp.done),h('div',{class:'hint small',text:'Team: '+tp.direct+'/'+tp.needDirect+' direct · '+tp.total+'/'+tp.needTotal+' total'})))}
-      if(ready)card.append(h('div',{class:'achieved',style:'margin-top:4px',text:'✓ Ready to promote'}))}
-    card.append(h('div',{class:'hint',style:'margin:12px 0 4px;letter-spacing:.1em;font-size:.72rem',text:'BONUS THIS WEEK'}));
-    card.append(row('Retail · hours',money(t.retail)+' · '+(Math.round(t.hours*10)/10)+'h',F.minGap>0?money(F.minGap)+' to the '+money(F.c.minRetail)+' minimum':'Minimum reached ✓'));
-    card.append(row('RPH',t.hours>0?money(Math.round(F.rph)):'—',F.tier?'Tier '+F.tier.pct+'% reached':'Below first tier'));
-    card.append(row('Bonus so far',money(Math.round(F.fee)),F.next&&F.needRetail!=null?money(F.needRetail)+' more at these hours for '+F.next.pct+'%':(F.tier?'Top tier':'')));
-    v.append(card)})}
+  if(!S.tpSel||!ros.some(r=>r.id===S.tpSel))S.tpSel=ros[0].id;
+  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Team progress'}),h('div',{class:'hint',text:'Pick a person to see their Progress exactly as they see it.'}))));
+  v.append(h('div',{style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px'},
+    h('select',{'aria-label':'Team member',style:'font-size:1rem;padding:8px 10px',onchange:e=>{S.tpSel=e.target.value;render()}},ros.map(r=>h('option',{value:r.id,selected:r.id===S.tpSel},r.name))),
+    h('div',{class:'lgtabs',style:'display:flex;gap:4px'},[['promo','🎖️ Promotion'],['bonus','💰 Bonus']].map(([k,l])=>h('button',{class:(S.tpView||'promo')===k?'on':null,onclick:()=>{S.tpView=k;render()}},l)))));
+  const me=S.uid,vm=S.viewMe,ad=S.admin;S.uid=S.tpSel;S.viewMe=true;S.admin=false;
+  try{(S.tpView==='bonus'?renderBonus:renderPromo)(v)}finally{S.uid=me;S.viewMe=vm;S.admin=ad}}
 function renderPromo(v){
   if(needsTeam()){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading the team’s history…'})));loadAllTeam();return}
   if(!leader()){
