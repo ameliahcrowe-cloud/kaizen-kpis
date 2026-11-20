@@ -2343,9 +2343,27 @@ function saChart(title,act,tgt,fmt,tl){const W=300,H=150,pl=36,pr=22,pt=14,pb=24
   if(act.length)el('polyline',{points:act.map((v,i)=>X(i)+','+Y(v)).join(' '),fill:'none',stroke:col,'stroke-width':2.5,'stroke-linejoin':'round'});
   act.forEach((v,i)=>{el('circle',{cx:X(i),cy:Y(v),r:3.5,fill:col});el('text',{x:X(i),y:Y(v)-6,'text-anchor':'middle','font-size':9,'font-weight':700,fill:col},fmt(v))});
   return h('div',{style:'background:var(--bg);border-radius:10px;padding:8px 10px'},h('div',{style:'display:flex;justify-content:space-between;font-size:.78rem;font-weight:700;margin-bottom:4px'},h('span',{text:title+' 📈'}),h('span',{class:'hint',style:'font-weight:400',text:'– – '+tl})),act.length?svg:h('div',{class:'hint',text:'No days logged yet'}))}
-function renderSAs(v){const ids=(S.admin&&isAdminUser()?repListAll(false):downOf(S.uid)).map(r=>r.id);
-  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Sales Associates'}),h('div',{class:'hint',text:'Everyone not yet promoted to Sales Consultant: their first 2 weeks, stops ramp and SC promotion progress.'}))));
-  const p=newStartsPanel(ids);v.append(p||h('div',{class:'panel empty'},h('span',{text:'No Sales Associates right now. New starts appear here as soon as they join.'})))}
+function renderSAs(v){const ids=(S.admin&&isAdminUser()?repListAll(false):downOf(S.uid)).filter(r=>r.active!==false&&!r.test&&stageIdx(r.id)===0).map(r=>r.id);
+  v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Sales Associates'}),h('div',{class:'hint',text:'Everyone not yet promoted to '+STAGES[0].to+'. Inactive people are hidden.'}))));
+  if(!ids.length){v.append(h('div',{class:'panel empty'},h('span',{text:'No active Sales Associates right now.'})));return}
+  const sc=STAGES[0];
+  ids.map(id=>({id,L:hist(id)})).sort((a,b)=>b.L.length-a.L.length).forEach(({id,L})=>{const r=S.reps[id]||{};
+    const T=L.reduce((a,e)=>{['retail','stops','buyers','hours','upsells','medals'].forEach(k=>a[k]+=num(e[k]));return a},{retail:0,stops:0,buyers:0,hours:0,upsells:0,medals:0});
+    const hr=T.hours||0,per=x=>hr?(x/hr):0;
+    const avg=a=>{const t={r:0,h:0,s:0,b:0};a.forEach(e=>{t.r+=num(e.retail);t.h+=num(e.hours);t.s+=num(e.stops);t.b+=num(e.buyers)});return{rph:t.h?t.r/t.h:0,conv:t.s?t.b/t.s:0,sph:t.h?t.s/t.h:0}};
+    let trend={t:'Too early to tell',c:'var(--muted)',i:'…'};
+    if(L.length>=4){const n=Math.min(3,Math.floor(L.length/2));const a=avg(L.slice(-2*n,-n)),b=avg(L.slice(-n));const up=(b.rph>a.rph*1.05)+(b.conv>a.conv*1.03)+(b.sph>a.sph*1.05),dn=(b.rph<a.rph*0.95)+(b.conv<a.conv*0.97)+(b.sph<a.sph*0.95);
+      trend=up>=2?{t:'Improving',c:'#1f7a4d',i:'▲'}:dn>=2?{t:'Dropping',c:'#b42318',i:'▼'}:{t:'Stagnating',c:'#b7791f',i:'▬'}}
+    const sp=salesProgress(id,sc);const pb=L.reduce((m,e)=>num(e.retail)>num(m&&m.retail)?e:m,null);
+    const card=h('div',{class:'panel',style:'padding:16px 18px'});
+    card.append(h('div',{style:'display:flex;justify-content:space-between;align-items:center;gap:8px'},h('div',null,h('b',{style:'font-size:1.15rem',text:r.name||id}),h('div',{class:'hint small',text:L.length+' working day'+(L.length===1?'':'s')})),h('span',{style:'font-weight:700;color:'+trend.c+';white-space:nowrap',text:trend.i+' '+trend.t})));
+    const tile=(l,val)=>h('div',{style:'flex:1;min-width:70px'},h('div',{class:'hint small',style:'letter-spacing:.08em',text:l}),h('div',{style:'font-size:1.15rem;font-weight:700',text:val}));
+    card.append(h('div',{class:'hint small',style:'margin:12px 0 4px;letter-spacing:.1em',text:'TOTALS SINCE STARTING'}),h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},tile('RETAIL',money(T.retail)),tile('STOPS',String(T.stops)),tile('BUYERS',String(T.buyers)),tile('HOURS',String(Math.round(hr*10)/10))));
+    card.append(h('div',{class:'hint small',style:'margin:12px 0 4px;letter-spacing:.1em',text:'PER HOUR'}),h('div',{style:'display:flex;gap:8px;flex-wrap:wrap'},tile('RPH',hr?money(Math.round(per(T.retail))):'—'),tile('STOPS/HR',hr?per(T.stops).toFixed(1):'—'),tile('BUYERS/HR',hr?per(T.buyers).toFixed(1):'—'),tile('CONV',T.stops?Math.round(T.buyers/T.stops*100)+'%':'—'),tile('$ AV',T.buyers?money(Math.round(T.retail/T.buyers)):'—')));
+    if(sp)card.append(h('div',{class:'hint small',style:'margin:12px 0 4px;letter-spacing:.1em',text:'TO '+sc.to.toUpperCase()}),bar(sp.done?100:sp.pct,sp.done),h('div',{class:'small',style:'margin-top:4px',text:sp.done?'✓ Sales target achieved':sp.line}));
+    if(pb&&num(pb.retail))card.append(h('div',{class:'small',style:'margin-top:10px'},'🏆 PB day: ',h('b',{text:money(num(pb.retail))}),' on '+niceDate(pb.date,{weekday:'short',day:'numeric',month:'short'})));
+    const open=S.saOpen===id;card.append(h('button',{style:'margin-top:10px;font-size:.85rem',onclick:()=>{S.saOpen=open?null:id;render()}},open?'Hide scorecard':'📝 Scorecard'));if(open)card.append(tsPanel(id));
+    v.append(card)})}
 /* ---------- PB BOARD (Ben + admin) ---------- */
 function renderPBBoard(v){if(!S.isOwner){go('log');return}
   const people=repListAll(false).filter(r=>!r.test);const recent=addDays(todayStr(),-7);
