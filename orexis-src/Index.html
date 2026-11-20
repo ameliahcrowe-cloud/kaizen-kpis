@@ -1619,7 +1619,8 @@ function bonusRow(rule,uid){const s=bonusStatus(rule,uid);
 function weekNav(){return h('div',{style:'display:flex;gap:6px'},h('button',{onclick:()=>setDate(addDays(S.week,-7))},'‹ Last week'),h('button',{onclick:()=>setDate(addDays(S.week,7))},'Next week ›'))}
 function bonusOn(uid){return stageIdx(uid)>=1||(S.isOwner&&uid===S.uid)}
 function bonusLock(uid){const sp=salesProgress(uid,STAGES[0]);return h('div',{class:'panel',style:'text-align:center;padding:22px'},h('div',{style:'font-size:2rem',text:'🔒'}),h('h3',{text:'Bonus unlocks at Sales Consultant'}),h('div',{class:'hint',text:'Hit '+STAGES[0].sales.label+' and get ticked off as SC by your leader to unlock your weekly performance fee.'}),sp?h('div',{style:'margin-top:10px'},bar(sp.pct,sp.done),h('div',{class:'hint',text:sp.line})):null)}
-function renderBonus(v){const rules=bonusRules();const c=feeCfg();
+function renderBonus(v){if(!leader()&&stageIdx(S.uid)===0){v.append(h('div',{class:'panel',style:'text-align:center;padding:28px 20px'},h('div',{style:'font-size:2.6rem',text:'🔒'}),h('h3',{text:'Bonus unlocks at '+STAGES[0].to}),h('p',{class:'hint',text:(S.peekUid?repName(S.uid)+' is':'You’re')+' still a '+STAGES[0].from+'. The performance fee starts once '+(S.peekUid?'they’re':'you’re')+' promoted to '+STAGES[0].to+'. Check Promotion to see what’s left.'})));return}
+  const rules=bonusRules();const c=feeCfg();
   if(!leader()){
     v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'My bonus · week of '+niceDate(S.week,{day:'numeric',month:'long'})}),h('div',{class:'hint',text:'Your weekly performance fee is worked out from your week’s retail and RPH. This is an estimate; your leader confirms the final amount.'})),weekNav()));
     if(!bonusOn(S.uid)){v.append(bonusLock(S.uid));return}
