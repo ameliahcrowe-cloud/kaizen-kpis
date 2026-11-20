@@ -2343,7 +2343,7 @@ function saChart(title,act,tgt,fmt,tl){const W=300,H=150,pl=36,pr=22,pt=14,pb=24
   if(act.length)el('polyline',{points:act.map((v,i)=>X(i)+','+Y(v)).join(' '),fill:'none',stroke:col,'stroke-width':2.5,'stroke-linejoin':'round'});
   act.forEach((v,i)=>{el('circle',{cx:X(i),cy:Y(v),r:3.5,fill:col});el('text',{x:X(i),y:Y(v)-6,'text-anchor':'middle','font-size':9,'font-weight':700,fill:col},fmt(v))});
   return h('div',{style:'background:var(--bg);border-radius:10px;padding:8px 10px'},h('div',{style:'display:flex;justify-content:space-between;font-size:.78rem;font-weight:700;margin-bottom:4px'},h('span',{text:title+' 📈'}),h('span',{class:'hint',style:'font-weight:400',text:'– – '+tl})),act.length?svg:h('div',{class:'hint',text:'No days logged yet'}))}
-function renderSAs(v){const ids=(S.admin&&isAdminUser()?repListAll(false):downOf(S.uid)).filter(r=>r.active!==false&&!r.test&&stageIdx(r.id)===0).map(r=>r.id);
+function renderSAs(v){if(needsTeam()){v.append(h('div',{class:'panel empty'},h('span',{text:'Loading everyone’s history…'})));loadAllTeam();return}const ids=(S.admin&&isAdminUser()?repListAll(false):downOf(S.uid)).filter(r=>r.active!==false&&!r.test&&stageIdx(r.id)===0).map(r=>r.id);
   v.append(h('div',{class:'bar'},h('div',null,h('h2',{text:'Sales Associates'}),h('div',{class:'hint',text:'Everyone not yet promoted to '+STAGES[0].to+'. Inactive people are hidden.'}))));
   if(!ids.length){v.append(h('div',{class:'panel empty'},h('span',{text:'No active Sales Associates right now.'})));return}
   const sc=STAGES[0];
