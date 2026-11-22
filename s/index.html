@@ -1245,7 +1245,7 @@ function renderGoals(v){
     const ged=!leader()||(S.goalEdit===r.id)||Object.keys(d).length>0;
     tb.append(h('tr',null,h('td',{class:'name',text:r.name}),GMETRICS.map(m=>{const raw=(m.k in d)?d[m.k]:(g&&g[m.k]?String(g[m.k]):'');if(!r.test)tot[m.k]+=num(raw);const gv=num(raw);
       return h('td',null,!ged?h('span',{text:gv>0?fmt(m,gv):'—'}):h('input',{type:'text',inputmode:'decimal',class:'num'+(m.money?' money':'')+((m.k in d)?' dirty':''),id:`goal-${r.id}-${m.k}`,'aria-label':`${r.name} ${m.l} goal`,value:raw,placeholder:'—',
-        oninput:e=>{(S.goalDrafts[key]=S.goalDrafts[key]||{})[m.k]=e.target.value;render()},onkeydown:e=>{if(e.key==='Enter'){e.preventDefault();saveGoals()}}}),
+        oninput:e=>{(S.goalDrafts[key]=S.goalDrafts[key]||{})[m.k]=e.target.value;clearTimeout(S.goalT);S.goalT=setTimeout(()=>saveGoals(true),1500)},onblur:()=>{clearTimeout(S.goalT);saveGoals(true)},onkeydown:e=>{if(e.key==='Enter'){e.preventDefault();saveGoals()}}}),
         gv>0?h('div',{class:act[m.k]>=gv?'achieved small':'hint small',text:act[m.k]>=gv?'✓ '+fmt(m,act[m.k]):fmt(m,act[m.k])+' so far'}):null,gv>0&&m.k!=='rph'&&act[m.k]<gv?h('div',{class:'small',style:'color:#b42318;font-weight:700',text:fmt(m,gv-act[m.k])+' left'}):null)}),h('td',null,hitEl(goalsHit(act,g))),
       leader()?h('td',null,Object.keys(d).length?h('span',{style:'display:flex;gap:6px'},h('button',{class:'primary',onclick:async()=>{await saveGoals();S.goalEdit=null;render()}},'Save'),h('button',{onclick:()=>{delete S.goalDrafts[key];S.goalEdit=null;render()}},'Cancel')):S.goalEdit===r.id?h('button',{onclick:()=>{S.goalEdit=null;render()}},'Done'):h('button',{class:'small',onclick:()=>{S.goalEdit=r.id;render()}},'✏️ Edit')):null))}
   if(leader())tb.append(h('tr',{class:'total'},h('td',{text:'Team goal'}),GMETRICS.map(m=>h('td',{text:m.k==='rph'?(tot.hours?fmt(m,tot.retail/tot.hours):'—'):fmt(m,tot[m.k])}))));
@@ -1291,12 +1291,13 @@ function weekGoalsSection(ros){const box=h('div',{class:'stack'});
   const tb=h('tbody');ros.forEach(r=>{const done=WG.filter(([k])=>wgOf(r.id,k).done).length,set=WG.filter(([k])=>wgOf(r.id,k).t).length;
     tb.append(h('tr',null,h('td',{class:'name'},r.name,set?h('div',{class:done===set?'achieved small':'hint small',text:`${done} of ${set} achieved`}):null),WG.map(([k,l])=>h('td',{class:'wrapcell'},wgEditor(r.id,k,l)))))});
   box.append(h('div',{class:'panel scroll'},h('table',{class:'train'},h('thead',null,h('tr',null,h('th',{text:'Name'}),WG.map(([,l])=>h('th',{text:l})))),tb)));return box}
-async function saveGoals(){const ks=Object.keys(S.goalDrafts).filter(k=>k.endsWith('|'+S.week));let n=0;
-  for(const k of ks){const uid=k.split('|')[0];const prev=goalOf(uid,S.week)||{};const d=S.goalDrafts[k];const g={};
+async function saveGoals(quiet){const ks=Object.keys(S.goalDrafts).filter(k=>k.split('|')[1]);let n=0;
+  for(const k of ks){const [uid,wk]=k.split('|');const prev=goalOf(uid,wk)||{};const d=S.goalDrafts[k];const g={};
     for(const m of GMETRICS)g[m.k]=(m.k in d)?num(d[m.k]):num(prev[m.k]);
-    const ok=await write(()=>S.db.doc('reps/'+uid).update({goals:{[S.week]:g}}));
-    if(ok){const r=S.reps[uid]||{};S.reps[uid]={...r,goals:{...(r.goals||{}),[S.week]:g}};if(uid===S.uid)S.me=S.reps[uid];delete S.goalDrafts[k];n++}}
-  if(n)toast('Goals saved');render();scheduleSummary()}
+    const ok=await write(()=>S.db.doc('reps/'+uid).update({goals:{[wk]:g}}));
+    if(ok){const r=S.reps[uid]||{};S.reps[uid]={...r,goals:{...(r.goals||{}),[wk]:g}};if(uid===S.uid)S.me=S.reps[uid];if(S.goalDrafts[k]===d)delete S.goalDrafts[k];n++}}
+  if(n)toast('Goals saved');if(!quiet||!document.activeElement||document.activeElement.tagName!=='INPUT')render();scheduleSummary()}
+addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&S.goalDrafts&&Object.keys(S.goalDrafts).length)saveGoals(true)});
 function copyLastWeek(){const prev=addDays(S.week,-7);let n=0;const ros=leader()?repList(true):[{id:S.uid}];
   ros.forEach(r=>{if(goalOf(r.id,S.week))return;const g=goalOf(r.id,prev);if(!g)return;const d={};GMETRICS.forEach(m=>{if(num(g[m.k]))d[m.k]=String(g[m.k])});
     if(Object.keys(d).length){S.goalDrafts[r.id+'|'+S.week]=d;n++}});
