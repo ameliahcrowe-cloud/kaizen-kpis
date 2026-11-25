@@ -463,11 +463,14 @@ function rememberPrefs(){const D=S.doc;const P=S.prefs=S.prefs||{strategies:[],h
   try{db.doc('reps/'+S.me.id).update({eodPrefs:P})}catch(_){}}
 async function loadPast(){S.past={recent:null,week:[],refl:[]};try{const wk0=(()=>{const d=new Date(S.date+'T12:00:00');d.setDate(d.getDate()-((d.getDay()+6)%7));return toStr(d)})();
   for(let k=1;k<=14;k++){const dt=addDays(S.date,-k);const r=await db.doc(`reps/${S.me.id}/hourly/${dt}`).get();if(!r.exists)continue;const x=r.data();const imp=linesOf(x.improve);if(Object.keys(x.slots||{}).length||imp.length)S.past.refl.push(!!(imp.length||linesOf(x.wins).length));
-    if(imp.length&&!S.past.recent)S.past.recent={date:dt,items:imp};if(dt>=wk0)S.past.week.push(...imp)}}catch(_){}render()}
-function yesterdayCard(){const D=S.doc,P=S.past;if(S.date!==today()||!P||!P.recent)return null;const it=P.recent.items;
+    if(imp.length&&!S.past.recent)S.past.recent={date:dt,items:imp};if(dt>=wk0)S.past.week.push(...imp)}}catch(_){}
+  try{const rp=await db.doc('reps/'+S.me.id).get();S.myStage=rp.exists&&rp.data().promo&&rp.data().promo.stage||'sa'}catch(_){S.myStage='sa'}
+  try{for(let k=1;k<=14;k++){const dt=addDays(S.date,-k);const r=await db.doc(`reps/${S.me.id}/reflections/${dt}`).get();if(!r.exists)continue;const L=(r.data().learn||[]).map(x=>String(x||'').trim()).filter(Boolean);if(L.length){if(!S.past.recent||S.past.recent.date<dt)S.past.recent={date:dt,items:L};break}}}catch(_){}
+  render()}
+function yesterdayCard(){const D=S.doc,P=S.past;if(S.date!==today()||!P||!S.myStage||!['sa','sc'].includes(S.myStage))return null;const it=P.recent?P.recent.items:[];
   if(D.planDone)return h('div',{class:'hint',style:'margin-top:8px;padding:8px 12px;background:var(--accent-soft);border-radius:10px;color:var(--ink)'},h('b',null,'🎯 Today’s plan: '),D.planToday||'');
   const inp=h('textarea',{rows:2,placeholder:'How are you going to smash it today?','aria-label':'Your plan for today',style:'width:100%;margin-top:8px',oninput:e=>{D.planToday=e.target.value;markDirty()}});inp.value=D.planToday||'';
-  return h('div',{class:'card',style:'margin-top:10px;border-color:var(--accent)'},h('div',{class:'hint',text:'Last shift you said you wanted to work on'}),h('b',{text:it.join(' · ')}),inp,
+  return h('div',{class:'card',style:'margin-top:10px;border-color:var(--accent)'},it.length?h('div',{class:'hint',text:'Your learnings from last shift'}):h('div',{class:'hint',text:'🎯 Your plan for today'}),it.length?h('b',{text:it.join(' · ')}):null,inp,
     h('button',{class:'primary',style:'margin-top:8px;width:100%',onclick:()=>{if(!(D.planToday||'').trim()){toast('Pop your plan in first');return}D.planDone=true;markDirty();render()}},'Lock it in 🔒'))}
 function weekCard(){if(S.date!==today()||new Date().getDay()!==5||!S.past)return null;const all=S.past.week.concat(linesOf(S.doc.improve));if(!all.length)return null;
   const c={};all.forEach(x=>{const k=x.toLowerCase();c[k]=c[k]||{t:x,n:0};c[k].n++});const L=Object.values(c).sort((a,b)=>b.n-a.n);
