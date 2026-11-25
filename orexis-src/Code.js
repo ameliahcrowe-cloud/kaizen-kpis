@@ -101,12 +101,14 @@ function sundaySummary_(t, force) {
   const get = p => { const d = t.map[p]; return d && !d.del ? (d.data || {}) : null; };
   const reps = Object.keys(t.map).filter(p => /^reps\/[^/]+$/.test(p)).map(p => ({ id: p.split('/')[1], r: get(p) })).filter(x => x.r && x.r.active !== false && !x.r.test);
   const money = v => '$' + Math.round(v).toLocaleString('en-AU');
-  const rows = [], missing = [], newbies = [];
+  const rows = [], missing = [], missingWk = [], newbies = [];
   reps.forEach(({ id, r }) => {
     let rt = 0, hr2 = 0, st = 0, by = 0; const worked = [];
     for (let i = 0; i < 7; i++) { const d = addDaysS_(wk, i); const e = get('reps/' + id + '/entries/' + d); if (e && (Number(e.retail) || Number(e.stops))) { rt += Number(e.retail) || 0; hr2 += Number(e.hours) || 0; st += Number(e.stops) || 0; by += Number(e.buyers) || 0; worked.push(d); } }
     if (worked.length) rows.push({ n: r.name || id, rt, rph: hr2 ? rt / hr2 : 0, st, by, days: worked.length });
-    const miss = worked.filter(d => !get('reps/' + id + '/reflections/' + d)); if (miss.length) missing.push((r.name || id) + ': ' + miss.length + ' day' + (miss.length > 1 ? 's' : ''));
+    const stg = (r.promo && r.promo.stage) || 'sa';
+    if (['sa', 'sc', 'sl'].indexOf(stg) >= 0) { const miss = worked.filter(d => !get('reps/' + id + '/reflections/' + d)); if (miss.length) missing.push((r.name || id) + ': ' + miss.length + ' day' + (miss.length > 1 ? 's' : '')); }
+    if (worked.length && !get('reps/' + id + '/reviews/' + addDaysS_(wk, 7)) && !get('reps/' + id + '/reviews/' + wk)) missingWk.push(r.name || id);
     const j = String(r.joinedAt || '').slice(0, 10);
     if (j && j >= addDaysS_(today, -14)) { const sc = r.trainScores || {}; const k = Object.keys(sc).sort().pop(); newbies.push((r.name || id) + ': started ' + j + ', ' + st + ' stops this week, ' + money(rt) + (k ? ', latest scorecard ' + sc[k].total + '/50' : ', no scorecard yet')); }
   });
@@ -115,7 +117,8 @@ function sundaySummary_(t, force) {
   const tr = rows.map((x, i) => '<tr><td>' + (i + 1) + '. ' + x.n + '</td><td>' + money(x.rt) + '</td><td>' + (x.rph ? money(x.rph) : '—') + '</td><td>' + x.st + '/' + x.by + '</td><td>' + x.days + '</td></tr>').join('');
   const html = '<div style="font-family:Arial,sans-serif;color:#1d2433"><h2 style="color:#2E3A59">Orexis week · WC ' + wk + '</h2><p><b>' + money(tot) + '</b> retail' + (th ? ' · <b>' + money(tot / th) + '</b> RPH' : '') + ' · ' + rows.length + ' people</p>' +
     '<table cellpadding="6" style="border-collapse:collapse;font-size:14px"><tr style="background:#2E3A59;color:#fff"><th align="left">Person</th><th>Retail</th><th>RPH</th><th>Stops/Buyers</th><th>Days</th></tr>' + tr + '</table>' +
-    '<h3>📝 Missing reflections</h3><p>' + (missing.length ? missing.join('<br>') : 'Everyone reflected on every day worked 🎉') + '</p>' +
+    '<h3>📝 Missing weekly reflections</h3><p>' + (missingWk.length ? missingWk.join('<br>') : 'Everyone did their weekly reflection 🎉') + '</p>' +
+    '<h3>🗒️ Missing daily reflections <span style="font-weight:400;font-size:13px">(Sales Leader and below)</span></h3><p>' + (missing.length ? missing.join('<br>') : 'Everyone reflected on every day worked 🎉') + '</p>' +
     '<h3>🌱 New starters</h3><p>' + (newbies.length ? newbies.join('<br>') : 'No new starters this fortnight.') + '</p></div>';
   MailApp.sendEmail({ to: SCORE_TO, subject: 'Orexis week · WC ' + wk + ' · ' + money(tot), htmlBody: html, name: 'Orexis Innovations' });
   putDocs_(t, [{ path: 'settings/summaryMail', data: { week: wk, sentAt: now.toISOString() } }]);
