@@ -2083,7 +2083,8 @@ function lastN(uid,n){const L=hist(uid).filter(e=>e.date<=todayStr());return L.s
 /* sales progress resets each week: the bar is this week's retail; two weeks in a row at target completes it */
 function salesProgress(uid,p){if(!p.sales)return null;const s=p.sales;const m=(promoOf(uid).m||{})[p.k+'_sales'];
   if(s.kind==='10days'){const cur=lastN(uid,10),best=bestRolling(uid,10);const ever=best>=s.amt;const nd=hist(uid).filter(e=>e.date<=todayStr()).length;const lft=Math.max(0,s.amt-cur);const togo=ever?'':nd<10?` · ${money(lft)} left in ${10-nd} working day${10-nd===1?'':'s'}`:` · ${money(lft)} short over the last 10 working days`;
-    return{v:cur,amt:s.amt,pct:Math.min(100,cur/s.amt*100),done:ever||!!m,manual:!!m&&!ever,label:s.label,alt:s.alt,
+    const L10=hist(uid).filter(e=>e.date<=todayStr()).slice(-10);const drop=nd>=10?L10[0]:null;
+    return{v:cur,amt:s.amt,pct:Math.min(100,cur/s.amt*100),done:ever||!!m,manual:!!m&&!ever,label:s.label,alt:s.alt,roll:true,days:L10,drop,need:drop?Math.max(0,s.amt-cur+num(drop.retail)):lft,
       line:`Last 10 working days: ${money(cur)} of ${money(s.amt)}`+(ever&&cur<s.amt?` · achieved (best ${money(best)})`:'')+togo,short:ever?'✓':`${money(cur)} of ${money(s.amt)}`+togo}}
   const uids=s.kind==='b2b'?[uid]:[uid].concat(downOf(uid).map(r=>r.id));const w=weekMap(uids);const wk=weekStart(todayStr());const cur=w[wk]||0,last=w[addDays(wk,-7)]||0;
   const T=k=>s.roadieAmt&&hist(uid).some(e=>e.week===k&&e.roadie)?s.roadieAmt:s.amt;
@@ -2137,7 +2138,9 @@ function currentCard(uid){const i=stageIdx(uid);const p=STAGES[i];const m=promoO
   card.append(h('div',{class:'gtop'},h('div',null,h('div',{class:'lbl',text:'Working towards'}),h('strong',{class:'ftitle',text:p.to})),
     stageDone(uid,p)?h('span',{class:'achieved',text:'✓ Ready to promote'}):h('span',{class:'hint',text:'Currently '+p.from})));
   const sp=salesProgress(uid,p);
-  if(sp)card.append(h('div',{class:'psec'},h('div',{class:'lbl',text:'Sales progress'}),h('div',{class:'prow'},h('span',{text:sp.label}),h('b',{class:sp.done?'achieved':null,text:sp.done?'✓ Achieved':Math.round(sp.pct)+'% this week'})),bar(sp.done?100:sp.pct,sp.done),
+  if(sp)card.append(h('div',{class:'psec'},h('div',{class:'lbl',text:'Sales progress'}),h('div',{class:'prow'},h('span',{text:sp.label}),h('b',{class:sp.done?'achieved':null,text:sp.done?'✓ Achieved':Math.round(sp.pct)+(sp.roll?'% of last 10 days':'% this week')})),bar(sp.done?100:sp.pct,sp.done),
+    sp.roll&&sp.days&&sp.days.length?h('div',{style:'display:flex;gap:3px;margin:6px 0 2px;flex-wrap:wrap'},sp.days.map((e,i)=>h('div',{title:e.date,style:'flex:1;min-width:26px;text-align:center;font-size:.68rem;padding:3px 0;border-radius:6px;background:'+(i===0&&sp.drop?'#f6dfb0':'#ece7e8')},h('div',{text:niceDate(e.date,{weekday:'narrow'})+' '+e.date.slice(8)}),h('b',{text:'$'+Math.round(num(e.retail))})))):null,
+    sp.roll&&!sp.done&&sp.drop?h('div',{class:'hint small',text:`Next shift: ${money(num(sp.drop.retail))} from ${niceDate(sp.drop.date,{weekday:'short',day:'numeric',month:'short'})} drops off, so ${money(sp.need)} on the next shift hits ${money(sp.amt)}.`}):null,
     h('div',{class:'hint small',text:sp.line+(sp.manual?' · ticked by leader':'')}),
     sp.alt&&leader()?h('label',{class:'hint small'},h('input',{type:'checkbox',id:`alt-${p.k}-${uid}`,checked:!!m[p.k+'_sales'],onchange:e=>setPromo(uid,{m:{[p.k+'_sales']:e.target.checked}})}),' '+sp.alt):null,
     p.sales.kind==='teamb2b'&&leader()?h('label',{class:'hint small'},h('input',{type:'checkbox',id:`org-${p.k}-${uid}`,checked:!!m[p.k+'_sales'],onchange:e=>setPromo(uid,{m:{[p.k+'_sales']:e.target.checked}})}),' Whole organisation hit it (includes sub-teams)'):null));
